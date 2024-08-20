@@ -1,0 +1,130 @@
+[[letter]]
+symbol = "a"
+pronunciation = "a"
+_type = "vowel"
+
+[[letter]]
+symbol = "b"
+pronunciation = "b"
+_type = "consonant"
+
+[[letter]]
+symbol = "с"
+pronunciation = "ts"
+_type = "consonant"
+
+[[letter]]
+symbol = "d"
+pronunciation = "d"
+_type = "consonant"
+
+[[letter]]
+symbol = "e"
+pronunciation = "e"
+_type = "vowel"
+
+[[letter]]
+symbol = "f"
+pronunciation = "f"
+_type = "consonant"
+
+[[letter]]
+symbol = "g"
+pronunciation = "g"
+_type = "consonant"
+
+[[letter]]
+symbol = "h"
+pronunciation = "x"
+_type = "consonant"
+
+[[letter]]
+symbol = "i"
+pronunciation = "i"
+_type = "vowel"
+
+[[letter]]
+symbol = "j"
+pronunciation = "ʐ"
+_type = "consonant"
+
+[[letter]]
+symbol = "k"
+pronunciation = "k"
+_type = "consonant"
+
+
+[[letter]]
+symbol = "l"
+pronunciation = "ɫ"
+_type = "consonant"
+
+[[letter]]
+symbol = "m"
+pronunciation = "m"
+_type = "consonant"
+
+[[letter]]
+symbol = "n"
+pronunciation = "n"
+_type = "consonant"
+
+[[letter]]
+symbol = "o"
+pronunciation = "o"
+_type = "vowel"
+
+[[letter]]
+symbol = "p"
+pronunciation = "p"
+_type = "consonant"
+
+[[letter]]
+symbol = "q"
+pronunciation = "kju"
+_type = "consonant"
+
+[[letter]]
+symbol = "r"
+pronunciation = "r"
+_type = "consonant"
+
+[[letter]]
+symbol = "s"
+pronunciation = "s"
+_type = "consonant"
+
+[[letter]]
+symbol = "t"
+pronunciation = "t"
+_type = "consonant"
+
+[[letter]]
+symbol = "u"
+pronunciation = "u"
+_type = "vowel"
+
+[[letter]]
+symbol = "v"
+pronunciation = "v"
+_type = "consonant"
+
+[[letter]]
+symbol = "w"
+pronunciation = "vju"
+_type = "consonant"
+
+[[letter]]
+symbol = "x"
+pronunciation = "ejk"
+_type = "consonant"
+
+[[letter]]
+symbol = "y"
+pronunciation = "waɪ"
+_type = "vowel"
+
+[[letter]]
+symbol = "z"
+pronunciation = "z"
+_type = "consonant"
