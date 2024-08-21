@@ -80,11 +80,6 @@ pronunciation = "p"
 _type = "consonant"
 
 [[letters]]
-symbol = "q"
-pronunciation = "kju"
-_type = "consonant"
-
-[[letters]]
 symbol = "r"
 pronunciation = "r"
 _type = "consonant"
@@ -110,18 +105,8 @@ pronunciation = "v"
 _type = "consonant"
 
 [[letters]]
-symbol = "w"
-pronunciation = "vju"
-_type = "consonant"
-
-[[letters]]
-symbol = "x"
-pronunciation = "ejk"
-_type = "consonant"
-
-[[letters]]
 symbol = "y"
-pronunciation = "waɪ"
+pronunciation = "j"
 _type = "vowel"
 
 [[letters]]
