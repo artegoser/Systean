@@ -37,30 +37,16 @@ body {
 	@apply outline-none;
 }
 
-@keyframes rotate {
-	0% {
-		transform: rotate(0deg);
-	}
-	100% {
-		transform: rotate(360deg);
-	}
+.big-text {
+	@apply text-stone-50/50 text-center text-5xl font-extrabold;
 }
 
-.gradient {
-	--size: 750px;
-	--speed: 50s;
-	--easing: cubic-bezier(0.8, 0.2, 0.2, 0.8);
-
-	width: var(--size);
-	height: var(--size);
-	filter: blur(calc(var(--size) / 5));
-	background-image: linear-gradient(hsl(222, 84, 60, 100%), hsl(164, 79, 71));
-	animation: rotate var(--speed) var(--easing) alternate infinite;
-	border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+.small-text {
+	@apply text-stone-100/50 text-center text-xl font-extrabold;
 }
 
-@media (min-width: 720px) {
-	.gradient {
-		--size: 500px;
-	}
+.big-text.link {
+	@apply transition ease-out p-4 rounded-xl;
+	@apply hover:text-stone-50/80 active:text-stone-50;
+	@apply bg-stone-500/10 backdrop-blur-sm hover:bg-stone-500/40 active:bg-stone-500;
 }

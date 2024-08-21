@@ -5,7 +5,7 @@
 </script>
 
 <div class="letter">
-	<div class={letter._type === 'consonant' ? 'text-red-400' : 'text-cyan-500'}>
+	<div class={letter._type === 'consonant' ? 'text-red-500' : 'text-cyan-500'}>
 		{letter.symbol}
 	</div>
 	<div class="text-stone-700">/{letter.pronunciation}/</div>

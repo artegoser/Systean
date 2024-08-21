@@ -5,18 +5,18 @@
 
 	export let data: Alphabet;
 
-	let input = 'test';
+	let input = 'Sisteon';
 </script>
 
 <svelte:head>
 	<title>Systeon alphabet</title>
 </svelte:head>
 
-<div class="flex flex-col items-center justify-center">
-	<div class="text-stone-50/50 text-center text-5xl font-extrabold mt-6">Systeon alphabet</div>
+<div class="flex flex-col items-center justify-center gap-6 mt-6">
+	<div class="big-text">Systeon alphabet</div>
 
-	<div class="flex flex-col items-center my-6">
-		<input type="text" class="input max-w-64" placeholder="Type word..." bind:value={input} />
+	<div class="flex flex-col items-center">
+		<input type="text" class="input max-w-64" placeholder="Type any word..." bind:value={input} />
 		<div class="text-stone-700 text-3xl font-extrabold mx-10">{toPronunciation(data, input)}</div>
 	</div>
 
