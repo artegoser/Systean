@@ -42,11 +42,12 @@ body {
 }
 
 .small-text {
-	@apply text-stone-100/50 text-center text-xl font-extrabold;
+	@apply text-stone-100/50 text-xl font-extrabold;
 }
 
-.big-text.link {
-	@apply transition ease-out p-4 rounded-xl;
+.big-text.link,
+.small-text.link {
+	@apply transition ease-out p-2 rounded-xl;
 	@apply hover:text-stone-50/80 active:text-stone-50;
 	@apply bg-stone-500/10 backdrop-blur-sm hover:bg-stone-500/40 active:bg-stone-500;
 }

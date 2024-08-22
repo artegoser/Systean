@@ -1,6 +1,7 @@
 <svelte:head>
-	<title>Systeon dictionary</title>
+	<title>Systean dictionary</title>
 </svelte:head>
-
-<div class="big-text mt-6">Systeon dictionary</div>
-<div class="small-text">Nothing here now...</div>
+<div class="flex flex-col items-center">
+	<div class="big-text mt-6">Systean dictionary</div>
+	<div class="small-text">Nothing here now...</div>
+</div>

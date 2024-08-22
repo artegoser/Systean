@@ -1,2 +1,2 @@
-# Systeon
+# Systean
 Unambiguous artificial language

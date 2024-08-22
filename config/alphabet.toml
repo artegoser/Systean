@@ -9,11 +9,6 @@ pronunciation = "b"
 _type = "consonant"
 
 [[letters]]
-symbol = "c"
-pronunciation = "ts"
-_type = "consonant"
-
-[[letters]]
 symbol = "d"
 pronunciation = "d"
 _type = "consonant"
@@ -56,7 +51,7 @@ _type = "consonant"
 
 [[letters]]
 symbol = "l"
-pronunciation = "ɫ"
+pronunciation = "l"
 _type = "consonant"
 
 [[letters]]

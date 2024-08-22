@@ -5,8 +5,8 @@
 </script>
 
 <div class="letter">
-	<div class={letter._type === 'consonant' ? 'text-red-500' : 'text-cyan-500'}>
-		{letter.symbol}
+	<div class={letter._type === 'consonant' ? 'text-cyan-500' : 'text-red-500'}>
+		{letter.symbol.toLocaleUpperCase()}{letter.symbol}
 	</div>
 	<div class="text-stone-700">/{letter.pronunciation}/</div>
 </div>
