@@ -1,0 +1,39 @@
+[[word_types]]
+id = "adj"
+name = "Adjective"
+description = "A word that describes noun or verb"
+
+[[word_types]]
+id = "num"
+name = "Numeral"
+description = "A word that denotes the quantity of noun or verb"
+
+[[word_types]]
+id = "verb"
+name = "Verb"
+description = "A word that describes what the subject of a sentence is doing"
+
+[[word_types]]
+id = "noun"
+name = "Noun"
+description = "A word referring to a thing"
+
+[[word_types]]
+id = "prep"
+name = "Preposition"
+description = "A word used to show direction, time, place, location and spatial relationships of noun"
+
+[[word_types]]
+id = "un"
+name = "Unary"
+description = "A word that modifies the word that comes after it. For example: negation"
+
+[[word_types]]
+id = "bin"
+name = "Binary"
+description = "A word connecting two words, a group of words or expressions. For example: and"
+
+[[word_types]]
+id = "qu"
+name = "Questions"
+description = "A word to start asking the question. For example: who"
