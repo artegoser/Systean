@@ -1,3 +1,9 @@
+<script lang="ts">
+	import { app_state } from '$lib/state.svelte';
+
+	app_state.current_tab = 2;
+</script>
+
 <svelte:head>
 	<title>Systean dictionary</title>
 </svelte:head>

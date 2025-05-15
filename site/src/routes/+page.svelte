@@ -1,3 +1,9 @@
+<script>
+	import { app_state } from '$lib/state.svelte';
+
+	app_state.current_tab = 0;
+</script>
+
 <svelte:head>
 	<title>Systean</title>
 </svelte:head>

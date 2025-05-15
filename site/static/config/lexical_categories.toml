@@ -1,0 +1,101 @@
+# Systean Lexical Categories (TOML Specification)
+
+[[word_types]]
+id = "noun"
+name = "Noun"
+description = """
+A lexical category representing concrete entities, abstract concepts, or proper names. 
+Always ends with '-o' in base form. Modified through case suffixes (-es, -em, -en) 
+and plural marker '-i'. Serves as head of noun phrases.
+"""
+
+[[word_types]]
+id = "verb"
+name = "Verb"
+description = """
+Action or state descriptor with mandatory tense marking. Base form ends with '-a'. 
+Inflected through suffixes: '-as' (present), '-is' (past), '-os' (future). 
+Supports perfective aspect with '-int-' and passive voice with '-at-'.
+"""
+
+[[word_types]]
+id = "adjective"
+name = "Adjective"
+description = """
+Modifier that agrees with nouns in number. Ends with '-e' in singular. 
+Precedes nouns in noun phrases. Becomes '-ei' in plural form 
+to match pluralized nouns (e.g., 'bone kato' → 'bonei katoi').
+"""
+
+[[word_types]]
+id = "participle"
+name = "Participle"
+description = """
+Verbal adjective with active/poorly distinction. Active participles end with '-ant', 
+passive with '-at'. Inherits tense from main verb (e.g., 'parolanta' = currently speaking, 
+'parolinta' = having spoken). Follows adjective agreement rules.
+"""
+
+[[word_types]]
+id = "adverb"
+name = "Adverb"
+description = """
+Modifies verbs, adjectives, or other adverbs. Ends with '-u'. 
+Typically precedes the word it modifies. Temporal adverbs (e.g., 'nun' = now) 
+and manner adverbs (e.g., 'rapidu' = quickly) follow same formation rules.
+"""
+
+[[word_types]]
+id = "preposition"
+name = "Preposition"
+description = """
+Invariable grammatical particles indicating spatial, temporal, 
+or logical relationships. Always precedes noun phrases in dative case 
+(e.g., 'en domeem' = in [the] house). Closed class with fixed forms.
+"""
+
+[[word_types]]
+id = "article"
+name = "Article"
+description = """
+Determiner specifying noun definiteness. Two forms: 'la' (definite) 
+and 'un' (indefinite). Always appears immediately before noun phrase 
+head unless interrupted by adjectives/participles.
+"""
+
+[[word_types]]
+id = "pronoun"
+name = "Pronoun"
+description = """
+Substitutes for nouns with case inflection. Personal pronouns 
+include mi (I), vi (you), li (he), ŝi (she), ĝi (it). 
+Demonstratives: tio (this), tion (that). Possessives formed 
+by adding '-a' (e.g., mia = my).
+"""
+
+[[word_types]]
+id = "numeral"
+name = "Numeral"
+description = """
+Quantitative or ordinal modifiers. Cardinal numbers are root forms 
+(unu, du, tri). Ordinals formed with '-a' suffix (unua = first). 
+Follow adjective position rules but remain uninflected for number.
+"""
+
+[[word_types]]
+id = "particle"
+name = "Particle"
+description = """
+Uninflected grammatical markers. Includes question marker 'ĉu' 
+(sentence-initial), imperative marker 'volu' (volitional commands), 
+and negative marker 'ne'. Govern specific syntactic constructions.
+"""
+
+[[word_types]]
+id = "relpronoun"
+name = "Relative Pronoun"
+description = """
+Introduces relative clauses. Invariable form 'ki' that refers to 
+preceding noun. Triggers verb inflection in relative clause 
+(e.g., 'kato ki manjas' = cat that eats). Functions as clause subject.
+"""

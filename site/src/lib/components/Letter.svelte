@@ -1,12 +1,16 @@
 <script lang="ts">
 	import type { Letter } from '$lib/types';
 
-	export let letter: Letter;
+	interface Props {
+		letter: Letter;
+	}
+
+	let { letter }: Props = $props();
 </script>
 
 <div class="letter">
 	<div class={letter._type === 'consonant' ? 'text-cyan-500' : 'text-red-500'}>
 		{letter.symbol.toLocaleUpperCase()}{letter.symbol}
 	</div>
-	<div class="text-stone-700">/{letter.pronunciation}/</div>
+	<div class="text-accent/50">/{letter.pronunciation}/</div>
 </div>

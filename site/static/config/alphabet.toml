@@ -4,6 +4,26 @@ pronunciation = "a"
 _type = "vowel"
 
 [[letters]]
+symbol = "e"
+pronunciation = "e"
+_type = "vowel"
+
+[[letters]]
+symbol = "i"
+pronunciation = "i"
+_type = "vowel"
+
+[[letters]]
+symbol = "o"
+pronunciation = "o"
+_type = "vowel"
+
+[[letters]]
+symbol = "u"
+pronunciation = "u"
+_type = "vowel"
+
+[[letters]]
 symbol = "b"
 pronunciation = "b"
 _type = "consonant"
@@ -12,11 +32,6 @@ _type = "consonant"
 symbol = "d"
 pronunciation = "d"
 _type = "consonant"
-
-[[letters]]
-symbol = "e"
-pronunciation = "e"
-_type = "vowel"
 
 [[letters]]
 symbol = "f"
@@ -32,11 +47,6 @@ _type = "consonant"
 symbol = "h"
 pronunciation = "x"
 _type = "consonant"
-
-[[letters]]
-symbol = "i"
-pronunciation = "i"
-_type = "vowel"
 
 [[letters]]
 symbol = "j"
@@ -65,11 +75,6 @@ pronunciation = "n"
 _type = "consonant"
 
 [[letters]]
-symbol = "o"
-pronunciation = "o"
-_type = "vowel"
-
-[[letters]]
 symbol = "p"
 pronunciation = "p"
 _type = "consonant"
@@ -88,11 +93,6 @@ _type = "consonant"
 symbol = "t"
 pronunciation = "t"
 _type = "consonant"
-
-[[letters]]
-symbol = "u"
-pronunciation = "u"
-_type = "vowel"
 
 [[letters]]
 symbol = "v"

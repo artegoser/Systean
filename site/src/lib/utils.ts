@@ -4,6 +4,11 @@ export function toPronunciation(alphabet: Alphabet, input: string) {
 	let output = '';
 
 	for (const letter of input) {
+		if (letter == ' ') {
+			output += ' ';
+			continue;
+		}
+
 		const idx = alphabet.letters.findIndex(
 			(v) => v.symbol === letter || v.symbol.toLocaleUpperCase() === letter
 		);
