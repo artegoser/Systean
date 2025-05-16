@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { app_state } from '$lib/state.svelte';
+	import { onMount } from 'svelte';
 
 	const sections = [
 		{ name: 'About', link: '/' },
@@ -9,7 +10,19 @@
 
 	let scrollY = $state(0);
 
-	const current_anim = $derived(Math.min(scrollY / 150, 1));
+	const anim = $derived(Math.min(scrollY / 150, 1));
+
+	let current_anim = $state(0);
+
+	const fn = () => {
+		if (current_anim !== anim) current_anim = anim;
+
+		requestAnimationFrame(fn);
+	};
+
+	onMount(() => {
+		fn();
+	});
 </script>
 
 <svelte:window bind:scrollY />

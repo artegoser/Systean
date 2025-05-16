@@ -10,6 +10,6 @@
 
 <Header />
 
-<div class="flex flex-col justify-center items-center gap-6 p-4">
+<div class="flex flex-col items-center p-4">
 	{@render children?.()}
 </div>
