@@ -14,8 +14,8 @@
 # QuestionParticle (QPart)
 # ImperativeParticle (IPart)
 # Conjunction (Conj) 
-# Nesting (Nest) remain in the same nesting, return to the highest nesting, increase nesting by one, decrease nesting by one, etc.
 # SubordinatingConjunction (SubConj)
+# Nesting (Nest) remain in the same nesting, return to the highest nesting, increase nesting by one, decrease nesting by one, etc.
 
 # \+: many or zero
 # \*: many (at least one)
@@ -25,7 +25,7 @@
 # # Sentence
 # S → SentP
 # | QuestionParticle SentP
-# | ImperativeParticle IVP NP (Nest? SubClause)+
+# | ImperativeParticle IVP NP SubClause?
 
 # SubClause → SubConj SentP
 
