@@ -1,0 +1,22 @@
+{
+  "name": "systean",
+  "description": "Library for Systean - unambiguous artificial language",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsc && node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "artegoser",
+  "license": "MIT",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "toml": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "typescript": "^5.8.3"
+  }
+}

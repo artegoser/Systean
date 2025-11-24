@@ -1,0 +1,73 @@
+# grammar.toml
+# Defines valid state transitions for the parser.
+
+[config]
+description = "Defines the grammatical structure and valid state transitions for Systean sentences. (SVO Order)"
+version = "1.0"
+
+# --- State Definitions ---
+
+[states.START]
+allowed_next = ["NP_START", "PARTICLE_Q"]
+
+[states.PARTICLE_Q]
+token = "ke"
+description = "Interrogative Mode Marker"
+allowed_next = ["NP_START"]
+
+# --- Noun Phrase (Subject/Object) ---
+[states.NP_START]
+description = "Start of Noun Phrase"
+allowed_next = ["ADJ", "NOUN"]
+
+[states.ADJ]
+suffix = "a"
+description = "Adjective Modifier"
+allowed_next = ["ADJ", "NOUN"]
+
+[states.NOUN]
+suffix = "o"
+description = "Head Noun"
+# A noun can be followed by:
+# 1. A Verb (if Subject)
+# 2. A Preposition (modifying the noun)
+# 3. A Nest (Relative Clause)
+# 4. A Conjunction (List of nouns)
+# 5. End of Sentence (if Object)
+allowed_next = ["VP_START", "PREP", "NEST_OPEN", "CONJ", "EOS"]
+
+# --- Verb Phrase (Predicate) ---
+[states.VP_START]
+description = "Transition to Predicate"
+allowed_next = ["VERB", "ADV"]
+
+[states.ADV]
+suffix = "e"
+description = "Adverb"
+allowed_next = ["VERB", "ADV"]
+
+[states.VERB]
+suffix = "i"
+description = "Main Verb"
+allowed_next = ["NP_START", "PREP", "ADV", "EOS", "NEST_OPEN"]
+
+# --- Prepositional Phrase ---
+[states.PREP]
+suffix = "u"
+description = "Relational Word"
+allowed_next = ["NP_START"]     # Prepositions MUST be followed by a Noun Phrase
+
+# --- Conjunctions ---
+[states.CONJ]
+suffix = "y"
+description = "Logic Link"
+allowed_next = ["NP_START", "VP_START"] # Context dependent
+
+# --- Nesting ---
+[states.NEST_OPEN]
+token = "ki"
+allowed_next = ["START"] # Recursion
+
+[states.NEST_CLOSE]
+token = "ku"
+allowed_next = ["VP_START", "EOS", "PREP"]

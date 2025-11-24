@@ -1,3 +1,7 @@
+[meta]
+description = "Defines the atomic components of the Systean alphabet."
+version = "1.0"
+
 [[letters]]
 symbol = "a"
 pronunciation = "a"
