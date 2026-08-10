@@ -1,6 +1,6 @@
 # Systean Implementation Roadmap to 1.0
 
-Status: **authoritative implementation roadmap**  
+Status: **authoritative implementation roadmap**
 Architecture source: [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md)
 
 This roadmap deliberately separates architecture from implementation. The architecture may be documented before code exists; however, a phase is not considered implemented until its executable invariants and regression/property tests pass.

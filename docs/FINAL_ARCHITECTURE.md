@@ -1,7 +1,7 @@
 # Systean Final Language Architecture
 
-Status: **normative target architecture**  
-Scope: the intended end-state architecture of Systean from phonemic input to discourse-aware semantic output and back.  
+Status: **normative target architecture**
+Scope: the intended end-state architecture of Systean from phonemic input to discourse-aware semantic output and back.
 Implementation status: only some layers are executable today. This document freezes the architecture, not the completion state.
 
 This document complements the focused specifications in `PHONOLOGY.md`, `MORPHOLOGY.md`, `SEMANTICS.md`, and `SYNTAX.md`. When implementation work reaches a layer described here, its focused specification may add detail but must preserve the invariants and ownership boundaries defined below unless the language design is deliberately revised.
