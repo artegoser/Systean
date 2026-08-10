@@ -11,6 +11,7 @@ pub struct Specification {
 pub enum Declaration {
     Type {
         name: String,
+        type_parameters: Vec<String>,
     },
     Subtype {
         child: String,

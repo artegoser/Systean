@@ -16,8 +16,12 @@ pub fn compile_specification(specification: &Specification) -> Result<Environmen
 
     // Types first so declaration order does not constrain references.
     for declaration in &specification.declarations {
-        if let Declaration::Type { name } = declaration {
-            if let Err(error) = environment.define_type(name.clone()) {
+        if let Declaration::Type {
+            name,
+            type_parameters,
+        } = declaration
+        {
+            if let Err(error) = environment.define_type(name.clone(), type_parameters.clone()) {
                 errors.push(CompileError::Environment(error));
             }
         }

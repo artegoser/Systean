@@ -9,6 +9,7 @@ type SpeechAct;
 type Affect;
 type Digit;
 type DigitSequence;
+type Sequence<T>;
 
 literal integer: Number;
 literal boolean: Boolean;

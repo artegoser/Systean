@@ -14,3 +14,35 @@ fn core_spec_parses_and_compiles() {
         Some(&Type::named("Number"))
     );
 }
+
+
+#[test]
+fn generic_type_arity_is_declared_and_checked() {
+    let source = r#"
+        type Entity;
+        type Pair<A, B>;
+        const pair: Pair<Entity, Entity>;
+    "#;
+    let spec = parse_specification(source).unwrap();
+    compile_specification(&spec).unwrap();
+
+    let invalid = r#"
+        type Entity;
+        type Pair<A, B>;
+        const pair: Pair<Entity>;
+    "#;
+    let spec = parse_specification(invalid).unwrap();
+    assert!(compile_specification(&spec).is_err());
+}
+
+#[test]
+fn subtype_cycles_are_rejected() {
+    let source = r#"
+        type Entity;
+        type Person;
+        subtype Person: Entity;
+        subtype Entity: Person;
+    "#;
+    let spec = parse_specification(source).unwrap();
+    assert!(compile_specification(&spec).is_err());
+}

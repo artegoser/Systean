@@ -11,13 +11,15 @@ The root Rust crate is the new language engine foundation. The old TypeScript im
 Implemented now:
 
 - generic semantic IR (`Const`, `Var`, `Literal`, `Call`, `Bind`, `Record`, `Field`);
-- configurable named types and subtyping;
+- configurable named and generic type constructors with checked arity;
+- acyclic named-type subtyping;
 - function, generic, variable, and record types;
 - configured literal typing;
 - configured constants and operators;
 - generic operator signatures such as `equal<T>`;
 - named semantic roles only (no positional call arguments in the semantic DSL);
-- type checking and generic type-variable unification;
+- stricter type checking, invariant generic constructors, record field checks, and function variance;
+- representation-level canonicalization with deterministic alpha-renaming of binders;
 - lexical/bound-name lowering;
 - a small semantic specification DSL;
 - a Chumsky `0.13.0` parser for the specification DSL and semantic expressions;

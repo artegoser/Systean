@@ -234,11 +234,22 @@ fn declaration_parser<'src>() -> impl Parser<'src, &'src str, Declaration, Extra
     let ty = type_parser();
     let ident = identifier();
 
+    let declaration_type_parameters = ident
+        .clone()
+        .separated_by(just(',').padded())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just('<').padded(), just('>').padded());
+
     let type_declaration = just("type")
         .padded()
         .ignore_then(ident.clone())
+        .then(declaration_type_parameters.or_not())
         .then_ignore(just(';').padded())
-        .map(|name| Declaration::Type { name });
+        .map(|(name, type_parameters)| Declaration::Type {
+            name,
+            type_parameters: type_parameters.unwrap_or_default(),
+        });
 
     let subtype = just("subtype")
         .padded()

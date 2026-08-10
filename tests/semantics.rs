@@ -5,6 +5,8 @@ use systean::spec::{
 
 const FIXTURE: &str = r#"
 type Entity;
+type Person;
+subtype Person: Entity;
 type Activity;
 type Proposition;
 type Number;
@@ -23,8 +25,13 @@ operator arrived(entity: Entity) -> Proposition;
 operator forall(predicate: fn(value: Entity) -> Proposition) -> Proposition;
 operator not(value: Proposition) -> Proposition;
 operator equal<T>(left: $T, right: $T) -> Proposition;
+operator needs_entity_predicate(predicate: fn(value: Entity) -> Proposition) -> Proposition;
+operator needs_person_predicate(predicate: fn(value: Person) -> Proposition) -> Proposition;
 
 const john: Entity;
+const alice: Person;
+const entity_predicate: fn(value: Entity) -> Proposition;
+const person_predicate: fn(value: Person) -> Proposition;
 const mary: Entity;
 const cigarette_x: Entity;
 const cigarette_kind: Entity;
@@ -153,4 +160,37 @@ fn semantic_calls_reject_duplicate_named_roles_during_parsing() {
 #[test]
 fn semantic_calls_do_not_accept_positional_arguments() {
     assert!(parse_term("smoke(john, cigarette_x)").is_err());
+}
+
+
+#[test]
+fn alpha_equivalent_binders_have_one_canonical_term() {
+    let x = lower_term(parse_term("forall(predicate = bind x: Entity => arrived(entity = x))").unwrap());
+    let person = lower_term(parse_term("forall(predicate = bind person: Entity => arrived(entity = person))").unwrap());
+    assert_ne!(x, person);
+    assert_eq!(systean::semantics::canonicalize(&x), systean::semantics::canonicalize(&person));
+}
+
+#[test]
+fn record_fields_are_typed_and_field_access_is_checked() {
+    let environment = environment();
+    let term = lower_term(parse_term("{owner = john, count = 7}.owner").unwrap());
+    assert_eq!(Checker::new(&environment).infer(&term).unwrap(), Type::named("Entity"));
+    let missing = lower_term(parse_term("{owner = john}.missing").unwrap());
+    assert!(matches!(Checker::new(&environment).infer(&missing).unwrap_err(), CheckError::UnknownField { .. }));
+}
+
+#[test]
+fn subtype_values_flow_only_toward_supertypes() {
+    let (_, ty) = checked("smoke(agent = alice, object = cigarette_x)");
+    assert_eq!(ty, Type::named("Activity"));
+}
+
+#[test]
+fn function_assignability_is_contravariant_in_parameters() {
+    let environment = environment();
+    let accepted = lower_term(parse_term("needs_person_predicate(predicate = entity_predicate)").unwrap());
+    Checker::new(&environment).infer(&accepted).unwrap();
+    let rejected = lower_term(parse_term("needs_entity_predicate(predicate = person_predicate)").unwrap());
+    assert!(matches!(Checker::new(&environment).infer(&rejected).unwrap_err(), CheckError::TypeMismatch { .. }));
 }

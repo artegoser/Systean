@@ -201,7 +201,8 @@ impl<'env> Checker<'env> {
                     for (expected, actual) in expected_arguments.iter().zip(actual_arguments) {
                         self.match_type(expected, actual, bindings, context)?;
                     }
-                    Ok(())
+                    let resolved_expected = expected.substitute(bindings);
+                    self.require_assignable(&resolved_expected, actual, context)
                 }
                 _ => self.require_assignable(expected, actual, context),
             },
@@ -213,12 +214,12 @@ impl<'env> Checker<'env> {
                     parameters: actual_parameters,
                     returns: actual_returns,
                 } if expected_parameters.len() == actual_parameters.len() => {
-                    // Parameter names are documentation/role names; alpha-renaming a binder
-                    // does not change the function's semantic type.
                     for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
                         self.match_type(&expected.ty, &actual.ty, bindings, context)?;
                     }
-                    self.match_type(expected_returns, actual_returns, bindings, context)
+                    self.match_type(expected_returns, actual_returns, bindings, context)?;
+                    let resolved_expected = expected.substitute(bindings);
+                    self.require_assignable(&resolved_expected, actual, context)
                 }
                 _ => self.require_assignable(expected, actual, context),
             },
