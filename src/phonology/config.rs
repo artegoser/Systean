@@ -51,7 +51,6 @@ pub struct StressRules {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct RootRules {
-    pub require_vowel: bool,
     pub similarity_warning_distance: usize,
 }
 

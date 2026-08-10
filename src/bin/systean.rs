@@ -1,7 +1,7 @@
 use std::env;
 use std::process::ExitCode;
 use systean::phonology::{
-    PhonologyConfig, RootInventory, RootIssue, RootWarning, Segmentation, SpokenForm,
+    LetterKind, PhonologyConfig, RootInventory, RootIssue, RootWarning, Segmentation, SpokenForm,
     segment_spoken_stream,
 };
 use systean::semantics::{Checker, Explainer, canonicalize};
@@ -127,7 +127,7 @@ fn phonology_check(mut args: impl Iterator<Item = String>) -> ExitCode {
         .alphabet
         .letters()
         .iter()
-        .filter(|letter| letter.kind.to_string() == "vowel")
+        .filter(|letter| letter.kind == LetterKind::Vowel)
         .count();
     println!(
         "phonology OK: {} letters ({} vowels, {} consonants)",
