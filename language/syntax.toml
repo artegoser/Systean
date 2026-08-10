@@ -1,5 +1,5 @@
 [meta]
-description = "Defines normative Systean surface-syntax policies independently of lexical surface bindings."
+description = "Defines normative Systean surface-syntax policies and manually chosen core grammatical/operator bindings."
 version = "1.0"
 
 [order]
@@ -36,3 +36,56 @@ reorders = false
 
 [grammar]
 traditional_pos = false
+
+# Normative grammatical/operator vocabulary. These forms are manually chosen
+# Systean roots/particles; the generic engine only consumes their declarations.
+
+[lexemes.ne]
+kind = "prefix"
+semantic = "not"
+role = "value"
+
+[lexemes.va]
+kind = "infix"
+semantic = "and"
+left_role = "left"
+right_role = "right"
+
+[lexemes.zo]
+kind = "infix"
+semantic = "or"
+left_role = "left"
+right_role = "right"
+
+[lexemes.ra]
+kind = "quantifier"
+semantic = "forall"
+binder_role = "predicate"
+variable_type = "Entity"
+restriction_operator = "implies"
+restriction_role = "condition"
+body_role = "consequence"
+
+[lexemes.mu]
+kind = "quantifier"
+semantic = "exists"
+binder_role = "predicate"
+variable_type = "Entity"
+restriction_operator = "and"
+restriction_role = "left"
+body_role = "right"
+
+[lexemes.ke]
+kind = "speech_act"
+semantic = "ask_truth"
+role = "content"
+
+[lexemes.da]
+kind = "speech_act"
+semantic = "command"
+role = "content"
+
+[lexemes.me]
+kind = "speech_act"
+semantic = "request"
+role = "content"

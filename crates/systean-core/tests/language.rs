@@ -10,13 +10,22 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     let language = LanguagePackage::load(repository().join("language")).unwrap();
     assert_eq!(language.phonology().alphabet.letters().len(), 22);
     assert_eq!(language.phonology().alphabet.pronounce("Systean").unwrap(), "sjstean");
-    assert_eq!(language.roots().roots(), &["sol".to_owned()]);
+    assert_eq!(
+        language.roots().roots(),
+        &["da", "ke", "me", "mu", "ne", "ra", "sol", "va", "zo"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    );
     assert_eq!(language.generate_word("sol").unwrap(), "sol");
     assert!(language.semantics().operator("cease").is_some());
     assert_eq!(language.syntax().config().scope.open, "ki");
     assert_eq!(language.syntax().config().scope.close, "ku");
     assert!(language.syntax().config().logic.precedence["and"] > language.syntax().config().logic.precedence["or"]);
-    assert!(language.syntax().config().lexemes.is_empty());
+    assert_eq!(language.syntax().config().lexemes.len(), 8);
+    for surface in ["ne", "va", "zo", "ra", "mu", "ke", "da", "me"] {
+        assert!(language.syntax().config().lexemes.contains_key(surface));
+    }
 }
 
 #[test]
@@ -37,7 +46,7 @@ fn language_package_can_be_built_from_embedded_sources() {
         &[("language/semantics/core.semsys", &semantics)],
     )
     .unwrap();
-    assert_eq!(language.dictionary().entries()[0].root, "sol");
+    assert!(language.dictionary().entries().iter().any(|entry| entry.root == "sol"));
     assert_eq!(language.generate_word("sol").unwrap(), "sol");
 }
 

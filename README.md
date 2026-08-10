@@ -111,7 +111,7 @@ Morphology v1 is intentionally minimal: a lexical word is exactly its declared r
 cargo run --bin systean -- syntax check
 ```
 
-The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. Normative lexical bindings for operators/predicates are intentionally empty until their roots are manually chosen; test-only bindings exercise the parser/generator end-to-end.
+The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
 
 ### Semantic IR
 
@@ -146,4 +146,4 @@ Current engine-backed pages:
 
 ## Design status
 
-Semantic, phonological, morphology-v1, and structural surface-syntax foundations are executable. Concrete surface vocabulary remains intentionally incomplete until grammatical/operator roots are chosen manually. The next major language layer is reference/discourse, which is required for safe omission and non-default quantifier binding.
+Semantic, phonological, morphology-v1, and structural surface-syntax foundations are executable. Core grammatical/operator vocabulary is fixed; content vocabulary remains intentionally manual and incomplete. The next major language layer is reference/discourse, which is required for safe omission and non-default quantifier binding.

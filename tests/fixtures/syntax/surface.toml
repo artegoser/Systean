@@ -68,19 +68,19 @@ kind = "prefix"
 semantic = "not"
 role = "value"
 
-[lexemes.an]
+[lexemes.va]
 kind = "infix"
 semantic = "and"
 left_role = "left"
 right_role = "right"
 
-[lexemes.or]
+[lexemes.zo]
 kind = "infix"
 semantic = "or"
 left_role = "left"
 right_role = "right"
 
-[lexemes.ev]
+[lexemes.ra]
 kind = "quantifier"
 semantic = "forall"
 binder_role = "predicate"
@@ -89,7 +89,7 @@ restriction_operator = "implies"
 restriction_role = "condition"
 body_role = "consequence"
 
-[lexemes.so]
+[lexemes.mu]
 kind = "quantifier"
 semantic = "exists"
 binder_role = "predicate"
@@ -103,12 +103,12 @@ kind = "speech_act"
 semantic = "ask_truth"
 role = "content"
 
-[lexemes.ko]
+[lexemes.da]
 kind = "speech_act"
 semantic = "command"
 role = "content"
 
-[lexemes.re]
+[lexemes.me]
 kind = "speech_act"
 semantic = "request"
 role = "content"

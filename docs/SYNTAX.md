@@ -1,12 +1,27 @@
 # Systean Surface Syntax and Scope
 
-Status: **structural v1 implemented; lexical surface bindings intentionally pending manual vocabulary design**
+Status: **structural v1 implemented; core grammatical/operator vocabulary fixed**
 
 This document defines the current normative structural rules for Systean surface syntax. The executable policy lives in `language/syntax.toml`; the generic parser/generator/lowering engine lives in `systean-core::syntax`.
 
-The current syntax layer deliberately does **not** invent roots for grammatical operators. Systean roots and particles are authored manually. Until those forms are chosen, the canonical `language/syntax.toml` contains the structural policy and the established `ki` / `ku` scope markers, but no normative lexical bindings for predicates, negation, quantifiers, coordination, speech acts, focus, and similar constructions.
+The syntax engine does **not** invent grammatical roots. The following core forms were manually selected and are now normative:
 
-Test-only surface vocabulary lives under `tests/fixtures/syntax/` and must never be treated as Systean vocabulary.
+| Form | Function | Semantic binding |
+| --- | --- | --- |
+| `ki` | open explicit scope | structural delimiter |
+| `ku` | close explicit scope | structural delimiter |
+| `ke` | truth-question marker | `ask_truth` |
+| `ne` | negation | `not` |
+| `va` | conjunction | `and` |
+| `zo` | disjunction | `or` |
+| `ra` | universal quantifier | `forall` |
+| `mu` | existential quantifier | `exists` |
+| `da` | command marker | `command` |
+| `me` | request marker | `request` |
+
+`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, and `me` are declared lexical roots as well as syntax bindings, so the ordinary word analyzer and root inventory recognize them. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
+
+Test fixtures still provide temporary content vocabulary such as people, predicates, and classes. Those fixture-only forms must never be treated as normative Systean vocabulary.
 
 ## 1. Core rule
 
@@ -166,7 +181,7 @@ Questions, commands, and requests are explicit constructions. They are not encod
 
 The syntax engine supports configurable prefix speech-act bindings that lower to semantic operators over the proposition they contain.
 
-The actual Systean roots for those operators are not assigned yet.
+`ke`, `da`, and `me` are the normative markers for truth questions, commands, and requests respectively.
 
 ## 9. Semantic roles
 
@@ -245,9 +260,9 @@ The regression suite covers:
 
 ## 14. Current intentionally unresolved items
 
-Structural syntax is now executable, but these require additional design before normative surface vocabulary can be completed:
+Structural syntax is now executable and its core logic/quantifier/speech-act particles are normative. These items remain unresolved:
 
-1. manually chosen roots/particles for logical operators, quantifiers, speech acts, focus, predicates, and other constructions;
+1. manually chosen content predicates/classes and any future focus particle;
 2. surface reference/discourse syntax;
 3. explicit inverse-quantifier-scope syntax that uses those references without hidden binding;
 4. proper-name syntax;

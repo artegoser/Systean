@@ -1387,7 +1387,7 @@ A safer order is:
 1. keep extending the formal semantic model only where regression cases require it;
 2. treat the existing alphabet and implemented phonology baseline as fixed input to surface design;
 3. keep the implemented bare-root morphology invariant and extend it only for concrete local derivations;
-4. keep the implemented recursive surface syntax/scope engine stable while manually assigning surface vocabulary;
+4. keep the implemented recursive surface syntax/scope engine and fixed core particles stable while manually assigning remaining content vocabulary;
 5. define reference/discourse rules;
 6. define numbers/quantities/time as structured subsystems;
 7. define proper names and external quotation;

@@ -38,3 +38,6 @@ operator interrupt(target: Occurrence) -> Proposition;
 operator habitual(activity: Activity) -> Activity;
 operator repeat(target: Occurrence, count: Number) -> Activity;
 operator equal<T>(left: $T, right: $T) -> Proposition;
+operator ask_truth(content: Proposition) -> Utterance;
+operator command(content: Proposition) -> Utterance;
+operator request(content: Proposition) -> Utterance;

@@ -4,3 +4,27 @@ version = "2.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
+
+[ke]
+definition = "Marks an utterance as a truth question about its propositional content."
+
+[ne]
+definition = "Logical negation of a proposition."
+
+[va]
+definition = "Logical conjunction: all joined propositions hold."
+
+[zo]
+definition = "Logical disjunction: at least one joined proposition holds."
+
+[ra]
+definition = "Universal quantification over every entity satisfying the stated restriction."
+
+[mu]
+definition = "Existential quantification: at least one entity satisfies the stated restriction and body."
+
+[da]
+definition = "Marks propositional content as a command speech act."
+
+[me]
+definition = "Marks propositional content as a request speech act."
