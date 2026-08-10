@@ -1,0 +1,72 @@
+[meta]
+description = "Defines the atomic components of Systean words."
+version = "3.0"
+
+# --- 1. TYPE SUFFIXES (The Parser's Primary Key) ---
+# The last letter strictly defines the Part of Speech.
+prefix_order = ["polarity", "determiner", "number", "tense"]
+
+[suffixes.o]
+type = "noun"
+desc = "Entity, Object, Concept, Pronoun"
+tooltip = "Noun: Functions as Subject or Object."
+
+[suffixes.i]
+type = "verb"
+desc = "Action, State, Being"
+tooltip = "Verb: The sentence predicate."
+
+[suffixes.a]
+type = "adj"
+desc = "Quality, Attribute"
+tooltip = "Adjective: Modifies the noun immediately following it."
+
+[suffixes.e]
+type = "adv"
+desc = "Manner, Time, Place"
+tooltip = "Adverb: Modifies the verb or adjective."
+
+[suffixes.u]
+type = "prep"
+desc = "Relation, Position"
+tooltip = "Preposition: Starts a relational phrase (e.g., in, on, with)."
+
+[suffixes.y]
+type = "conj"
+desc = "Logic Connector"
+tooltip = "Conjunction: Joins two equal elements (and, or)."
+
+# --- 2. PREFIXES (Inflection) ---
+# Order of attachment: Polarity -> Determiner -> Number -> Tense -> ROOT
+
+[prefixes.polarity]
+n = { name = "negative", tooltip = "Negates meaning (Not/Non-)" }
+
+[prefixes.determiner]
+t = { name = "definite", tooltip = "Specific Reference (The)" }
+# Empty string "" implies Indefinite (A/An)
+
+[prefixes.number]
+s = { name = "plural", tooltip = "Multiple count (>1)" }
+
+[prefixes.tense]
+p = { name = "past", tooltip = "Action happened before now" }
+f = { name = "future", tooltip = "Action will happen later" }
+# Empty string "" implies Present
+
+# --- 3. RESERVED ROOTS (Pronouns & Particles) ---
+# These bypass standard dictionary lookup.
+
+[special_roots]
+# Pronouns (Noun Type)
+mi = { meaning = "Speaker (I/Me)", type = "root" }
+tu = { meaning = "Addressee (You)", type = "root" }
+su = { meaning = "Referent (It/He/She)", type = "root" }
+
+# Question Logic
+qu = { meaning = "Unknown/Query", type = "root" }       # quo (who), qua (which)
+ke = { meaning = "Question Marker", type = "particle" } # Start of sentence
+
+# Scope
+ki = { meaning = "Open Nest", type = "scope_start" }
+ku = { meaning = "Close Nest", type = "scope_end" }

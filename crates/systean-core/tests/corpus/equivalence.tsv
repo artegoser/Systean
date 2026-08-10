@@ -1,0 +1,4 @@
+# label<TAB>left semantic expression<TAB>right semantic expression
+named role order	smoke(agent = john, object = cigarette_x)	smoke(object = cigarette_x, agent = john)
+alpha renamed binder	forall(predicate = bind x: Entity => arrived(entity = x))	forall(predicate = bind person: Entity => arrived(entity = person))
+record field order	{owner = john, count = 7}	{count = 7, owner = john}

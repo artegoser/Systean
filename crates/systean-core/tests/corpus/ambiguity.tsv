@@ -1,0 +1,8 @@
+# label<TAB>left semantic expression<TAB>right semantic expression
+concrete vs habitual smoking	cease(target = smoke(agent = john, object = cigarette_x))	cease(target = habitual(activity = smoke_activity(agent = john, object_kind = cigarette_kind)))
+not every vs every not	not(value = forall(predicate = bind x: Entity => arrived(entity = x)))	forall(predicate = bind x: Entity => not(value = arrived(entity = x)))
+collective vs distributive lifting	occurs(occurrence = group_lift(group = trio, object = table))	each_member(group = trio, predicate = bind x: Entity => occurs(occurrence = individual_lift(agent = x, object = table)))
+number multiplication vs digit repetition	multiply(left = 10, right = 7)	repeat_digit(value = digit(value = 7), count = 10)
+unknown vs intentionally withheld	unknown_to(knower = speaker, information = identity_x)	withheld_by(holder = speaker, information = identity_x)
+start vs finish same process	start(target = eating(agent = speaker, object = food))	finish(target = eating(agent = speaker, object = food))
+exactly vs at least	exactly(count = 3, predicate = bind x: Entity => person(entity = x))	at_least(count = 3, predicate = bind x: Entity => person(entity = x))
