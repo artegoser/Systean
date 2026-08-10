@@ -109,6 +109,7 @@ These meanings remain semantically distinct; none is a pragmatic reinterpretatio
 #### Quantification, collections, association, and logic
 
 ```text
+rov   exactly N
 mini  at least N
 maks  at most N
 set   unordered set
@@ -141,6 +142,7 @@ rep   repeat explicit occurrence target
 nau   current temporal anchor / now
 ante  before
 aft   after
+pot   during
 dat   calendar-date constructor
 zon   timezone
 ```
@@ -262,6 +264,7 @@ vad    go / move toward a destination
 don    transfer / give
 ten    physically hold
 hab    possess
+fak    intentional act / create
 viv    be alive
 mor    die
 dur    continue an explicit occurrence target
@@ -303,20 +306,23 @@ skrib  write / encode symbolic content
 
 Where a lexical gloss above is still broad enough to hide multiple semantic frames, implementation must split or narrow the formal signature rather than add contextual polysemy.
 
-#### Known surface forms still requiring author selection
+#### Final author-selected replacements
 
-A static fixed-alphabet preflight rejected two earlier candidate spellings before implementation:
+The remaining pre-implementation spellings are now author-selected:
 
 ```text
-exactly N             previous candidate `exa` is invalid because `x` is not in the fixed alphabet
-intentional act       previous candidate `fac` is invalid because `c` is not in the fixed alphabet
+rov   exactly N
+fak   intentional act / create
+pot   during
 ```
 
-The temporal `during` relation also has architecture but no selected root yet. A dedicated `most`/majority root is optional and remains unselected unless the core inventory admits that operator. These are lexical authoring items, not architecture gaps.
+`rov` replaces the rejected `exa` candidate because `x` is intentionally absent from the fixed alphabet. `fak` replaces `fac` because `c` is intentionally absent from the fixed alphabet. `eksa` remains reserved for the numeric magnitude `10^18` and is unrelated to exact cardinality.
+
+A dedicated `most`/majority primitive is **not** part of the core inventory. Strict majority is expressed compositionally through collection cardinality/proportion and comparison; `stat` and `tip` remain distinct statistical and typicality constructions rather than aliases for majority. Convenience surface sugar may be considered later only if it expands canonically to the same general semantic machinery.
 
 ### Pre-implementation gate
 
-There is no remaining architecture-design gate before implementation can start. The selected forms above still require executable validation, but collision fixes are local language-authoring changes. Remaining choices such as the concrete unit inventory, individual emotion/interjection vocabulary, name-payload adaptation details, calendar literal formatting, and additional everyday roots belong to their implementation phases and do not block Phase 2.
+The pre-implementation architecture and core surface-form selection are complete. There is no remaining design or lexical-authoring gate before implementation can start. The selected forms above still require executable phonology, collision, and whole-stream ambiguity validation, but any failed form is a local language-authoring correction rather than an architecture change. Remaining choices such as the concrete unit inventory, individual emotion/interjection vocabulary, name-payload adaptation details, calendar literal formatting, and additional everyday roots belong to their implementation phases and do not block Phase 2.
 
 ---
 
@@ -508,7 +514,7 @@ Implementation:
 - [ ] Add calendar/date literal codec if compact notation is used
 - [ ] Implement selected calendar/time support forms `dat` and `zon`
 - [ ] Add deterministic spoken date/time generation
-- [ ] Add selected temporal forms (`ante` before, `aft` after) and the explicit during relation once its final lexical root is authored
+- [ ] Add selected temporal forms `ante` (before), `aft` (after), and `pot` (during)
 - [ ] Add duration relations
 - [ ] Add selected context-bound `nau` (`now`) and context-provider contract
 - [ ] Define context input contract for speaker/addressee/time/place when used
@@ -585,11 +591,10 @@ Goal: express non-universal generalizations without relying on ordinary-language
 Implementation:
 
 - [ ] Implement the accepted separation between typical/normal (`tip`) and statistical (`stat`) claims
-- [ ] Define `most`/majority semantics only if it is admitted to the core inventory; its surface root is still unselected
 - [ ] Implement selected frequency `frek` and typicality `tip` operators with explicit domain/measure parameters
 - [ ] Implement explicit probability claims as `prob`
 - [ ] Bind selected `tip/stat/prob/frek` forms to exact semantic signatures
-- [ ] Implement explicit cardinal constraints: selected `mini` / `maks`, plus an exact-N root after its replacement form is author-approved
+- [ ] Implement explicit cardinal constraints `rov` (exactly N), `mini` (at least N), and `maks` (at most N)
 - [ ] Implement `set`, `list`, and `grup` collection identities plus `kol` / `dis` interpretation operators
 - [ ] Implement explicitly underspecified association `aso`
 - [ ] Implement surface implication `imp` and counterfactual causal frame `hip` as distinct constructions
@@ -597,7 +602,7 @@ Implementation:
 Required validation:
 
 - [ ] Generic ≠ universal
-- [ ] Majority ≠ existential
+- [ ] Strict majority, when expressed compositionally, is not conflated with existential, statistical, or typicality claims
 - [ ] Typical/frequency claims expose their measure/domain
 - [ ] No exception-tolerant pragmatic reinterpretation of universal claims
 
