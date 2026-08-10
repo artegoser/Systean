@@ -119,6 +119,12 @@ fn explicit_speech_acts_do_not_use_word_order_tricks() {
 }
 
 #[test]
+fn required_frame_arguments_are_not_omitted_without_discourse_resolution() {
+    let (engine, _) = engine();
+    assert!(engine.parse("mi vi").is_err());
+}
+
+#[test]
 fn noncanonical_argument_order_is_rejected() {
     let (engine, _) = engine();
     assert!(engine.parse("vi mi tu").is_err());
