@@ -5,14 +5,17 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-use crate::phonology::{ConfigError, PhonologyConfig, RootInventory};
+use crate::morphology::{
+    MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
+};
+use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
 use crate::semantics::{Checker, Environment, Explainer, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct DictionaryEntry {
     pub root: String,
-    pub fields: BTreeMap<String, String>,
+    pub definition: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
@@ -31,23 +34,29 @@ impl Dictionary {
             .iter()
             .filter(|(key, _)| key.as_str() != "meta")
             .map(|(root, value)| {
-                let fields = value
-                    .as_table()
+                let fields = value.as_table().ok_or_else(|| {
+                    LanguageError::Dictionary(format!(
+                        "dictionary entry `{root}` must be a TOML table"
+                    ))
+                })?;
+                if let Some(unknown) = fields.keys().find(|name| name.as_str() != "definition") {
+                    return Err(LanguageError::Dictionary(format!(
+                        "dictionary entry `{root}` contains unsupported field `{unknown}`; lexical roots have one canonical definition, not POS-specific meanings"
+                    )));
+                }
+                let definition = fields
+                    .get("definition")
+                    .and_then(toml::Value::as_str)
+                    .map(str::trim)
+                    .filter(|definition| !definition.is_empty())
                     .ok_or_else(|| {
                         LanguageError::Dictionary(format!(
-                            "dictionary entry `{root}` must be a TOML table"
+                            "dictionary entry `{root}` must contain a non-empty `definition`"
                         ))
-                    })?
-                    .iter()
-                    .filter_map(|(name, value)| {
-                        value
-                            .as_str()
-                            .map(|text| (name.clone(), text.trim().to_owned()))
-                    })
-                    .collect();
+                    })?;
                 Ok(DictionaryEntry {
                     root: root.to_lowercase(),
-                    fields,
+                    definition: definition.to_owned(),
                 })
             })
             .collect::<Result<Vec<_>, LanguageError>>()?;
@@ -63,9 +72,16 @@ impl Dictionary {
 #[derive(Clone, Debug)]
 pub struct LanguagePackage {
     phonology: PhonologyConfig,
+    morphology: MorphologyEngine,
     dictionary: Dictionary,
     roots: RootInventory,
     semantics: Environment,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LexicalWordAnalysis {
+    pub morphology: MorphologyAnalysis,
+    pub phonology: WordAnalysis,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -79,6 +95,8 @@ pub struct SemanticAnalysis {
 pub enum LanguageError {
     Io { path: PathBuf, message: String },
     Phonology(ConfigError),
+    MorphologyConfig(MorphologyConfigError),
+    Morphology(MorphologyError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -90,14 +108,16 @@ impl LanguagePackage {
         let path = path.as_ref();
         let alphabet = read(path.join("alphabet.toml"))?;
         let phonology = read(path.join("phonology.toml"))?;
+        let morphology = read(path.join("morphology.toml"))?;
         let dictionary = read(path.join("dictionary.toml"))?;
         let semantics = compile_path(path.join("semantics")).map_err(LanguageError::Semantics)?;
-        Self::from_parts(&alphabet, &phonology, &dictionary, semantics)
+        Self::from_parts(&alphabet, &phonology, &morphology, &dictionary, semantics)
     }
 
     pub fn from_sources(
         alphabet: &str,
         phonology: &str,
+        morphology: &str,
         dictionary: &str,
         semantic_sources: &[(&str, &str)],
     ) -> Result<Self, LanguageError> {
@@ -107,23 +127,29 @@ impl LanguagePackage {
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
         .map_err(LanguageError::Semantics)?;
-        Self::from_parts(alphabet, phonology, dictionary, semantics)
+        Self::from_parts(alphabet, phonology, morphology, dictionary, semantics)
     }
 
     fn from_parts(
         alphabet: &str,
         phonology: &str,
+        morphology: &str,
         dictionary: &str,
         semantics: Environment,
     ) -> Result<Self, LanguageError> {
         let phonology = PhonologyConfig::from_toml(alphabet, phonology)
             .map_err(LanguageError::Phonology)?;
+        let morphology = MorphologyEngine::new(
+            MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
+        );
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
         validate_roots(&phonology, &roots)?;
+        validate_morphology(&morphology, &phonology, &roots)?;
         Ok(Self {
             phonology,
+            morphology,
             dictionary: dictionary_parsed,
             roots,
             semantics,
@@ -132,6 +158,10 @@ impl LanguagePackage {
 
     pub fn phonology(&self) -> &PhonologyConfig {
         &self.phonology
+    }
+
+    pub fn morphology(&self) -> &MorphologyEngine {
+        &self.morphology
     }
 
     pub fn dictionary(&self) -> &Dictionary {
@@ -144,6 +174,27 @@ impl LanguagePackage {
 
     pub fn semantics(&self) -> &Environment {
         &self.semantics
+    }
+
+    pub fn analyze_word(&self, word: &str) -> Result<LexicalWordAnalysis, LanguageError> {
+        let morphology = self
+            .morphology
+            .analyze(word, &self.phonology, &self.roots)
+            .map_err(LanguageError::Morphology)?;
+        let phonology = self
+            .phonology
+            .analyze_word_with_root_text(&morphology.spelling, &morphology.root)
+            .map_err(|error| LanguageError::RootInventory(error.to_string()))?;
+        Ok(LexicalWordAnalysis {
+            morphology,
+            phonology,
+        })
+    }
+
+    pub fn generate_word(&self, root: &str) -> Result<String, LanguageError> {
+        self.morphology
+            .generate(root, &self.phonology, &self.roots)
+            .map_err(LanguageError::Morphology)
     }
 
     pub fn explain(&self, expression: &str) -> Result<SemanticAnalysis, LanguageError> {
@@ -198,6 +249,28 @@ fn validate_roots(
     Ok(())
 }
 
+fn validate_morphology(
+    morphology: &MorphologyEngine,
+    phonology: &PhonologyConfig,
+    roots: &RootInventory,
+) -> Result<(), LanguageError> {
+    for root in roots.roots() {
+        let generated = morphology
+            .generate(root, phonology, roots)
+            .map_err(LanguageError::Morphology)?;
+        let analysis = morphology
+            .analyze(&generated, phonology, roots)
+            .map_err(LanguageError::Morphology)?;
+        if analysis.root != *root || generated != *root {
+            return Err(LanguageError::RootInventory(format!(
+                "morphology round-trip changed root `{root}` into `{generated}` / `{}`",
+                analysis.root
+            )));
+        }
+    }
+    Ok(())
+}
+
 fn read(path: PathBuf) -> Result<String, LanguageError> {
     fs::read_to_string(&path).map_err(|error| LanguageError::Io {
         path,
@@ -210,6 +283,8 @@ impl fmt::Display for LanguageError {
         match self {
             Self::Io { path, message } => write!(f, "{}: {message}", path.display()),
             Self::Phonology(error) => write!(f, "phonology: {error}"),
+            Self::MorphologyConfig(error) => write!(f, "morphology config: {error}"),
+            Self::Morphology(error) => write!(f, "morphology: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {

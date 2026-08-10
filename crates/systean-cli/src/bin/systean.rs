@@ -24,6 +24,7 @@ fn main() -> ExitCode {
         "check" => check(&language_path, args),
         "explain" => explain(&language_path, args),
         "phonology" => phonology(&language_path, args),
+        "morphology" => morphology(&language_path, args),
         "roots" => roots(&language_path, args),
         _ => {
             usage();
@@ -76,6 +77,7 @@ fn check(language_path: &Path, args: Vec<String>) -> ExitCode {
         language.phonology().alphabet.letters().len() - vowels
     );
     println!("roots: {}", language.roots().roots().len());
+    println!("morphology: {}", language.morphology().config().strategy);
     println!("semantics: compiled");
     ExitCode::SUCCESS
 }
@@ -217,6 +219,75 @@ fn analyze_word(language: &LanguagePackage, args: Vec<String>) -> ExitCode {
     }
 }
 
+
+fn morphology(language_path: &Path, mut args: Vec<String>) -> ExitCode {
+    if args.is_empty() {
+        usage();
+        return ExitCode::from(2);
+    }
+    let command = args.remove(0);
+    let language = match load_language(language_path) {
+        Ok(language) => language,
+        Err(code) => return code,
+    };
+    match command.as_str() {
+        "check" => {
+            if !args.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            println!("morphology OK: {}", language.morphology().config().strategy);
+            println!("inflection: none");
+            println!("POS/class endings: none");
+            println!("wide-scope grammar inside words: none");
+            ExitCode::SUCCESS
+        }
+        "analyze" => {
+            let [word] = args.as_slice() else {
+                usage();
+                return ExitCode::from(2);
+            };
+            match language.analyze_word(word) {
+                Ok(analysis) => {
+                    println!("word: {}", analysis.morphology.spelling);
+                    println!("root: {}", analysis.morphology.root);
+                    println!("morphemes:");
+                    for morpheme in &analysis.morphology.morphemes {
+                        println!(
+                            "  {:?}: {} [{}..{}]",
+                            morpheme.kind,
+                            morpheme.spelling,
+                            morpheme.grapheme_range.start,
+                            morpheme.grapheme_range.end
+                        );
+                    }
+                    println!("pronunciation: /{}/", analysis.phonology.pronunciation);
+                    println!("stressed: /{}/", analysis.phonology.stressed_pronunciation);
+                    ExitCode::SUCCESS
+                }
+                Err(error) => fail("morphology", error),
+            }
+        }
+        "generate" => {
+            let [root] = args.as_slice() else {
+                usage();
+                return ExitCode::from(2);
+            };
+            match language.generate_word(root) {
+                Ok(word) => {
+                    println!("{word}");
+                    ExitCode::SUCCESS
+                }
+                Err(error) => fail("morphology", error),
+            }
+        }
+        _ => {
+            usage();
+            ExitCode::from(2)
+        }
+    }
+}
+
 fn roots(language_path: &Path, mut args: Vec<String>) -> ExitCode {
     if args.is_empty() {
         usage();
@@ -354,6 +425,6 @@ fn fail(label: &str, error: impl std::fmt::Display) -> ExitCode {
 
 fn usage() {
     eprintln!(
-        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>"
+        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>"
     );
 }

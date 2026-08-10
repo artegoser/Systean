@@ -1,0 +1,9 @@
+[meta]
+description = "Defines the normative word-formation strategy for Systean."
+version = "1.0"
+
+[morphology]
+# Morphology v1 is intentionally minimal: a lexical word is exactly its root.
+# No POS/class ending, agreement, tense, number, polarity, case, aspect, or
+# other grammatical information is inserted into the word by default.
+strategy = "bare_roots"

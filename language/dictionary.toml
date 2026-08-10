@@ -1,39 +1,6 @@
 [meta]
-description = "Defines the core vocabulary of the Systean language."
-version = "1.0"
-
-# --- FORMAT GUIDE ---
-# [root_key]
-# noun = "Core semantic concept - noun meaning of the root"
-#
-# Optional POS-specific meanings (if provided then it can be used as that POS):
-#
-# verb = "Verb meaning of the root"
-# adj  = "Adjective meaning of the root"
-# adv  = "Adverb meaning of the root"
-# prep = "Prepositional meaning of the root"
-# conj = "Conjunction meaning of the root"
+description = "Defines the canonical lexical roots of the Systean language. Each root has one lexical identity."
+version = "2.0"
 
 [sol]
-noun = """The term defines the primary star within any
-given planetary system, characterized as a massive,
-self-luminous celestial body of superheated plasma. It
-is the central gravitational pivot around which planets orbit
-and serves as the dominant source of electromagnetic radiation,
-including visible light and heat, for its system. This energy is
-produced internally by nuclear fusion at its core. For any inhabited
-world, this star is singularly responsible for its cycle of
-illumination and darkness and provides the fundamental energy
-required for most surface phenomena."""
-
-adj = """Pertaining to or originating from the system's primary star.
-Describes physical attributes directly caused by its emissions, such
-as intense illumination, radiant thermal energy, or a specific range of
-the electromagnetic spectrum. Examples include a 'solar ray' (a beam of
-its light) or 'solar heat' (atmospheric warmth from its radiation)."""
-
-adv = """Describing a state or condition characterized by the direct and
-unobscured emission from the primary star. This refers specifically to
-the presence of its full-spectrum light and concomitant thermal energy,
-as in 'The landscape was illuminated solar-ly' (i.e., brightly lit and
-warmed by the star)."""
+definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
