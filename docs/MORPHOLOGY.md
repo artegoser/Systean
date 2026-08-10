@@ -1,6 +1,6 @@
 # Systean Morphology
 
-Status: **implemented v1 baseline**  
+Status: **implemented v1 baseline**
 Purpose: define the normative structure of lexical words between the phonological and future syntactic layers.
 
 ## 1. Core decision
