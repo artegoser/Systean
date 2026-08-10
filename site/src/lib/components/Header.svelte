@@ -5,7 +5,8 @@
 	const sections = [
 		{ name: 'About', link: '/' },
 		{ name: 'Alphabet', link: '/alphabet' },
-		{ name: 'Dictionary', link: '/dictionary' }
+		{ name: 'Dictionary', link: '/dictionary' },
+		{ name: 'Analyzer', link: '/analyzer' }
 	];
 
 	let scrollY = $state(0);

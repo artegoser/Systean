@@ -2,11 +2,12 @@
 	"name": "site",
 	"version": "0.0.1",
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
+		"wasm:build": "../scripts/build-wasm.sh",
+		"dev": "pnpm wasm:build && vite dev",
+		"build": "pnpm wasm:build && vite build",
 		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"check": "pnpm wasm:build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "pnpm wasm:build && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write ."
 	},
@@ -30,8 +31,5 @@
 		"typescript-eslint": "^8.0.0",
 		"vite": "6.3.5"
 	},
-	"type": "module",
-	"dependencies": {
-		"toml": "^3.0.0"
-	}
+	"type": "module"
 }

@@ -1,9 +1,9 @@
-export interface Letter {
-	symbol: string;
-	pronunciation: string;
-	_type: 'vowel' | 'consonant';
-}
-
-export interface Alphabet {
-	letters: Letter[];
-}
+export type {
+	Alphabet,
+	Dictionary,
+	DictionaryEntry,
+	Letter,
+	SemanticAnalysis,
+	SyllableAnalysis,
+	WordAnalysis
+} from '$lib/engine/types';
