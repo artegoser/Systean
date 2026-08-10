@@ -5,7 +5,7 @@ Status: normative baseline plus implementation contract.
 ## 1. Existing alphabet is authoritative
 
 Systean already has a complete alphabet and pronunciation mapping in
-`lib/config/alphabet.toml`. This project does not redesign, extend, or replace that
+`language/alphabet.toml`. This project does not redesign, extend, or replace that
 inventory.
 
 The existing website behaviour is normative: every supported written letter maps

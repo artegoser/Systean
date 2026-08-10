@@ -2,7 +2,7 @@
 
 This checklist tracks the first executable phonology foundation.
 
-- [x] Preserve `lib/config/alphabet.toml` as the alphabet/pronunciation source of truth.
+- [x] Preserve `language/alphabet.toml` as the alphabet/pronunciation source of truth.
 - [x] Document the existing one-context-independent-pronunciation contract.
 - [x] Load and validate the alphabet from Rust without hardcoded Systean letters.
 - [x] Validate grapheme and pronunciation prefix-freedom and bijection.

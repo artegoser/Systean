@@ -465,7 +465,7 @@ For example, no suffix should mean "turn any concept into an adjective by choosi
 
 ## 10. Phonology and orthography
 
-The alphabet and its pronunciation mapping already exist and are normative. `lib/config/alphabet.toml` remains the source of truth; the Rust engine consumes it rather than redefining Systean letters. The executable baseline is specified in [`PHONOLOGY.md`](PHONOLOGY.md).
+The alphabet and its pronunciation mapping already exist and are normative. `language/alphabet.toml` remains the source of truth; the Rust engine consumes it rather than redefining Systean letters. The executable baseline is specified in [`PHONOLOGY.md`](PHONOLOGY.md).
 
 ### 10.1 Current baseline
 
@@ -1196,11 +1196,11 @@ The normative parser must never silently accept an ambiguous/unknown input by gu
 
 The current repository is a useful prototype, but the following files encode assumptions that are no longer design targets.
 
-### `lib/config/alphabet.toml`
+### `language/alphabet.toml`
 
-Useful as an initial phoneme/grapheme inventory experiment. It needs future phonotactics, syllable rules, stress, boundary rules, and practical distinctness constraints before becoming normative.
+Normative. The alphabet and its pronunciation mapping are complete and are not a redesign target. Syllabification, lexical-root stress, round-trip transcription, and validation are implemented by `systean-core` using this file plus `language/phonology.toml`.
 
-### `lib/config/dictionary.toml`
+### `language/dictionary.toml`
 
 Must eventually be redesigned.
 
@@ -1212,13 +1212,13 @@ Problems in the current model:
 
 Future entries should center on one lexical concept plus only the semantic metadata/signature needed by the language.
 
-### `lib/config/grammar.toml`
+### `language/legacy/grammar.toml`
 
 The current `allowed_next` finite-state SVO model should be replaced by a recursive declarative grammar/semantic composition system.
 
 It cannot be the long-term representation for nested clauses, quantifier scope, discourse, coordination, or general composition.
 
-### `lib/config/morphology.toml`
+### `language/legacy/morphology.toml`
 
 The current model should be redesigned rather than extended.
 

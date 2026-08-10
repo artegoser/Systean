@@ -1,146 +1,124 @@
 # Systean
 
-Unambiguous artificial language.
+**Unambiguity in every aspect.**
 
-The repository now contains executable semantic and phonological foundations described in `docs/DESIGN.md`, `docs/SEMANTICS.md`, and `docs/PHONOLOGY.md`.
+Systean is a human-first artificial language designed around one structural parse and one compositional semantic structure for every normative expression. The repository contains the language package, the generic Rust engine that validates and analyzes it, native CLI tooling, WebAssembly bindings, and the SvelteKit website.
 
-## Current implementation
+The design is specified in:
 
-The root Rust crate is the new language engine foundation. The old TypeScript implementation under `lib/` is retained as a legacy prototype and has not been migrated yet.
+- [`docs/DESIGN.md`](docs/DESIGN.md)
+- [`docs/SEMANTICS.md`](docs/SEMANTICS.md)
+- [`docs/PHONOLOGY.md`](docs/PHONOLOGY.md)
+- [`docs/ENGINE_ARCHITECTURE.md`](docs/ENGINE_ARCHITECTURE.md)
 
-Implemented now:
+## Repository architecture
 
-- generic semantic IR (`Const`, `Var`, `Literal`, `Call`, `Bind`, `Record`, `Field`);
-- configurable named and generic type constructors with checked arity;
-- acyclic named-type subtyping;
-- function, generic, variable, and record types;
-- configured literal typing;
-- configured constants and operators;
-- generic operator signatures such as `equal<T>`;
-- named semantic roles only (no positional call arguments in the semantic DSL);
-- stricter type checking, invariant generic constructors, record field checks, and function variance;
-- representation-level canonicalization with deterministic alpha-renaming of binders;
-- multi-file `.semsys` package compilation with definition provenance;
-- a typed semantic explainer that reports roles, types, and definition origins;
-- lexical/bound-name lowering;
-- a small semantic specification DSL;
-- a Chumsky `0.13.0` parser for the specification DSL and semantic expressions;
-- data-driven everyday, ambiguity, and canonical-equivalence semantic regression corpora.
+```text
+language/                     canonical Systean language package
+├── alphabet.toml
+├── phonology.toml
+├── dictionary.toml
+├── semantics/
+│   └── core.semsys
+└── legacy/                   superseded prototype configs
 
-The phonology foundation now also implements:
+crates/
+├── systean-core/             generic language engine
+├── systean-cli/              native CLI consumers
+└── systean-wasm/             thin browser bindings over systean-core
 
-- the existing `lib/config/alphabet.toml` as the single alphabet/pronunciation source of truth;
-- config validation for a bijective, prefix-free spelling/pronunciation mapping;
-- exact spelling -> pronunciation and pronunciation -> canonical spelling round trips;
-- deterministic vowel-driven syllabification configured by `lib/config/phonology.toml`;
-- lexical stress on the first syllable of an explicitly identified root;
-- manual root validation with collisions as errors and similarity as advisory warnings;
-- exact zero/one/multiple spoken-segmentation detection over supplied form inventories;
-- CLI phonology analysis and root-checking commands;
-- regression tests for orthographic round trips, stress, roots, and spoken segmentation.
+site/                         SvelteKit UI; no language logic or TOML parsing
+tests/fixtures/               non-normative semantic test vocabulary
+```
 
-This DSL is **not Systean surface syntax**. It is an implementation/specification language used to build and test the canonical semantic layer before morphology and human-facing grammar are frozen.
+`language/` is data. `systean-core` is the implementation of generic mechanisms. The engine must not hardcode Systean-specific concepts such as noun, past tense, `sol`, or a particular semantic operator.
 
-## Requirements
+The website is deliberately a consumer of the Rust engine, not a second implementation of the language:
 
-- A current stable Rust toolchain with Rust 2024 edition support
-- Cargo
+```text
+language/*
+   ↓
+systean-core
+   ├── systean-cli → terminal
+   └── systean-wasm → SvelteKit
+```
 
-`chumsky` is pinned exactly to `0.13.0` in `Cargo.toml`.
+The WASM crate embeds the same canonical language files at compile time and constructs the same `LanguagePackage` used by the native CLI.
 
-## Run tests
+## Rust workspace
+
+The workspace currently contains:
+
+- semantic IR, type checking, canonicalization, provenance and explanation;
+- Chumsky `0.13.0` semantic specification parser;
+- the `.semsys` semantic DSL;
+- canonical alphabet/pronunciation mapping;
+- deterministic syllabification and root-aware lexical stress;
+- manual root validation/auditing and spoken segmentation checks;
+- `LanguagePackage`, which validates phonology, dictionary/root inventory and semantic specifications as one unit.
+
+Run the complete native test suite:
 
 ```bash
 cargo test
 ```
 
-## Check and explain semantic packages
+Validate the canonical package:
 
 ```bash
-cargo run --bin systean -- check spec/semantics
-
-cargo run --bin systean -- explain spec/semantics \
-  'cease(target = smoke(agent = john, object = cigarette_x))'
-
-cargo run --bin systean -- explain spec/semantics \
-  'cease(target = habitual(activity = smoke_activity(agent = john, object_kind = cigarette_kind)))'
+cargo run --bin systean -- check
 ```
 
-The explainer prints the inferred type, canonical IR, role tree, and `.semsys` definition provenance. `systean-sem` remains as a compatibility CLI and accepts either one `.semsys` file or a directory.
-
-
-## Check and analyze phonology
+All CLI commands use `./language` by default. Another package can be selected globally:
 
 ```bash
-cargo run --bin systean -- phonology check \
-  lib/config/alphabet.toml lib/config/phonology.toml
-
-cargo run --bin systean -- phonology pronounce \
-  lib/config/alphabet.toml Systean
-
-cargo run --bin systean -- phonology spell \
-  lib/config/alphabet.toml sjstean
-
-cargo run --bin systean -- phonology analyze \
-  lib/config/alphabet.toml lib/config/phonology.toml nasol --root sol
-
-cargo run --bin systean -- roots check \
-  lib/config/alphabet.toml lib/config/phonology.toml lib/config/dictionary.toml sal
-
-cargo run --bin systean -- roots audit \
-  lib/config/alphabet.toml lib/config/phonology.toml lib/config/dictionary.toml
+cargo run --bin systean -- --language path/to/language check
 ```
 
-Roots remain manually authored. The checker validates a proposed root but never generates one.
+### Phonology
 
-## Semantic specification DSL (prototype)
-
-```text
-type Entity;
-type Occurrence;
-type Process;
-subtype Process: Occurrence;
-type Proposition;
-type Number;
-
-literal integer: Number;
-
-const john: Entity;
-
-operator smoke(agent: Entity, object: Entity) -> Process;
-operator cease(target: Occurrence) -> Proposition;
-operator equal<T>(left: $T, right: $T) -> Proposition;
+```bash
+cargo run --bin systean -- phonology check
+cargo run --bin systean -- phonology pronounce Systean
+cargo run --bin systean -- phonology spell sjstean
+cargo run --bin systean -- phonology analyze nasol --root sol
+cargo run --bin systean -- roots check sal
+cargo run --bin systean -- roots audit
 ```
 
-Expressions use named roles:
+Roots are authored manually. Tooling validates proposed roots and reports collisions/similarity; it does not invent vocabulary.
 
-```text
-cease(target = smoke(agent = john, object = cigarette_x))
+### Semantic IR
+
+The normative semantic declarations live in `language/semantics/*.semsys`. Corpus/demo declarations used only for tests live under `tests/fixtures/semantics/`.
+
+```bash
+cargo run --bin systean -- explain 'equal(left = 1, right = 1)'
 ```
 
-Named-role order is not semantically significant. The parser canonicalizes call arguments by role name.
+The parser validates structure and types; it does not validate truth, plausibility, speaker knowledge or world state.
 
-## Semantic regression corpus
+## Website
 
-```text
-tests/corpus/everyday.tsv
-tests/corpus/ambiguity.tsv
-tests/corpus/equivalence.tsv
+The SvelteKit site does not import TOML or duplicate pronunciation logic. Its engine facade dynamically initializes the WebAssembly build from `crates/systean-wasm`.
+
+The build helper installs pinned `wasm-pack 0.15.0` if it is not already available and builds the generated package into an ignored directory under `site/src/lib/wasm/pkg`.
+
+```bash
+cd site
+pnpm check
+pnpm build
+pnpm dev
 ```
 
-The everyday corpus checks types, the ambiguity corpus checks that intended distinctions do not collapse, and the equivalence corpus checks representation-only differences such as binder names and named-role order. `spec/semantics/corpus.semsys` is testing vocabulary, not frozen surface-language vocabulary.
+`pnpm check`, `pnpm build`, and `pnpm dev` build the WASM package first.
 
-## Repository direction
+Current engine-backed pages:
 
-Next major stages are:
+- `/alphabet` — alphabet and arbitrary pronunciation;
+- `/dictionary` — dictionary loaded by Rust;
+- `/analyzer` — phonological word analysis and semantic IR explanation.
 
-1. grow semantic and phonological regression corpora as new edge cases are discovered;
-2. extend the package/rule schema only where those tests require it;
-3. design morphology as a reversible abstract-feature -> surface-realization layer over the existing semantic and phonological foundations;
-4. prove unique morphological decomposition and use the spoken-segmentation checker on generated surface inventories;
-5. design recursive deterministic surface grammar parsing/generation over the semantic layer;
-6. finish discourse/reference, numeral/time, proper-name, and expressive subsystems as their surface realization is designed.
+## Design status
 
-### Prototype DSL limitations
-
-The current semantic DSL intentionally stays small. It does not yet provide comments, escaped string literals, modules/imports, source-level provenance spans in public IR, or recovery-oriented diagnostics. These are specification-tooling tasks, not Systean language semantics, and can be added without changing the semantic model.
+Semantic and phonological foundations are executable. The next major language layer is morphology: abstract grammatical features must map bidirectionally to pronounceable surface forms without restoring the old consonant-prefix pileup or contextual semantic guessing.

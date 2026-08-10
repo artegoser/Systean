@@ -11,12 +11,12 @@ The examples below use a deliberately code-like notation only to expose structur
 
 ## Implementation status
 
-The first executable implementation of this document lives in the root Rust crate.
+The executable implementation of this document lives in `crates/systean-core`.
 
 Current modules:
 
 ```text
-src/semantics/
+crates/systean-core/src/semantics/
   term.rs
   types.rs
   signature.rs
@@ -26,14 +26,16 @@ src/semantics/
   origin.rs
   explain.rs
 
-src/spec/
+crates/systean-core/src/spec/
   ast.rs
   parser.rs
   compile.rs
   package.rs
 
-spec/semantics/
+language/semantics/
   core.semsys
+
+tests/fixtures/semantics/
   corpus.semsys
   demo.semsys
 ```
