@@ -9,6 +9,7 @@ The design is specified in:
 - [`docs/DESIGN.md`](docs/DESIGN.md)
 - [`docs/SEMANTICS.md`](docs/SEMANTICS.md)
 - [`docs/PHONOLOGY.md`](docs/PHONOLOGY.md)
+- [`docs/MORPHOLOGY.md`](docs/MORPHOLOGY.md)
 - [`docs/ENGINE_ARCHITECTURE.md`](docs/ENGINE_ARCHITECTURE.md)
 
 ## Repository architecture
@@ -17,6 +18,7 @@ The design is specified in:
 language/                     canonical Systean language package
 ├── alphabet.toml
 ├── phonology.toml
+├── morphology.toml
 ├── dictionary.toml
 ├── semantics/
 │   └── core.semsys
@@ -54,6 +56,7 @@ The workspace currently contains:
 - the `.semsys` semantic DSL;
 - canonical alphabet/pronunciation mapping;
 - deterministic syllabification and root-aware lexical stress;
+- reversible bare-root morphology with automatic root boundaries;
 - manual root validation/auditing and spoken segmentation checks;
 - `LanguagePackage`, which validates phonology, dictionary/root inventory and semantic specifications as one unit.
 
@@ -88,6 +91,16 @@ cargo run --bin systean -- roots audit
 
 Roots are authored manually. Tooling validates proposed roots and reports collisions/similarity; it does not invent vocabulary.
 
+### Morphology
+
+```bash
+cargo run --bin systean -- morphology check
+cargo run --bin systean -- morphology analyze sol
+cargo run --bin systean -- morphology generate sol
+```
+
+Morphology v1 is intentionally minimal: a lexical word is exactly its declared root. No POS ending or grammatical prefix stack is inferred.
+
 ### Semantic IR
 
 The normative semantic declarations live in `language/semantics/*.semsys`. Corpus/demo declarations used only for tests live under `tests/fixtures/semantics/`.
@@ -117,8 +130,8 @@ Current engine-backed pages:
 
 - `/alphabet` — alphabet and arbitrary pronunciation;
 - `/dictionary` — dictionary loaded by Rust;
-- `/analyzer` — phonological word analysis and semantic IR explanation.
+- `/analyzer` — morphology + phonology word analysis and semantic IR explanation.
 
 ## Design status
 
-Semantic and phonological foundations are executable. The next major language layer is morphology: abstract grammatical features must map bidirectionally to pronounceable surface forms without restoring the old consonant-prefix pileup or contextual semantic guessing.
+Semantic, phonological, and morphology-v1 foundations are executable. Morphology is currently bare-root identity by design; the next major language layer is recursive surface syntax and scope, with new morphology added only when a concrete local semantic requirement justifies it.

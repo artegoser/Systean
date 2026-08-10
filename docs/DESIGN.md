@@ -3,9 +3,9 @@
 Status: **design baseline for the repository**  
 Purpose: preserve the goals, architectural decisions, invariants, and unresolved questions that should govern future Systean work.
 
-This document supersedes the architectural assumptions implied by the current prototype configs where they conflict with it. The existing `alphabet.toml`, `dictionary.toml`, `grammar.toml`, and `morphology.toml` are useful historical prototypes, not the normative specification of the future language.
+This document supersedes historical prototype assumptions where they conflict with the current executable language package. Active normative files live under `language/`; superseded grammar and morphology prototypes live under `language/legacy/`.
 
-Detailed semantic architecture is specified in [`SEMANTICS.md`](SEMANTICS.md). Where an older semantic example in this document conflicts with `SEMANTICS.md`, the semantic specification takes precedence.
+Detailed semantic, phonological, and morphological architecture is specified in [`SEMANTICS.md`](SEMANTICS.md), [`PHONOLOGY.md`](PHONOLOGY.md), and [`MORPHOLOGY.md`](MORPHOLOGY.md). Those focused specifications take precedence over older examples in this baseline when they conflict.
 
 ---
 
@@ -1202,15 +1202,7 @@ Normative. The alphabet and its pronunciation mapping are complete and are not a
 
 ### `language/dictionary.toml`
 
-Must eventually be redesigned.
-
-Problems in the current model:
-
-- separate noun/adjective/adverb meanings per root;
-- long world-knowledge-like descriptions mixed with lexical semantics;
-- context-sensitive adjective semantics.
-
-Future entries should center on one lexical concept plus only the semantic metadata/signature needed by the language.
+Normative v2 lexical inventory. Each root has one canonical human-readable `definition`; POS-specific contextual meanings are rejected by `LanguagePackage`. Formal semantic typing remains separate from dictionary prose.
 
 ### `language/legacy/grammar.toml`
 
@@ -1229,11 +1221,7 @@ Specific decisions that conflict with the design baseline:
 - `su` as a generic he/she/it referent;
 - automatic word-class semantics implied by current suffix descriptions.
 
-The final-vowel class-marking idea is not rejected outright, but its role must be redefined before reuse.
-
-### `lib/index.ts`
-
-Future implementation should evolve toward a generic language-package loader/compiler/analyzer rather than embedding Systean-specific grammar logic.
+The final-vowel class-marking idea is rejected for the normative baseline. Surface class/POS information is not pronounced when it is already recoverable from lexical semantics and syntax.
 
 ### `site/`
 
@@ -1282,6 +1270,10 @@ These should not be casually reopened while implementing unrelated features.
 27. New concepts remain expressible compositionally even before receiving a concise dictionary root.
 28. Language revisions may add vocabulary; failure to understand a newer revision is not a grammar problem.
 29. Analyzer/generator/documentation should derive from the same executable specification and preserve provenance.
+30. Morphology v1 is bare-root identity: `WORD = ROOT`.
+31. Mandatory POS/class endings are rejected.
+32. Negation, number, tense, aspect, agreement, case, and other wide/nonlocal grammar are not encoded in a default lexical affix stack.
+33. The canonical dictionary stores one lexical definition per root and rejects POS-specific contextual meanings.
 
 ---
 
@@ -1291,20 +1283,21 @@ These are intentionally left open. They should be solved before prematurely free
 
 ### Phonology
 
-- final phoneme inventory;
-- exact syllable structure;
-- stress;
-- minimum lexical distance metric;
-- legal clusters;
+The alphabet/pronunciation inventory and first-root-syllable stress are settled and implemented. Remaining questions are limited to mechanisms that are not yet required by ordinary bare roots:
+
 - adaptation procedure for proper names;
-- whether any deterministic allomorphy is desirable.
+- whether future bound morphology requires additional morpheme-boundary phonotactic constraints;
+- whether any deterministic allomorphy is ever desirable.
 
 ### Morphology
 
-- whether final-vowel word-class markers survive;
-- which information should be bound morphology vs. particles/constructions;
+The v1 baseline is settled as bare-root identity and is implemented in `language/morphology.toml` / `systean-core`. Remaining morphology questions are intentionally demand-driven:
+
 - exact form of proper-name marking;
-- exact morphology DSL/config model.
+- whether any future strictly local derivation is useful enough to justify bound morphology;
+- phonological realization rules for such a derivation if one is introduced.
+
+No general derivation DSL should be invented before a concrete semantic requirement exists.
 
 ### Syntax
 
@@ -1331,11 +1324,13 @@ These are intentionally left open. They should be solved before prematurely free
 
 ### Lexicon
 
-- format for normative definitions;
+The canonical dictionary format is settled as one human-readable `definition` per manually authored root. Remaining questions are:
+
 - bootstrap strategy for primitive concepts;
 - criteria for assigning new roots;
-- root-generation algorithm and collision avoidance;
-- deprecation rules.
+- deprecation rules and revision metadata.
+
+Roots are authored manually; tooling validates legality and collisions but does not generate vocabulary.
 
 ### Conversation / discourse
 
@@ -1359,7 +1354,7 @@ These are intentionally left open. They should be solved before prematurely free
 
 ### Current engine phase
 
-The root Rust crate now implements the first semantic-engine phase and the first executable phonology phase. The old TypeScript parser under `lib/` remains a legacy prototype, while its alphabet configuration is retained as normative language data.
+The Rust workspace implements executable semantic, phonological, and morphology-v1 foundations behind one `LanguagePackage`. Native CLI and browser WASM consumers both use `systean-core`; there is no independent TypeScript language implementation.
 
 The current executable boundaries are:
 
@@ -1377,9 +1372,15 @@ alphabet.toml + phonology.toml
     -> syllabification
     -> root-aware stress
     -> manual-root validation / spoken segmentation checks
+
+dictionary.toml + morphology.toml
+    -> one lexical definition per root
+    -> bare-root morphological analysis/generation
+    -> root boundary
+    -> phonological word analysis
 ```
 
-See `SEMANTICS.md`, `PHONOLOGY.md`, and `../README.md` for the implemented subset and test commands.
+See `SEMANTICS.md`, `PHONOLOGY.md`, `MORPHOLOGY.md`, `ENGINE_ARCHITECTURE.md`, and `../README.md` for the implemented subset and test commands.
 
 ## 33. Recommended next design order
 
@@ -1389,16 +1390,15 @@ A safer order is:
 
 1. keep extending the formal semantic model only where regression cases require it;
 2. treat the existing alphabet and implemented phonology baseline as fixed input to surface design;
-3. define reversible morphological analysis/generation and prove unique decomposition;
-4. define morpheme-boundary phonological realization without moving root stress;
-5. define recursive syntax + semantic composition + scope;
-6. define reference/discourse rules;
-7. define numbers/quantities/time as structured subsystems;
-8. define proper names and external quotation;
-9. define speech acts and expressive/emotional constructions;
-10. build the language compiler's whole-language ambiguity/collision checks;
-11. migrate the lexicon and begin constructing actual Systean surface grammar;
-12. expose all layers through the analyzer/site.
+3. keep the implemented bare-root morphology invariant and extend it only for concrete local derivations;
+4. define recursive syntax + semantic composition + scope;
+5. define reference/discourse rules;
+6. define numbers/quantities/time as structured subsystems;
+7. define proper names and external quotation;
+8. define speech acts and expressive/emotional constructions;
+9. build the language compiler's whole-language ambiguity/collision checks;
+10. begin constructing actual Systean surface grammar;
+11. expose all layers through the analyzer/site.
 
 The purpose of this order is to prevent the project from returning to the original failure mode: inventing surface grammar before the semantic and architectural constraints are stable.
 

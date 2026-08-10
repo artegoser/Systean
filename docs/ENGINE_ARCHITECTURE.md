@@ -24,6 +24,7 @@ Active files currently include:
 
 - `alphabet.toml`
 - `phonology.toml`
+- `morphology.toml`
 - `dictionary.toml`
 - `semantics/*.semsys`
 
@@ -36,6 +37,7 @@ Generic mechanisms only:
 - semantic parsing and compilation;
 - typed IR and canonicalization;
 - phonological configuration and analysis;
+- reversible morphology and root-boundary analysis;
 - root inventory validation;
 - unified `LanguagePackage` loading.
 
@@ -72,4 +74,5 @@ Svelte `dev`, `check`, and `build` invoke this step first.
 2. Browser and CLI results come from `systean-core`.
 3. Test-only vocabulary never enters the canonical language package.
 4. Legacy prototype grammar/morphology files are never loaded as active rules.
-5. A malformed canonical package prevents consumers from initializing instead of allowing partial interpretation.
+5. Word structure comes from the Rust morphology engine; the site never guesses root boundaries.
+6. A malformed canonical package prevents consumers from initializing instead of allowing partial interpretation.
