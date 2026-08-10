@@ -100,6 +100,15 @@ fn same_logical_operator_chain_is_flattened() {
 }
 
 #[test]
+fn redundant_grouping_inside_associative_chains_is_normalized() {
+    let (engine, _) = engine();
+    let grouped = engine.parse("mi si an ki tu si an mi vi tu ku").unwrap();
+    let flat = engine.parse("mi si an tu si an mi vi tu").unwrap();
+    assert_eq!(grouped, flat);
+    assert_eq!(engine.linearize(&grouped).unwrap(), "mi si an tu si an mi vi tu");
+}
+
+#[test]
 fn explicit_speech_acts_do_not_use_word_order_tricks() {
     let question = semantics("ke mi si");
     let command = semantics("ko mi si");

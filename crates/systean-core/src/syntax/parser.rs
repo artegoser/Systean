@@ -215,16 +215,10 @@ impl ParserState<'_> {
 
     fn combine_infix(&self, surface: String, left: SurfaceExpr, right: SurfaceExpr) -> SurfaceExpr {
         if self.config.logic.flatten_same_operator {
-            if let SurfaceExpr::Infix { operator, mut operands } = left {
-                if operator == surface {
-                    operands.push(right);
-                    return SurfaceExpr::Infix { operator, operands };
-                }
-                return SurfaceExpr::Infix {
-                    operator: surface,
-                    operands: vec![SurfaceExpr::Infix { operator, operands }, right],
-                };
-            }
+            let mut operands = Vec::new();
+            push_flattened(&surface, left, &mut operands);
+            push_flattened(&surface, right, &mut operands);
+            return SurfaceExpr::Infix { operator: surface, operands };
         }
         SurfaceExpr::Infix { operator: surface, operands: vec![left, right] }
     }
@@ -235,6 +229,15 @@ impl ParserState<'_> {
 
     fn error(&self, message: String) -> SurfaceParseError {
         SurfaceParseError { token: self.index, message }
+    }
+}
+
+fn push_flattened(operator: &str, expression: SurfaceExpr, output: &mut Vec<SurfaceExpr>) {
+    match expression {
+        SurfaceExpr::Infix { operator: nested_operator, operands } if nested_operator == operator => {
+            output.extend(operands);
+        }
+        other => output.push(other),
     }
 }
 
