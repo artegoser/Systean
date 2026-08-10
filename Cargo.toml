@@ -7,6 +7,8 @@ license = "MIT"
 
 [dependencies]
 chumsky = "=0.13.0"
+serde = { version = "1", features = ["derive"] }
+toml = "0.9.9"
 
 [lib]
 path = "src/lib.rs"

@@ -1,0 +1,17 @@
+[meta]
+description = "Defines deterministic phonological analysis rules for Systean."
+version = "1.0"
+
+[syllables]
+# Every configured vowel is a nucleus. Between vowel nuclei, the final
+# consonant begins the next syllable; any earlier consonants close the
+# preceding syllable. Initial/final clusters are not otherwise restricted.
+intervocalic_onset_consonants = 1
+
+[stress]
+strategy = "first_root_syllable"
+
+[roots]
+require_vowel = true
+# Advisory only. Human authors still decide whether a root is acceptable.
+similarity_warning_distance = 1
