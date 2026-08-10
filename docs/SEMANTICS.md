@@ -5,7 +5,7 @@ Purpose: define what Systean means by "meaning", what the parser/semantic elabor
 
 This document specializes `DESIGN.md`. If an older semantic example in `DESIGN.md` conflicts with this document, this document takes precedence for semantic architecture.
 
-The examples below use a deliberately code-like notation only to expose structure. They are **not proposed Systean surface syntax**.
+The examples below use a deliberately code-like notation only to expose structure. They are **not Systean surface syntax**. The implemented structural surface baseline is documented separately in [`SYNTAX.md`](SYNTAX.md).
 
 ---
 

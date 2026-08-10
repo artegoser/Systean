@@ -10,6 +10,7 @@ The design is specified in:
 - [`docs/SEMANTICS.md`](docs/SEMANTICS.md)
 - [`docs/PHONOLOGY.md`](docs/PHONOLOGY.md)
 - [`docs/MORPHOLOGY.md`](docs/MORPHOLOGY.md)
+- [`docs/SYNTAX.md`](docs/SYNTAX.md)
 - [`docs/ENGINE_ARCHITECTURE.md`](docs/ENGINE_ARCHITECTURE.md)
 
 ## Repository architecture
@@ -19,6 +20,7 @@ language/                     canonical Systean language package
 ├── alphabet.toml
 ├── phonology.toml
 ├── morphology.toml
+├── syntax.toml
 ├── dictionary.toml
 ├── semantics/
 │   └── core.semsys
@@ -57,6 +59,7 @@ The workspace currently contains:
 - canonical alphabet/pronunciation mapping;
 - deterministic syllabification and root-aware lexical stress;
 - reversible bare-root morphology with automatic root boundaries;
+- config-driven recursive surface syntax, scope, precedence and semantic lowering;
 - manual root validation/auditing and spoken segmentation checks;
 - `LanguagePackage`, which validates phonology, dictionary/root inventory and semantic specifications as one unit.
 
@@ -84,7 +87,7 @@ cargo run --bin systean -- --language path/to/language check
 cargo run --bin systean -- phonology check
 cargo run --bin systean -- phonology pronounce Systean
 cargo run --bin systean -- phonology spell sjstean
-cargo run --bin systean -- phonology analyze nasol --root sol
+cargo run --bin systean -- phonology analyze sol
 cargo run --bin systean -- roots check sal
 cargo run --bin systean -- roots audit
 ```
@@ -100,6 +103,15 @@ cargo run --bin systean -- morphology generate sol
 ```
 
 Morphology v1 is intentionally minimal: a lexical word is exactly its declared root. No POS ending or grammatical prefix stack is inferred.
+
+
+### Surface syntax
+
+```bash
+cargo run --bin systean -- syntax check
+```
+
+The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. Normative lexical bindings for operators/predicates are intentionally empty until their roots are manually chosen; test-only bindings exercise the parser/generator end-to-end.
 
 ### Semantic IR
 
@@ -134,4 +146,4 @@ Current engine-backed pages:
 
 ## Design status
 
-Semantic, phonological, and morphology-v1 foundations are executable. Morphology is currently bare-root identity by design; the next major language layer is recursive surface syntax and scope, with new morphology added only when a concrete local semantic requirement justifies it.
+Semantic, phonological, morphology-v1, and structural surface-syntax foundations are executable. Concrete surface vocabulary remains intentionally incomplete until grammatical/operator roots are chosen manually. The next major language layer is reference/discourse, which is required for safe omission and non-default quantifier binding.

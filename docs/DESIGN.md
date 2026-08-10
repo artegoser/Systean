@@ -5,7 +5,7 @@ Purpose: preserve the goals, architectural decisions, invariants, and unresolved
 
 This document supersedes historical prototype assumptions where they conflict with the current executable language package. Active normative files live under `language/`; superseded grammar and morphology prototypes live under `language/legacy/`.
 
-Detailed semantic, phonological, and morphological architecture is specified in [`SEMANTICS.md`](SEMANTICS.md), [`PHONOLOGY.md`](PHONOLOGY.md), and [`MORPHOLOGY.md`](MORPHOLOGY.md). Those focused specifications take precedence over older examples in this baseline when they conflict.
+Detailed semantic, phonological, morphological, and surface-syntax architecture is specified in [`SEMANTICS.md`](SEMANTICS.md), [`PHONOLOGY.md`](PHONOLOGY.md), [`MORPHOLOGY.md`](MORPHOLOGY.md), and [`SYNTAX.md`](SYNTAX.md). Those focused specifications take precedence over older examples in this baseline when they conflict.
 
 ---
 
@@ -453,13 +453,13 @@ Trying to encode all of them as a uniform prefix chain hides scope.
 
 A likely direction is to use short, pronounceable particles/constructions for wide-scope operators and reserve bound morphology for genuinely word-local information.
 
-### 9.5 Word-class marking remains an open design choice
+### 9.5 Mandatory word-class marking is rejected
 
-The current final-vowel word-class idea may still be useful because it makes words self-describing, but it must be reevaluated under the new semantic architecture.
+The old final-vowel noun/verb/adjective/etc. markers are not part of normative Systean.
 
-A class marker must describe syntactic realization; it must not magically invent a new lexical meaning.
+Morphology v1 is `WORD = ROOT`. Surface syntax obtains the required structure from semantic bindings and deterministic constructions; it does not require every speaker to pronounce redundant POS metadata.
 
-For example, no suffix should mean "turn any concept into an adjective by choosing whichever relation sounds natural".
+A future marker may be introduced only for a concrete semantic/structural need that cannot be recovered more cleanly. No suffix may mean "turn any concept into an adjective by choosing whichever relation sounds natural".
 
 ---
 
@@ -518,30 +518,23 @@ No "choose the first parse" behavior is acceptable.
 
 ### 11.2 Universal grouping/scope mechanism
 
-The language requires a consistent way to express scope for operators such as:
+The executable structural baseline uses the existing spoken/written pair:
 
-- negation;
-- quantification;
-- modality;
-- probability;
-- conditionals;
-- causation;
-- coordination;
-- quotation;
-- relative/nested clauses.
+```text
+ki ... ku
+```
 
-The exact surface mechanism is unresolved. Existing `ki`/`ku` demonstrate the useful idea of explicit boundaries but should not be considered final syntax.
+as universal explicit scope/grouping delimiters. They are emitted only when required to preserve a non-default structure and are reserved from lexical-root use.
 
-### 11.3 Precedence may exist, but must be safe
+Local scope is otherwise recovered from deterministic construction order. In particular, scope-bearing operators and quantifiers nest in order of appearance where the grammar already yields one structure.
 
-If Systean uses precedence rules for convenience, they must be:
+### 11.3 Logical precedence
 
-- deterministic;
-- simple;
-- equally recoverable in speech and writing;
-- overridable by explicit grouping.
+Systean adopts one intentional logical precedence rule:
 
-A speaker must never rely on the listener choosing between two plausible scopes.
+> `AND` binds more tightly than `OR`.
+
+Both remain deterministic and are overridable with `ki ... ku`. Chains of the same operator may be flattened in the surface AST rather than requiring arbitrary binary spoken grouping.
 
 ---
 
@@ -1301,11 +1294,14 @@ No general derivation DSL should be invented before a concrete semantic requirem
 
 ### Syntax
 
-- precise recursive grammar formalism;
-- scope/grouping surface mechanism;
-- default precedence, if any;
-- exact coordination syntax;
-- clause/reference boundary rules;
+The structural v1 baseline is now implemented in `language/syntax.toml` and `systean-core`: canonical primary-participant/predicate/rest frame order, no free unmarked reordering, `ki ... ku` grouping, quantifier scope by appearance, `AND > OR`, explicit speech-act constructions, and semantic-type-driven rather than POS-driven parsing.
+
+Remaining syntax questions are narrower:
+
+- manually chosen surface roots/particles for the implemented construction classes;
+- clause/reference boundary rules and discourse references;
+- explicit inverse-quantifier-scope syntax once reference binding has a surface form;
+- focus/topic realization;
 - quotation boundaries in speech and writing.
 
 ### Semantic calculus
@@ -1391,7 +1387,7 @@ A safer order is:
 1. keep extending the formal semantic model only where regression cases require it;
 2. treat the existing alphabet and implemented phonology baseline as fixed input to surface design;
 3. keep the implemented bare-root morphology invariant and extend it only for concrete local derivations;
-4. define recursive syntax + semantic composition + scope;
+4. keep the implemented recursive surface syntax/scope engine stable while manually assigning surface vocabulary;
 5. define reference/discourse rules;
 6. define numbers/quantities/time as structured subsystems;
 7. define proper names and external quotation;
