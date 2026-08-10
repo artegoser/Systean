@@ -465,29 +465,28 @@ For example, no suffix should mean "turn any concept into an adjective by choosi
 
 ## 10. Phonology and orthography
 
-The existing one-grapheme/one-phoneme direction is useful but insufficient.
+The alphabet and its pronunciation mapping already exist and are normative. `lib/config/alphabet.toml` remains the source of truth; the Rust engine consumes it rather than redefining Systean letters. The executable baseline is specified in [`PHONOLOGY.md`](PHONOLOGY.md).
 
-### 10.1 Required properties
+### 10.1 Current baseline
 
-The phonological specification should eventually define:
+The current phonological layer defines:
 
-- phoneme inventory;
-- grapheme mapping;
-- legal syllable shapes;
-- legal onset/coda clusters;
-- morpheme-boundary behavior;
-- stress;
-- canonical pauses/boundaries if semantically relevant;
-- repair rules, if any;
-- proper-name adaptation constraints.
+- the fixed existing phoneme/grapheme inventory;
+- context-independent grapheme -> pronunciation mapping;
+- reverse canonical pronunciation -> grapheme mapping;
+- deterministic vowel-nucleus syllabification;
+- lexical stress on the first syllable of the root;
+- explicit root-span-aware analysis so future prefixes do not redefine lexical stress;
+- a permissive cluster baseline because the previous language did not specify narrower onset/coda bans;
+- exact spoken-stream segmentation checking over any supplied finite inventory.
+
+Morpheme-boundary behaviour beyond root-aware stress, pauses that carry syntax, proper-name adaptation, and compound stress remain surface/morphology design questions rather than reasons to alter the existing alphabet.
 
 ### 10.2 Practical distinctness
 
-Formal uniqueness is not enough.
+Formal uniqueness is not enough, but root creation remains a human lexical-design task.
 
-Roots and grammatical markers should be sufficiently different that ordinary noise, speed, or minor accent variation does not make the vocabulary unusable.
-
-The language compiler should eventually be able to measure/configure a minimum phonological distance between critical lexical forms and reject dangerously similar additions.
+Tooling may report suspicious similarity between a proposed root and existing roots. Similarity is advisory rather than an automatic rejection threshold; exact spelling or pronunciation collisions remain errors. The engine must not randomly generate vocabulary.
 
 ### 10.3 Spoken and written equivalence
 
@@ -1360,9 +1359,9 @@ These are intentionally left open. They should be solved before prematurely free
 
 ### Current engine phase
 
-The root Rust crate now implements the first semantic-engine phase. It deliberately precedes phonology and surface grammar. The old TypeScript `lib/` remains a legacy prototype.
+The root Rust crate now implements the first semantic-engine phase and the first executable phonology phase. The old TypeScript parser under `lib/` remains a legacy prototype, while its alphabet configuration is retained as normative language data.
 
-The current executable boundary is:
+The current executable boundaries are:
 
 ```text
 semantic spec DSL
@@ -1371,9 +1370,16 @@ semantic spec DSL
     -> parsed semantic expression
     -> canonical named-role Term
     -> type checker
+
+alphabet.toml + phonology.toml
+    -> validated orthography/phoneme mapping
+    -> pronunciation / reverse spelling
+    -> syllabification
+    -> root-aware stress
+    -> manual-root validation / spoken segmentation checks
 ```
 
-See `SEMANTICS.md` and `../README.md` for the implemented subset and test commands.
+See `SEMANTICS.md`, `PHONOLOGY.md`, and `../README.md` for the implemented subset and test commands.
 
 ## 33. Recommended next design order
 
@@ -1381,18 +1387,18 @@ Future work should not begin by inventing more vocabulary or individual grammar 
 
 A safer order is:
 
-1. implement/refine the formal semantic term model and minimal type system defined by `SEMANTICS.md`;
-2. define the config/package schema and generic rule mechanism;
-3. define phonology + phonotactics + root/morpheme constraints;
-4. define morphological analysis/generation and prove unique decomposition;
+1. keep extending the formal semantic model only where regression cases require it;
+2. treat the existing alphabet and implemented phonology baseline as fixed input to surface design;
+3. define reversible morphological analysis/generation and prove unique decomposition;
+4. define morpheme-boundary phonological realization without moving root stress;
 5. define recursive syntax + semantic composition + scope;
 6. define reference/discourse rules;
 7. define numbers/quantities/time as structured subsystems;
 8. define proper names and external quotation;
 9. define speech acts and expressive/emotional constructions;
-10. build the language compiler's ambiguity/collision checks;
+10. build the language compiler's whole-language ambiguity/collision checks;
 11. migrate the lexicon and begin constructing actual Systean surface grammar;
-12. expose all of it through the analyzer/site.
+12. expose all layers through the analyzer/site.
 
 The purpose of this order is to prevent the project from returning to the original failure mode: inventing surface grammar before the semantic and architectural constraints are stable.
 

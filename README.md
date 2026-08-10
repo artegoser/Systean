@@ -2,7 +2,7 @@
 
 Unambiguous artificial language.
 
-The repository now contains the first Rust implementation of the semantic foundation described in `docs/DESIGN.md` and `docs/SEMANTICS.md`.
+The repository now contains executable semantic and phonological foundations described in `docs/DESIGN.md`, `docs/SEMANTICS.md`, and `docs/PHONOLOGY.md`.
 
 ## Current implementation
 
@@ -27,7 +27,19 @@ Implemented now:
 - a Chumsky `0.13.0` parser for the specification DSL and semantic expressions;
 - data-driven everyday, ambiguity, and canonical-equivalence semantic regression corpora.
 
-This DSL is **not Systean surface syntax**. It is an implementation/specification language used to build and test the canonical semantic layer before phonology, morphology, and human-facing grammar are frozen.
+The phonology foundation now also implements:
+
+- the existing `lib/config/alphabet.toml` as the single alphabet/pronunciation source of truth;
+- config validation for a bijective, prefix-free spelling/pronunciation mapping;
+- exact spelling -> pronunciation and pronunciation -> canonical spelling round trips;
+- deterministic vowel-driven syllabification configured by `lib/config/phonology.toml`;
+- lexical stress on the first syllable of an explicitly identified root;
+- manual root validation with collisions as errors and similarity as advisory warnings;
+- exact zero/one/multiple spoken-segmentation detection over supplied form inventories;
+- CLI phonology analysis and root-checking commands;
+- regression tests for orthographic round trips, stress, roots, and spoken segmentation.
+
+This DSL is **not Systean surface syntax**. It is an implementation/specification language used to build and test the canonical semantic layer before morphology and human-facing grammar are frozen.
 
 ## Requirements
 
@@ -55,6 +67,28 @@ cargo run --bin systean -- explain spec/semantics \
 ```
 
 The explainer prints the inferred type, canonical IR, role tree, and `.semsys` definition provenance. `systean-sem` remains as a compatibility CLI and accepts either one `.semsys` file or a directory.
+
+
+## Check and analyze phonology
+
+```bash
+cargo run --bin systean -- phonology check \
+  lib/config/alphabet.toml lib/config/phonology.toml
+
+cargo run --bin systean -- phonology pronounce \
+  lib/config/alphabet.toml Systean
+
+cargo run --bin systean -- phonology spell \
+  lib/config/alphabet.toml sjstean
+
+cargo run --bin systean -- phonology analyze \
+  lib/config/alphabet.toml lib/config/phonology.toml nasol --root sol
+
+cargo run --bin systean -- roots check \
+  lib/config/alphabet.toml lib/config/phonology.toml lib/config/dictionary.toml sal
+```
+
+Roots remain manually authored. The checker validates a proposed root but never generates one.
 
 ## Semantic specification DSL (prototype)
 
@@ -97,11 +131,12 @@ The everyday corpus checks types, the ambiguity corpus checks that intended dist
 
 Next major stages are:
 
-1. grow the semantic regression corpus as new edge cases are discovered;
-2. extend the package/rule schema only where those semantic tests require it;
-3. finish still-open semantic areas in `docs/SEMANTICS.md`, especially temporal intervals, discourse/reference state, and richer affect/utterance structures;
-4. design phonology and phonotactics;
-5. design morphology and deterministic surface grammar parsing/generation over the semantic layer.
+1. grow semantic and phonological regression corpora as new edge cases are discovered;
+2. extend the package/rule schema only where those tests require it;
+3. design morphology as a reversible abstract-feature -> surface-realization layer over the existing semantic and phonological foundations;
+4. prove unique morphological decomposition and use the spoken-segmentation checker on generated surface inventories;
+5. design recursive deterministic surface grammar parsing/generation over the semantic layer;
+6. finish discourse/reference, numeral/time, proper-name, and expressive subsystems as their surface realization is designed.
 
 ### Prototype DSL limitations
 
