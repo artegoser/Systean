@@ -194,3 +194,16 @@ fn function_assignability_is_contravariant_in_parameters() {
     let rejected = lower_term(parse_term("needs_entity_predicate(predicate = person_predicate)").unwrap());
     assert!(matches!(Checker::new(&environment).infer(&rejected).unwrap_err(), CheckError::TypeMismatch { .. }));
 }
+
+#[test]
+fn explainer_reports_types_roles_and_definition_origins() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("spec/semantics");
+    let environment = systean::spec::compile_path(root).expect("semantic package should compile");
+    let term = lower_term(parse_term("cease(target = smoke(agent = john, object = cigarette_x))").unwrap());
+    let rendered = systean::semantics::Explainer::new(&environment).explain(&term).unwrap().render();
+    assert!(rendered.contains("call cease : Proposition"));
+    assert!(rendered.contains("target: call smoke : Process"));
+    assert!(rendered.contains("agent: const john : Entity"));
+    assert!(rendered.contains("core.semsys"));
+    assert!(rendered.contains("demo.semsys"));
+}

@@ -48,7 +48,7 @@ impl<'env> Checker<'env> {
         self.infer_with_scope(term, &mut BTreeMap::new())
     }
 
-    fn infer_with_scope(
+    pub(crate) fn infer_with_scope(
         &self,
         term: &Term,
         variables: &mut BTreeMap<String, Type>,

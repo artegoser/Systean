@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 
-use super::{Signature, Type};
+use super::{Origin, Signature, Type};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum LiteralKind {
@@ -22,6 +22,10 @@ pub struct Environment {
     literal_types: BTreeMap<LiteralKind, Type>,
     constants: BTreeMap<String, Type>,
     operators: BTreeMap<String, Signature>,
+    type_origins: BTreeMap<String, Origin>,
+    literal_origins: BTreeMap<LiteralKind, Origin>,
+    constant_origins: BTreeMap<String, Origin>,
+    operator_origins: BTreeMap<String, Origin>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -136,6 +140,14 @@ impl Environment {
     }
 
     pub fn type_definition(&self, name: &str) -> Option<&TypeDefinition> { self.types.get(name) }
+    pub fn type_origin(&self, name: &str) -> Option<&Origin> { self.type_origins.get(name) }
+    pub fn literal_origin(&self, kind: LiteralKind) -> Option<&Origin> { self.literal_origins.get(&kind) }
+    pub fn constant_origin(&self, name: &str) -> Option<&Origin> { self.constant_origins.get(name) }
+    pub fn operator_origin(&self, name: &str) -> Option<&Origin> { self.operator_origins.get(name) }
+    pub(crate) fn set_type_origin(&mut self, name: impl Into<String>, origin: Origin) { self.type_origins.insert(name.into(), origin); }
+    pub(crate) fn set_literal_origin(&mut self, kind: LiteralKind, origin: Origin) { self.literal_origins.insert(kind, origin); }
+    pub(crate) fn set_constant_origin(&mut self, name: impl Into<String>, origin: Origin) { self.constant_origins.insert(name.into(), origin); }
+    pub(crate) fn set_operator_origin(&mut self, name: impl Into<String>, origin: Origin) { self.operator_origins.insert(name.into(), origin); }
     pub fn literal_type(&self, kind: LiteralKind) -> Option<&Type> { self.literal_types.get(&kind) }
     pub fn constant_type(&self, name: &str) -> Option<&Type> { self.constants.get(name) }
     pub fn operator(&self, name: &str) -> Option<&Signature> { self.operators.get(name) }

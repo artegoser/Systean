@@ -46,3 +46,12 @@ fn subtype_cycles_are_rejected() {
     let spec = parse_specification(source).unwrap();
     assert!(compile_specification(&spec).is_err());
 }
+
+#[test]
+fn semantic_package_directory_compiles_with_provenance() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("spec/semantics");
+    let environment = systean::spec::compile_path(&root).expect("semantic package should compile");
+    let origin = environment.operator_origin("smoke").expect("origin");
+    assert!(origin.source.ends_with("demo.semsys"));
+    assert_eq!(origin.declaration, 1);
+}

@@ -20,6 +20,8 @@ Implemented now:
 - named semantic roles only (no positional call arguments in the semantic DSL);
 - stricter type checking, invariant generic constructors, record field checks, and function variance;
 - representation-level canonicalization with deterministic alpha-renaming of binders;
+- multi-file `.semsys` package compilation with definition provenance;
+- a typed semantic explainer that reports roles, types, and definition origins;
 - lexical/bound-name lowering;
 - a small semantic specification DSL;
 - a Chumsky `0.13.0` parser for the specification DSL and semantic expressions;
@@ -40,35 +42,19 @@ This DSL is **not Systean surface syntax**. It is an implementation/specificatio
 cargo test
 ```
 
-## Try the semantic checker
-
-A small demo specification is included at `spec/semantics/demo.semsys`.
-
-Current smoking process:
+## Check and explain semantic packages
 
 ```bash
-cargo run --bin systean-sem -- spec/semantics/demo.semsys \
+cargo run --bin systean -- check spec/semantics
+
+cargo run --bin systean -- explain spec/semantics \
   'cease(target = smoke(agent = john, object = cigarette_x))'
+
+cargo run --bin systean -- explain spec/semantics \
+  'cease(target = habitual(activity = smoke_activity(agent = john, object_kind = cigarette_kind)))'
 ```
 
-Habitual smoking activity:
-
-```bash
-cargo run --bin systean-sem -- spec/semantics/demo.semsys \
-  'cease(target = habitual(activity = smoke(agent = john, object = cigarette_kind)))'
-```
-
-Different quantifier/negation scope:
-
-```bash
-cargo run --bin systean-sem -- spec/semantics/demo.semsys \
-  'not(value = forall(predicate = bind x: Entity => arrived(entity = x)))'
-
-cargo run --bin systean-sem -- spec/semantics/demo.semsys \
-  'forall(predicate = bind x: Entity => not(value = arrived(entity = x)))'
-```
-
-The CLI prints the lowered semantic term and inferred type.
+The explainer prints the inferred type, canonical IR, role tree, and `.semsys` definition provenance. `systean-sem` remains as a compatibility CLI and accepts either one `.semsys` file or a directory.
 
 ## Semantic specification DSL (prototype)
 

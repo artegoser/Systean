@@ -23,11 +23,14 @@ src/semantics/
   environment.rs
   checker.rs
   normalize.rs
+  origin.rs
+  explain.rs
 
 src/spec/
   ast.rs
   parser.rs
   compile.rs
+  package.rs
 
 spec/semantics/
   core.semsys
@@ -45,7 +48,7 @@ smoke(agent = john, object = cigarette_x)
 smoke(object = cigarette_x, agent = john)
 ```
 
-The implementation now includes representation-level canonicalization: bound variables are alpha-renamed deterministically, while role maps and record fields use deterministic key ordering. This is intentionally not a theorem prover: algebraic or logical rewrites such as commutativity are not assumed by the generic engine. Generic type constructors declare their arity explicitly, are invariant unless a future specification mechanism declares variance, and subtype cycles are rejected during specification compilation. Temporal models, discourse state, affect structures, logical inference, and the final event/activity representation remain design work rather than silently hardcoded engine behavior.
+The implementation now includes representation-level canonicalization: bound variables are alpha-renamed deterministically, while role maps and record fields use deterministic key ordering. This is intentionally not a theorem prover: algebraic or logical rewrites such as commutativity are not assumed by the generic engine. Generic type constructors declare their arity explicitly, are invariant unless a future specification mechanism declares variance, and subtype cycles are rejected during specification compilation. Multiple `.semsys` files can be compiled as one semantic package, and definitions retain file/declaration provenance for the semantic explainer. The package-level core distinguishes configurable `Occurrence`, `Event`, `Process`, `State`, and `Activity` types without hardcoding them in Rust. Temporal interval semantics, discourse state, affect structures, logical inference, and the final richer event/activity model remain design work.
 
 ---
 
