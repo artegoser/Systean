@@ -1,8 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systean_core::discourse::DiscourseState;
 use systean_core::language::LanguagePackage;
-use systean_core::semantics::canonicalize;
+use systean_core::semantics::{Term, Type, canonicalize};
 use systean_core::syntax::SurfaceExpr;
 
 fn repository() -> PathBuf {
@@ -43,8 +44,23 @@ fn language() -> LanguagePackage {
     fixture_language("")
 }
 
+fn discourse(language: &LanguagePackage) -> DiscourseState {
+    let mut discourse = DiscourseState::new();
+    discourse
+        .set_context_value("speaker", Term::Const("john".into()), language.semantics())
+        .unwrap();
+    discourse
+        .set_context_value("addressee", Term::Const("mary".into()), language.semantics())
+        .unwrap();
+    discourse
+}
+
 fn semantics(source: &str) -> String {
-    language().analyze_surface(source).unwrap().canonical_semantics
+    let language = language();
+    language
+        .analyze_surface_with_discourse(source, &discourse(&language))
+        .unwrap()
+        .canonical_semantics
 }
 
 #[test]
@@ -129,7 +145,7 @@ fn negation_scope_follows_surface_order() {
 #[test]
 fn quantifiers_nest_in_order_of_appearance() {
     assert_eq!(
-        semantics("ra pe vi mu du"),
+        semantics("ra pe vi mu kan"),
         "forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = exists(predicate = bind v1: Entity => and(left = dog(entity = v1), right = see(observed = v1, observer = v0)))))"
     );
 }
@@ -203,9 +219,17 @@ fn explicit_speech_acts_do_not_use_word_order_tricks() {
 }
 
 #[test]
-fn required_frame_arguments_are_not_omitted_without_discourse_resolution() {
+fn omitted_frame_arguments_are_carried_to_discourse_resolution() {
     let language = language();
-    assert!(language.syntax().parse("mi vi").is_err());
+    let parsed = language.syntax().parse("mi vi").unwrap();
+    let typed = language
+        .syntax()
+        .elaborate(&parsed, language.semantics())
+        .unwrap();
+    assert_eq!(typed.references.len(), 1);
+    assert_eq!(typed.references[0].role, "observed");
+    assert_eq!(typed.references[0].expected_type, Type::named("Entity"));
+    assert!(language.analyze_surface("mi vi").is_err());
 }
 
 #[test]
@@ -220,9 +244,12 @@ fn parse_linearize_round_trip_preserves_surface_ast() {
     for source in [
         "sol",
         "mi vi tu",
+        "mi vi",
+        "ref si",
+        "vi tu",
         "ne ra pe si",
         "ra pe ne si",
-        "ra pe vi mu du",
+        "ra pe vi mu kan",
         "mi si zo tu si va mi vi tu",
         "ki mi si zo tu si ku va mi vi tu",
         "ke ne ki mi si va tu si ku",
@@ -237,7 +264,7 @@ fn parse_linearize_round_trip_preserves_surface_ast() {
 #[test]
 fn surface_lowering_is_type_checked() {
     let language = language();
-    let analysis = language.analyze_surface("ra pe vi mu du").unwrap();
+    let analysis = language.analyze_surface("ra pe vi mu kan").unwrap();
     assert_eq!(analysis.inferred_type, "Proposition");
     let lowered = language
         .syntax()

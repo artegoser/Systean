@@ -1,8 +1,8 @@
-[mi]
+[jon]
 definition = "Fixture entity John."
 semantic = { kind = "constant", name = "john", type = "Entity" }
 
-[tu]
+[mari]
 definition = "Fixture entity Mary."
 semantic = { kind = "constant", name = "mary", type = "Entity" }
 
@@ -11,7 +11,7 @@ definition = "Fixture class of persons."
 semantic = { kind = "operator", name = "person" }
 syntax = { kind = "class", role = "entity" }
 
-[du]
+[kan]
 definition = "Fixture class of dogs."
 semantic = { kind = "operator", name = "dog" }
 syntax = { kind = "class", role = "entity" }

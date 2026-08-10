@@ -37,7 +37,7 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     );
     assert_eq!(
         language.roots().roots(),
-        &["da", "ke", "me", "mu", "ne", "ra", "sol", "va", "zo"]
+        &["da", "ke", "me", "mi", "mu", "ne", "ra", "ref", "sol", "tu", "va", "zo"]
             .into_iter()
             .map(str::to_owned)
             .collect::<Vec<_>>()
@@ -52,7 +52,9 @@ fn canonical_language_package_loads_as_one_validated_unit() {
             > language.syntax().config().logic.precedence["or"]
     );
     assert_eq!(language.syntax().lexicon().len(), language.roots().roots().len());
-    for surface in ["sol", "ne", "va", "zo", "ra", "mu", "ke", "da", "me"] {
+    for surface in [
+        "sol", "ref", "mi", "tu", "ne", "va", "zo", "ra", "mu", "ke", "da", "me",
+    ] {
         assert!(language.syntax().lexicon().contains_key(surface));
     }
 }
@@ -63,7 +65,6 @@ fn syntax_policy_contains_no_duplicate_lexical_root_table() {
     let value: toml::Value = toml::from_str(&source).unwrap();
     assert!(value.get("lexemes").is_none());
 }
-
 
 #[test]
 fn syntax_config_rejects_legacy_duplicate_lexeme_tables() {
@@ -159,6 +160,32 @@ fn dictionary_constant_semantics_are_installed_into_the_environment() {
         }
     );
     assert_eq!(language.semantics().constant_type("sol"), Some(&Type::named("Entity")));
+}
+
+#[test]
+fn dictionary_supports_runtime_reference_and_context_lexemes() {
+    let language = LanguagePackage::load(repository().join("language")).unwrap();
+    let reference = language
+        .dictionary()
+        .entries()
+        .iter()
+        .find(|entry| entry.root == "ref")
+        .unwrap();
+    assert_eq!(reference.semantic, LexicalSemantic::Reference);
+
+    let speaker = language
+        .dictionary()
+        .entries()
+        .iter()
+        .find(|entry| entry.root == "mi")
+        .unwrap();
+    assert_eq!(
+        speaker.semantic,
+        LexicalSemantic::Context {
+            key: "speaker".into(),
+            ty: "Entity".into(),
+        }
+    );
 }
 
 #[test]
