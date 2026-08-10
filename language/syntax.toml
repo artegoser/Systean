@@ -1,0 +1,38 @@
+[meta]
+description = "Defines normative Systean surface-syntax policies independently of lexical surface bindings."
+version = "1.0"
+
+[order]
+frame = "primary_predicate_rest"
+free_order = false
+
+[scope]
+open = "ki"
+close = "ku"
+explicit = "when_ambiguous"
+quantifier_order = "appearance"
+
+[logic]
+flatten_same_operator = true
+
+[logic.precedence]
+and = 20
+or = 10
+
+[roles]
+realization = "frame_order"
+
+[arguments]
+omission = "unique_reference_only"
+
+[questions]
+realization = "explicit_operator"
+
+[commands]
+realization = "explicit_operator"
+
+[focus]
+reorders = false
+
+[grammar]
+traditional_pos = false

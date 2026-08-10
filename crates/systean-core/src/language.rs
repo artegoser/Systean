@@ -11,6 +11,7 @@ use crate::morphology::{
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
 use crate::semantics::{Checker, Environment, Explainer, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term};
+use crate::syntax::{SurfaceAnalysis, SurfaceError, SyntaxConfig, SyntaxConfigError, SyntaxEngine};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct DictionaryEntry {
@@ -73,6 +74,7 @@ impl Dictionary {
 pub struct LanguagePackage {
     phonology: PhonologyConfig,
     morphology: MorphologyEngine,
+    syntax: SyntaxEngine,
     dictionary: Dictionary,
     roots: RootInventory,
     semantics: Environment,
@@ -97,6 +99,8 @@ pub enum LanguageError {
     Phonology(ConfigError),
     MorphologyConfig(MorphologyConfigError),
     Morphology(MorphologyError),
+    SyntaxConfig(SyntaxConfigError),
+    Syntax(SurfaceError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -109,15 +113,17 @@ impl LanguagePackage {
         let alphabet = read(path.join("alphabet.toml"))?;
         let phonology = read(path.join("phonology.toml"))?;
         let morphology = read(path.join("morphology.toml"))?;
+        let syntax = read(path.join("syntax.toml"))?;
         let dictionary = read(path.join("dictionary.toml"))?;
         let semantics = compile_path(path.join("semantics")).map_err(LanguageError::Semantics)?;
-        Self::from_parts(&alphabet, &phonology, &morphology, &dictionary, semantics)
+        Self::from_parts(&alphabet, &phonology, &morphology, &syntax, &dictionary, semantics)
     }
 
     pub fn from_sources(
         alphabet: &str,
         phonology: &str,
         morphology: &str,
+        syntax: &str,
         dictionary: &str,
         semantic_sources: &[(&str, &str)],
     ) -> Result<Self, LanguageError> {
@@ -127,13 +133,14 @@ impl LanguagePackage {
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
         .map_err(LanguageError::Semantics)?;
-        Self::from_parts(alphabet, phonology, morphology, dictionary, semantics)
+        Self::from_parts(alphabet, phonology, morphology, syntax, dictionary, semantics)
     }
 
     fn from_parts(
         alphabet: &str,
         phonology: &str,
         morphology: &str,
+        syntax: &str,
         dictionary: &str,
         semantics: Environment,
     ) -> Result<Self, LanguageError> {
@@ -142,14 +149,19 @@ impl LanguagePackage {
         let morphology = MorphologyEngine::new(
             MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
         );
+        let syntax = SyntaxEngine::new(
+            SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?,
+        );
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
         validate_roots(&phonology, &roots)?;
         validate_morphology(&morphology, &phonology, &roots)?;
+        validate_syntax(&syntax, &phonology, &roots, &semantics)?;
         Ok(Self {
             phonology,
             morphology,
+            syntax,
             dictionary: dictionary_parsed,
             roots,
             semantics,
@@ -162,6 +174,10 @@ impl LanguagePackage {
 
     pub fn morphology(&self) -> &MorphologyEngine {
         &self.morphology
+    }
+
+    pub fn syntax(&self) -> &SyntaxEngine {
+        &self.syntax
     }
 
     pub fn dictionary(&self) -> &Dictionary {
@@ -195,6 +211,12 @@ impl LanguagePackage {
         self.morphology
             .generate(root, &self.phonology, &self.roots)
             .map_err(LanguageError::Morphology)
+    }
+
+    pub fn analyze_surface(&self, expression: &str) -> Result<SurfaceAnalysis, LanguageError> {
+        self.syntax
+            .analyze(expression, &self.semantics)
+            .map_err(LanguageError::Syntax)
     }
 
     pub fn explain(&self, expression: &str) -> Result<SemanticAnalysis, LanguageError> {
@@ -271,6 +293,47 @@ fn validate_morphology(
     Ok(())
 }
 
+
+fn validate_syntax(
+    syntax: &SyntaxEngine,
+    phonology: &PhonologyConfig,
+    roots: &RootInventory,
+    semantics: &Environment,
+) -> Result<(), LanguageError> {
+    syntax.validate_environment(semantics).map_err(LanguageError::Syntax)?;
+
+    for marker in [&syntax.config().scope.open, &syntax.config().scope.close] {
+        validate_surface_token("scope marker", marker, phonology)?;
+        if roots.roots().iter().any(|root| root == marker) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "scope marker `{marker}` collides with lexical root `{marker}`"
+            ))));
+        }
+    }
+    for surface in syntax.config().lexemes.keys() {
+        validate_surface_token("surface lexeme", surface, phonology)?;
+    }
+    Ok(())
+}
+
+fn validate_surface_token(
+    kind: &str,
+    surface: &str,
+    phonology: &PhonologyConfig,
+) -> Result<(), LanguageError> {
+    if surface.is_empty() || surface.chars().any(char::is_whitespace) {
+        return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+            "{kind} `{surface}` must be one non-empty written token"
+        ))));
+    }
+    phonology.alphabet.pronounce(surface).map_err(|error| {
+        LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+            "{kind} `{surface}` is not phonologically valid: {error}"
+        )))
+    })?;
+    Ok(())
+}
+
 fn read(path: PathBuf) -> Result<String, LanguageError> {
     fs::read_to_string(&path).map_err(|error| LanguageError::Io {
         path,
@@ -285,6 +348,8 @@ impl fmt::Display for LanguageError {
             Self::Phonology(error) => write!(f, "phonology: {error}"),
             Self::MorphologyConfig(error) => write!(f, "morphology config: {error}"),
             Self::Morphology(error) => write!(f, "morphology: {error}"),
+            Self::SyntaxConfig(error) => write!(f, "syntax config: {error}"),
+            Self::Syntax(error) => write!(f, "syntax: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {

@@ -1,0 +1,114 @@
+[order]
+frame = "primary_predicate_rest"
+free_order = false
+
+[scope]
+open = "ki"
+close = "ku"
+explicit = "when_ambiguous"
+quantifier_order = "appearance"
+
+[logic]
+flatten_same_operator = true
+
+[logic.precedence]
+and = 20
+or = 10
+
+[roles]
+realization = "frame_order"
+
+[arguments]
+omission = "unique_reference_only"
+
+[questions]
+realization = "explicit_operator"
+
+[commands]
+realization = "explicit_operator"
+
+[focus]
+reorders = false
+
+[grammar]
+traditional_pos = false
+
+[lexemes.mi]
+kind = "atom"
+semantic = "john"
+
+[lexemes.tu]
+kind = "atom"
+semantic = "mary"
+
+[lexemes.pe]
+kind = "class"
+semantic = "person"
+role = "entity"
+
+[lexemes.du]
+kind = "class"
+semantic = "dog"
+role = "entity"
+
+[lexemes.vi]
+kind = "predicate"
+semantic = "see"
+primary_role = "observer"
+rest_roles = ["observed"]
+
+[lexemes.si]
+kind = "predicate"
+semantic = "sleep"
+primary_role = "sleeper"
+rest_roles = []
+
+[lexemes.ne]
+kind = "prefix"
+semantic = "not"
+role = "value"
+
+[lexemes.an]
+kind = "infix"
+semantic = "and"
+left_role = "left"
+right_role = "right"
+
+[lexemes.or]
+kind = "infix"
+semantic = "or"
+left_role = "left"
+right_role = "right"
+
+[lexemes.ev]
+kind = "quantifier"
+semantic = "forall"
+binder_role = "predicate"
+variable_type = "Entity"
+restriction_operator = "implies"
+restriction_role = "condition"
+body_role = "consequence"
+
+[lexemes.so]
+kind = "quantifier"
+semantic = "exists"
+binder_role = "predicate"
+variable_type = "Entity"
+restriction_operator = "and"
+restriction_role = "left"
+body_role = "right"
+
+[lexemes.ke]
+kind = "speech_act"
+semantic = "ask_truth"
+role = "content"
+
+[lexemes.ko]
+kind = "speech_act"
+semantic = "command"
+role = "content"
+
+[lexemes.re]
+kind = "speech_act"
+semantic = "request"
+role = "content"
