@@ -183,3 +183,14 @@ fn spoken_segmentation_reports_unique_ambiguous_and_impossible_streams() {
         Segmentation::Impossible
     );
 }
+
+#[test]
+fn existing_dictionary_roots_are_phonologically_valid_and_pronunciation_unique() {
+    let phonology = phonology();
+    let inventory = RootInventory::load_dictionary(repo_path("lib/config/dictionary.toml")).unwrap();
+    let by_pronunciation = systean::phonology::roots_by_pronunciation(&phonology, &inventory);
+    assert!(by_pronunciation.values().all(|roots| roots.len() == 1));
+    for root in inventory.roots() {
+        phonology.analyze_root(root).unwrap();
+    }
+}

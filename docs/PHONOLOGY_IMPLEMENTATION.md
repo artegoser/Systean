@@ -10,6 +10,7 @@ This checklist tracks the first executable phonology foundation.
 - [x] Add deterministic vowel-driven syllabification.
 - [x] Add root-span-aware lexical stress on the first root syllable.
 - [x] Add manual root validation with non-fatal similarity warnings.
+- [x] Add whole-dictionary root auditing for invalid forms and exact pronunciation collisions.
 - [x] Add exact spoken segmentation ambiguity detection over supplied inventories.
 - [x] Expose phonology analysis and root checks through the CLI.
 - [x] Restore the alphabet website's access to the canonical config without duplicating it.

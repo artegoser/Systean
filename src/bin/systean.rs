@@ -259,6 +259,7 @@ fn phonology_analyze(mut args: impl Iterator<Item = String>) -> ExitCode {
 fn roots(mut args: impl Iterator<Item = String>) -> ExitCode {
     match args.next().as_deref() {
         Some("check") => root_check(args),
+        Some("audit") => roots_audit(args),
         Some("segment") => roots_segment(args),
         _ => {
             usage();
@@ -327,6 +328,69 @@ fn root_check(mut args: impl Iterator<Item = String>) -> ExitCode {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+
+fn roots_audit(mut args: impl Iterator<Item = String>) -> ExitCode {
+    let Some(alphabet_path) = args.next() else {
+        usage();
+        return ExitCode::from(2);
+    };
+    let Some(rules_path) = args.next() else {
+        usage();
+        return ExitCode::from(2);
+    };
+    let Some(dictionary_path) = args.next() else {
+        usage();
+        return ExitCode::from(2);
+    };
+    if args.next().is_some() {
+        usage();
+        return ExitCode::from(2);
+    }
+    let phonology = match load_phonology(&alphabet_path, &rules_path) {
+        Ok(value) => value,
+        Err(code) => return code,
+    };
+    let inventory = match RootInventory::load_dictionary(&dictionary_path) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("dictionary error: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let mut failed = false;
+    let pronunciations = systean::phonology::roots_by_pronunciation(&phonology, &inventory);
+    for (pronunciation, roots) in &pronunciations {
+        if roots.len() > 1 {
+            failed = true;
+            eprintln!(
+                "error: roots {} share pronunciation /{pronunciation}/",
+                roots.join(", ")
+            );
+        }
+    }
+
+    for root in inventory.roots() {
+        match phonology.analyze_root(root) {
+            Ok(analysis) => println!(
+                "ok: {} /{}/ -> /{}/",
+                root, analysis.pronunciation, analysis.stressed_pronunciation
+            ),
+            Err(error) => {
+                failed = true;
+                eprintln!("error: root `{root}`: {error}");
+            }
+        }
+    }
+
+    if failed {
+        ExitCode::FAILURE
+    } else {
+        println!("root inventory OK: {} roots", inventory.roots().len());
+        ExitCode::SUCCESS
     }
 }
 
@@ -407,6 +471,7 @@ fn usage() {
          systean phonology spell <alphabet.toml> <pronunciation>\n  \
          systean phonology analyze <alphabet.toml> <phonology.toml> <word> [--root <root>]\n  \
          systean roots check <alphabet.toml> <phonology.toml> <dictionary.toml> <root>\n  \
+         systean roots audit <alphabet.toml> <phonology.toml> <dictionary.toml>\n  \
          systean roots segment <alphabet.toml> <phonology.toml> <dictionary.toml> <phoneme-stream>"
     );
 }

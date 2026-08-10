@@ -86,6 +86,9 @@ cargo run --bin systean -- phonology analyze \
 
 cargo run --bin systean -- roots check \
   lib/config/alphabet.toml lib/config/phonology.toml lib/config/dictionary.toml sal
+
+cargo run --bin systean -- roots audit \
+  lib/config/alphabet.toml lib/config/phonology.toml lib/config/dictionary.toml
 ```
 
 Roots remain manually authored. The checker validates a proposed root but never generates one.
