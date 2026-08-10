@@ -6,7 +6,6 @@
 
 	let engine = $state<SysteanEngine | null>(null);
 	let word = $state('sol');
-	let root = $state('sol');
 	let wordAnalysis = $state<WordAnalysis | null>(null);
 	let semanticExpression = $state('equal(left = 1, right = 1)');
 	let semanticAnalysis = $state<SemanticAnalysis | null>(null);
@@ -29,7 +28,7 @@
 	function analyzeWord() {
 		if (!engine) return;
 		try {
-			wordAnalysis = engine.analyzeWord(word, root || undefined);
+			wordAnalysis = engine.analyzeWord(word);
 			wordError = '';
 		} catch (cause) {
 			wordAnalysis = null;
@@ -67,10 +66,9 @@
 
 
 	<section class="bg-accent/10 border-2 border-accent/10 rounded-xl p-4">
-		<h2 class="text-2xl font-black">Phonology</h2>
+		<h2 class="text-2xl font-black">Word analysis</h2>
 		<div class="flex flex-wrap items-center gap-2 mt-2">
 			<input class="input m-0" bind:value={word} placeholder="word" />
-			<input class="input m-0" bind:value={root} placeholder="root" />
 			<button class="small-text link" onclick={analyzeWord}>Analyze</button>
 		</div>
 		{#if wordError}
@@ -78,6 +76,8 @@
 		{:else if wordAnalysis}
 			<div class="mt-3 font-mono break-all">
 				<div>spelling: {wordAnalysis.spelling}</div>
+				<div>root: {wordAnalysis.root}</div>
+				<div>morphology: {wordAnalysis.morphemes.map((part) => `${part.kind}:${part.spelling}`).join(' + ')}</div>
 				<div>pronunciation: /{wordAnalysis.pronunciation}/</div>
 				<div>stressed: /{wordAnalysis.stressedPronunciation}/</div>
 				<div class="mt-2">

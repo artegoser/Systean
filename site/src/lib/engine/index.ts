@@ -11,7 +11,8 @@ interface WasmModule {
 	dictionary_json: () => string;
 	pronounce: (text: string) => string;
 	spell: (pronunciation: string) => string;
-	analyze_word_json: (word: string, root: string) => string;
+	analyze_word_json: (word: string) => string;
+	generate_word: (root: string) => string;
 	explain_json: (expression: string) => string;
 }
 
@@ -20,7 +21,8 @@ export interface SysteanEngine {
 	dictionary(): Dictionary;
 	pronounce(text: string): string;
 	spell(pronunciation: string): string;
-	analyzeWord(word: string, root?: string): WordAnalysis;
+	analyzeWord(word: string): WordAnalysis;
+	generateWord(root: string): string;
 	explain(expression: string): SemanticAnalysis;
 }
 
@@ -40,8 +42,8 @@ async function createEngine(): Promise<SysteanEngine> {
 		dictionary: () => JSON.parse(wasm.dictionary_json()) as Dictionary,
 		pronounce: (text) => wasm.pronounce(text),
 		spell: (pronunciation) => wasm.spell(pronunciation),
-		analyzeWord: (word, root) =>
-			JSON.parse(wasm.analyze_word_json(word, root ?? '')) as WordAnalysis,
+		analyzeWord: (word) => JSON.parse(wasm.analyze_word_json(word)) as WordAnalysis,
+		generateWord: (root) => wasm.generate_word(root),
 		explain: (expression) => JSON.parse(wasm.explain_json(expression)) as SemanticAnalysis
 	};
 }

@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 
 const ALPHABET: &str = include_str!("../../../language/alphabet.toml");
 const PHONOLOGY: &str = include_str!("../../../language/phonology.toml");
+const MORPHOLOGY: &str = include_str!("../../../language/morphology.toml");
 const DICTIONARY: &str = include_str!("../../../language/dictionary.toml");
 const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
 
@@ -16,6 +17,7 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
         LanguagePackage::from_sources(
             ALPHABET,
             PHONOLOGY,
+            MORPHOLOGY,
             DICTIONARY,
             &[("language/semantics/core.semsys", SEMANTICS_CORE)],
         )
@@ -75,15 +77,12 @@ pub fn spell(pronunciation: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn analyze_word_json(word: &str, root: &str) -> Result<String, JsValue> {
-    let language = language()?;
-    let analysis = if root.is_empty() {
-        language.phonology().analyze_root(word)
-    } else {
-        language.phonology().analyze_word_with_root_text(word, root)
-    }
-    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+pub fn analyze_word_json(word: &str) -> Result<String, JsValue> {
+    let analysis = language()?
+        .analyze_word(word)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
     let syllables = analysis
+        .phonology
         .syllables
         .iter()
         .map(|syllable| {
@@ -96,15 +95,37 @@ pub fn analyze_word_json(word: &str, root: &str) -> Result<String, JsValue> {
             })
         })
         .collect::<Vec<_>>();
+    let morphemes = analysis
+        .morphology
+        .morphemes
+        .iter()
+        .map(|morpheme| {
+            json!({
+                "kind": morpheme.kind,
+                "spelling": morpheme.spelling,
+                "graphemeStart": morpheme.grapheme_range.start,
+                "graphemeEnd": morpheme.grapheme_range.end,
+            })
+        })
+        .collect::<Vec<_>>();
     json_string(json!({
-        "spelling": analysis.canonical_spelling,
-        "pronunciation": analysis.pronunciation,
-        "stressedPronunciation": analysis.stressed_pronunciation,
-        "rootStart": analysis.root_grapheme_range.start,
-        "rootEnd": analysis.root_grapheme_range.end,
-        "stressedSyllable": analysis.stressed_syllable,
+        "spelling": analysis.phonology.canonical_spelling,
+        "root": analysis.morphology.root,
+        "morphemes": morphemes,
+        "pronunciation": analysis.phonology.pronunciation,
+        "stressedPronunciation": analysis.phonology.stressed_pronunciation,
+        "rootStart": analysis.phonology.root_grapheme_range.start,
+        "rootEnd": analysis.phonology.root_grapheme_range.end,
+        "stressedSyllable": analysis.phonology.stressed_syllable,
         "syllables": syllables,
     }))
+}
+
+#[wasm_bindgen]
+pub fn generate_word(root: &str) -> Result<String, JsValue> {
+    language()?
+        .generate_word(root)
+        .map_err(|error| JsValue::from_str(&error.to_string()))
 }
 
 #[wasm_bindgen]

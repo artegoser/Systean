@@ -40,12 +40,7 @@
 			{#each entries as entry}
 				<article class="bg-accent/10 border-2 border-accent/10 rounded-xl p-4">
 					<div class="text-3xl font-black">{entry.root}</div>
-					{#each Object.entries(entry.fields) as [name, description]}
-						<div class="mt-3">
-							<div class="font-bold text-accent/70 uppercase text-sm">{name}</div>
-							<div class="text-stone-200/80 whitespace-pre-line">{description}</div>
-						</div>
-					{/each}
+					<div class="mt-3 text-stone-200/80 whitespace-pre-line">{entry.definition}</div>
 				</article>
 			{/each}
 		</div>

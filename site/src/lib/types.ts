@@ -3,6 +3,7 @@ export type {
 	Dictionary,
 	DictionaryEntry,
 	Letter,
+	MorphemeAnalysis,
 	SemanticAnalysis,
 	SyllableAnalysis,
 	WordAnalysis

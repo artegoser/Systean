@@ -10,7 +10,7 @@ export interface Alphabet {
 
 export interface DictionaryEntry {
 	root: string;
-	fields: Record<string, string>;
+	definition: string;
 }
 
 export interface Dictionary {
@@ -25,8 +25,17 @@ export interface SyllableAnalysis {
 	graphemeEnd: number;
 }
 
+export interface MorphemeAnalysis {
+	kind: 'root';
+	spelling: string;
+	graphemeStart: number;
+	graphemeEnd: number;
+}
+
 export interface WordAnalysis {
 	spelling: string;
+	root: string;
+	morphemes: MorphemeAnalysis[];
 	pronunciation: string;
 	stressedPronunciation: string;
 	rootStart: number;
