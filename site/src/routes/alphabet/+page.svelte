@@ -10,7 +10,7 @@
 
 	let { data }: Props = $props();
 
-	let input = $state('Sistean');
+	let input = $state('Systean');
 
 	app_state.current_tab = 1;
 </script>
@@ -23,7 +23,7 @@
 	<div class="flex flex-col gap-1 items-center">
 		<div class="big-text">Systean alphabet</div>
 		<div class="small-text">
-			In the Sistean language, letters always have the same sound as written in the alphabet. For
+			In the Systean language, letters always have the same sound as written in the alphabet. For
 			any letter combination, you can get its pronunciation automatically.
 		</div>
 	</div>

@@ -1,9 +1,8 @@
 import type { Alphabet } from '$lib/types';
 import type { PageLoad } from './$types';
 import toml from 'toml';
+import alphabetSource from '$systean-config/alphabet.toml?raw';
 
-export const load: PageLoad = async ({ fetch }): Promise<Alphabet> => {
-	const alphabet = await fetch('/config/alphabet.toml').then((res) => res.text());
-
-	return { ...toml.parse(alphabet) };
+export const load: PageLoad = async (): Promise<Alphabet> => {
+	return { ...toml.parse(alphabetSource) };
 };
