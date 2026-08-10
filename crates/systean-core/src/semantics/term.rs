@@ -3,7 +3,7 @@ use std::fmt;
 
 use super::Type;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Term {
     Const(String),
     Var(String),
@@ -24,13 +24,12 @@ pub enum Term {
     },
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Literal {
     Integer(i64),
     Boolean(bool),
     String(String),
 }
-
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

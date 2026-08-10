@@ -1,5 +1,6 @@
 mod ast;
 mod config;
+mod elaborate;
 mod engine;
 mod generate;
 mod lexicon;
@@ -10,6 +11,10 @@ pub use ast::{Argument, Clause, SurfaceExpr};
 pub use config::{
     ArgumentOmission, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig,
     QuantifierScopePolicy, RoleRealization, SurfaceFormConfig, SyntaxConfig, SyntaxConfigError,
+};
+pub use elaborate::{
+    ContextSlot, ReferenceSlot, ReferenceSource, SurfaceElaborationError, TypedSurfaceAst,
+    elaborate_surface,
 };
 pub use engine::{SurfaceAnalysis, SurfaceError, SyntaxEngine};
 pub use generate::{SurfaceGenerationError, linearize_surface};

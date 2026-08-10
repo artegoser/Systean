@@ -5,6 +5,11 @@ pub enum LexemeConfig {
     Atom {
         semantic: String,
     },
+    Reference,
+    Context {
+        key: String,
+        ty: String,
+    },
     Class {
         semantic: String,
         role: String,

@@ -4,7 +4,8 @@ use chumsky::extra::Err;
 use chumsky::prelude::*;
 
 use super::{
-    Argument, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig,
+    Argument, ArgumentOmission, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SurfaceLexicon,
+    SyntaxConfig,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -143,28 +144,37 @@ impl ParserState<'_> {
                     content: Box::new(content),
                 })
             }
-            Some(LexemeConfig::Atom { .. }) if !self.atom_starts_clause() => {
+            Some(LexemeConfig::Atom { .. }) if !self.argument_starts_clause() => {
                 self.index += 1;
                 Ok(SurfaceExpr::Atom(token))
             }
+            Some(LexemeConfig::Context { .. }) if !self.argument_starts_clause() => {
+                self.index += 1;
+                Ok(SurfaceExpr::Context(token))
+            }
+            Some(LexemeConfig::Reference) if !self.argument_starts_clause() => Err(vec![self.error(
+                format!("reference `{token}` requires a typed argument slot"),
+            )]),
             Some(LexemeConfig::Atom { .. })
+            | Some(LexemeConfig::Context { .. })
+            | Some(LexemeConfig::Reference)
             | Some(LexemeConfig::Quantifier { .. })
             | Some(LexemeConfig::Predicate { .. }) => self.parse_clause(),
             Some(other) => Err(vec![self.error(format!(
                 "`{token}` cannot start a standalone surface expression ({})",
                 lexeme_kind(other)
             ))]),
-            None => Err(vec![self.error(format!(
-                "unknown lexical root `{token}`"
-            ))]),
+            None => Err(vec![self.error(format!("unknown lexical root `{token}`"))]),
         }
     }
 
-    fn atom_starts_clause(&self) -> bool {
+    fn argument_starts_clause(&self) -> bool {
         if self.config.order.frame != FrameOrder::PrimaryPredicateRest {
             return false;
         }
-        let mut index = self.index.saturating_add(1);
+        let Some(mut index) = self.argument_end_index(self.index) else {
+            return false;
+        };
         while self
             .tokens
             .get(index)
@@ -181,6 +191,21 @@ impl ParserState<'_> {
         )
     }
 
+    fn argument_end_index(&self, start: usize) -> Option<usize> {
+        let token = self.tokens.get(start)?;
+        match self.lexicon.get(token)? {
+            LexemeConfig::Atom { .. }
+            | LexemeConfig::Context { .. }
+            | LexemeConfig::Reference => Some(start + 1),
+            LexemeConfig::Quantifier { .. } => {
+                let restriction = self.tokens.get(start + 1)?;
+                matches!(self.lexicon.get(restriction), Some(LexemeConfig::Class { .. }))
+                    .then_some(start + 2)
+            }
+            _ => None,
+        }
+    }
+
     fn parse_clause(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         match self.config.order.frame {
             FrameOrder::PrimaryPredicateRest => self.parse_primary_predicate_rest(),
@@ -189,8 +214,15 @@ impl ParserState<'_> {
     }
 
     fn parse_primary_predicate_rest(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
-        let primary = if self.peek_is_zero_primary_predicate() {
-            None
+        let primary = if self.peek_is_predicate() {
+            match self.peek_predicate_primary_role() {
+                Some(true) if self.omission_allowed() => Some(Argument::Omitted),
+                Some(true) => {
+                    return Err(vec![self.error("predicate requires an explicit primary argument".into())]);
+                }
+                Some(false) => None,
+                None => unreachable!(),
+            }
         } else {
             Some(self.parse_argument()?)
         };
@@ -209,7 +241,8 @@ impl ParserState<'_> {
                 rest_roles,
                 ..
             }) => {
-                if primary_role.is_some() != primary.is_some() {
+                let surface_has_primary_slot = primary.is_some();
+                if primary_role.is_some() != surface_has_primary_slot {
                     return Err(vec![self.error(format!(
                         "predicate `{predicate}` primary participant shape does not match the surface clause"
                     ))]);
@@ -220,7 +253,13 @@ impl ParserState<'_> {
         };
         let mut rest = Vec::with_capacity(rest_count);
         for _ in 0..rest_count {
-            rest.push(self.parse_argument()?);
+            if self.can_parse_argument_here() {
+                rest.push(self.parse_argument()?);
+            } else if self.argument_can_be_omitted_here() && self.omission_allowed() {
+                rest.push(Argument::Omitted);
+            } else {
+                return Err(vec![self.error("expected argument".into())]);
+            }
         }
         Ok(SurfaceExpr::Clause(Clause {
             primary,
@@ -237,20 +276,29 @@ impl ParserState<'_> {
                 primary_role,
                 rest_roles,
                 ..
-            }) => (
-                usize::from(primary_role.is_some()),
-                rest_roles.len(),
-            ),
+            }) => (usize::from(primary_role.is_some()), rest_roles.len()),
             _ => unreachable!(),
         };
         let primary = if primary_count == 1 {
-            Some(self.parse_argument()?)
+            if self.can_parse_argument_here() {
+                Some(self.parse_argument()?)
+            } else if self.argument_can_be_omitted_here() && self.omission_allowed() {
+                Some(Argument::Omitted)
+            } else {
+                return Err(vec![self.error("expected primary argument".into())]);
+            }
         } else {
             None
         };
         let mut rest = Vec::with_capacity(rest_count);
         for _ in 0..rest_count {
-            rest.push(self.parse_argument()?);
+            if self.can_parse_argument_here() {
+                rest.push(self.parse_argument()?);
+            } else if self.argument_can_be_omitted_here() && self.omission_allowed() {
+                rest.push(Argument::Omitted);
+            } else {
+                return Err(vec![self.error("expected argument".into())]);
+            }
         }
         Ok(SurfaceExpr::Clause(Clause {
             primary,
@@ -268,6 +316,14 @@ impl ParserState<'_> {
             Some(LexemeConfig::Atom { .. }) => {
                 self.index += 1;
                 Ok(Argument::Atom(token))
+            }
+            Some(LexemeConfig::Context { .. }) => {
+                self.index += 1;
+                Ok(Argument::Context(token))
+            }
+            Some(LexemeConfig::Reference) => {
+                self.index += 1;
+                Ok(Argument::Reference(token))
             }
             Some(LexemeConfig::Quantifier { .. }) => {
                 self.index += 1;
@@ -293,10 +349,33 @@ impl ParserState<'_> {
                 "`{token}` is not an argument lexeme ({})",
                 lexeme_kind(other)
             ))]),
-            None => Err(vec![self.error(format!(
-                "unknown lexical root `{token}`"
-            ))]),
+            None => Err(vec![self.error(format!("unknown lexical root `{token}`"))]),
         }
+    }
+
+    fn can_parse_argument_here(&self) -> bool {
+        self.peek().is_some_and(|token| {
+            matches!(
+                self.lexicon.get(token),
+                Some(LexemeConfig::Atom { .. })
+                    | Some(LexemeConfig::Context { .. })
+                    | Some(LexemeConfig::Reference)
+                    | Some(LexemeConfig::Quantifier { .. })
+            )
+        })
+    }
+
+    fn argument_can_be_omitted_here(&self) -> bool {
+        match self.peek() {
+            None => true,
+            Some(token) if token == &self.config.scope.close => true,
+            Some(_) if self.peek_infix().is_some() => true,
+            _ => false,
+        }
+    }
+
+    fn omission_allowed(&self) -> bool {
+        self.config.arguments.omission == ArgumentOmission::UniqueReferenceOnly
     }
 
     fn take_predicate(&mut self) -> Result<String, Vec<SurfaceParseError>> {
@@ -307,22 +386,21 @@ impl ParserState<'_> {
             self.index += 1;
             Ok(token)
         } else {
-            Err(vec![self.error(format!(
-                "expected predicate, found `{token}`"
-            ))])
+            Err(vec![self.error(format!("expected predicate, found `{token}`"))])
         }
     }
 
-    fn peek_is_zero_primary_predicate(&self) -> bool {
-        self.peek().is_some_and(|token| {
-            matches!(
-                self.lexicon.get(token),
-                Some(LexemeConfig::Predicate {
-                    primary_role: None,
-                    ..
-                })
-            )
-        })
+    fn peek_is_predicate(&self) -> bool {
+        self.peek()
+            .is_some_and(|token| matches!(self.lexicon.get(token), Some(LexemeConfig::Predicate { .. })))
+    }
+
+    fn peek_predicate_primary_role(&self) -> Option<bool> {
+        let token = self.peek()?;
+        let LexemeConfig::Predicate { primary_role, .. } = self.lexicon.get(token)? else {
+            return None;
+        };
+        Some(primary_role.is_some())
     }
 
     fn peek_infix(&self) -> Option<(String, u16)> {
@@ -389,6 +467,8 @@ fn push_flattened(operator: &str, expression: SurfaceExpr, output: &mut Vec<Surf
 fn lexeme_kind(lexeme: &LexemeConfig) -> &'static str {
     match lexeme {
         LexemeConfig::Atom { .. } => "atom",
+        LexemeConfig::Reference => "reference",
+        LexemeConfig::Context { .. } => "context",
         LexemeConfig::Class { .. } => "class",
         LexemeConfig::Predicate { .. } => "predicate",
         LexemeConfig::Prefix { .. } => "prefix",

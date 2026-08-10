@@ -6,6 +6,18 @@ version = "3.0"
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
 semantic = { kind = "constant", type = "Entity" }
 
+[ref]
+definition = "Universal typed shorthand reference resolved only by deterministic discourse compatibility."
+semantic = { kind = "reference" }
+
+[mi]
+definition = "The current discourse speaker supplied by the explicit runtime context."
+semantic = { kind = "context", key = "speaker", type = "Entity" }
+
+[tu]
+definition = "The current discourse addressee supplied by the explicit runtime context."
+semantic = { kind = "context", key = "addressee", type = "Entity" }
+
 [ke]
 definition = "Marks an utterance as a truth question about its propositional content."
 semantic = { kind = "operator", name = "ask_truth" }

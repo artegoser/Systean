@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceExpr {
     Atom(String),
+    Context(String),
     Clause(Clause),
     Prefix {
         operator: String,
@@ -29,6 +30,9 @@ pub struct Clause {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Argument {
     Atom(String),
+    Context(String),
+    Reference(String),
+    Omitted,
     Quantified {
         quantifier: String,
         restriction: String,
@@ -38,7 +42,7 @@ pub enum Argument {
 impl fmt::Display for SurfaceExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Atom(surface) => write!(f, "{surface}"),
+            Self::Atom(surface) | Self::Context(surface) => write!(f, "{surface}"),
             Self::Clause(clause) => write!(f, "{clause:?}"),
             Self::Prefix { operator, operand } => write!(f, "{operator}({operand})"),
             Self::Infix { operator, operands } => {

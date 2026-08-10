@@ -1,3 +1,4 @@
+pub mod discourse;
 pub mod language;
 pub mod morphology;
 pub mod phonology;

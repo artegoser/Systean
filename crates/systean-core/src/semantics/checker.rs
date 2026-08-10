@@ -48,6 +48,16 @@ impl<'env> Checker<'env> {
         self.infer_with_scope(term, &mut BTreeMap::new())
     }
 
+    pub(crate) fn match_expected_type(
+        &self,
+        expected: &Type,
+        actual: &Type,
+        bindings: &mut BTreeMap<String, Type>,
+        context: &str,
+    ) -> Result<(), CheckError> {
+        self.match_type(expected, actual, bindings, context)
+    }
+
     pub(crate) fn infer_with_scope(
         &self,
         term: &Term,

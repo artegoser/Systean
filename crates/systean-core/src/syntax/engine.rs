@@ -5,9 +5,9 @@ use crate::semantics::{Environment, canonicalize};
 use crate::spec::parse_type;
 
 use super::{
-    LexemeConfig, LoweredSurface, SurfaceExpr, SurfaceGenerationError, SurfaceLexicon,
-    SurfaceLowerError, SurfaceParseError, SyntaxConfig, linearize_surface, lower_surface,
-    parse_surface,
+    LexemeConfig, LoweredSurface, SurfaceElaborationError, SurfaceExpr, SurfaceGenerationError,
+    SurfaceLexicon, SurfaceLowerError, SurfaceParseError, SyntaxConfig, TypedSurfaceAst,
+    elaborate_surface, linearize_surface, lower_surface, parse_surface,
 };
 
 #[derive(Clone, Debug)]
@@ -27,6 +27,7 @@ pub struct SurfaceAnalysis {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceError {
     Parse(Vec<SurfaceParseError>),
+    Elaborate(SurfaceElaborationError),
     Lower(SurfaceLowerError),
     Generate(SurfaceGenerationError),
     InvalidBinding(String),
@@ -52,6 +53,24 @@ impl SyntaxEngine {
                     if environment.constant_type(semantic).is_none() {
                         return Err(SurfaceError::InvalidBinding(format!(
                             "lexical root `{surface}` references unknown semantic constant `{semantic}`"
+                        )));
+                    }
+                }
+                LexemeConfig::Reference => {}
+                LexemeConfig::Context { ty, .. } => {
+                    let ty = parse_type(ty).map_err(|errors| {
+                        SurfaceError::InvalidBinding(format!(
+                            "context lexical root `{surface}` has invalid type: {}",
+                            errors
+                                .into_iter()
+                                .map(|error| error.to_string())
+                                .collect::<Vec<_>>()
+                                .join("; ")
+                        ))
+                    })?;
+                    if !environment.is_well_formed_type(&ty) {
+                        return Err(SurfaceError::InvalidBinding(format!(
+                            "context lexical root `{surface}` uses unknown type `{ty}`"
                         )));
                     }
                 }
@@ -137,6 +156,14 @@ impl SyntaxEngine {
         linearize_surface(syntax, &self.config, &self.lexicon).map_err(SurfaceError::Generate)
     }
 
+    pub fn elaborate(
+        &self,
+        syntax: &SurfaceExpr,
+        environment: &Environment,
+    ) -> Result<TypedSurfaceAst, SurfaceError> {
+        elaborate_surface(syntax, &self.lexicon, environment).map_err(SurfaceError::Elaborate)
+    }
+
     pub fn lower(
         &self,
         syntax: &SurfaceExpr,
@@ -175,6 +202,7 @@ impl fmt::Display for SurfaceError {
                 }
                 Ok(())
             }
+            Self::Elaborate(error) => error.fmt(f),
             Self::Lower(error) => error.fmt(f),
             Self::Generate(error) => error.fmt(f),
             Self::InvalidBinding(message) => write!(f, "surface binding: {message}"),

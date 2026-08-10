@@ -5,6 +5,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::discourse::{
+    DiscourseResolutionError, DiscourseState, ResolvedSurfaceAst, resolve_surface,
+};
 use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
 };
@@ -12,8 +15,8 @@ use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis
 use crate::semantics::{Checker, Environment, Explainer, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
 use crate::syntax::{
-    LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceFormConfig, SurfaceLexicon, SyntaxConfig,
-    SyntaxConfigError, SyntaxEngine,
+    LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceExpr, SurfaceFormConfig, SurfaceLexicon,
+    SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -27,6 +30,12 @@ pub enum LexicalSemantic {
     },
     Operator {
         name: String,
+    },
+    Reference,
+    Context {
+        key: String,
+        #[serde(rename = "type")]
+        ty: String,
     },
 }
 
@@ -191,6 +200,30 @@ fn validate_lexical_binding(
                 )));
             }
         }
+        LexicalSemantic::Reference => {
+            if syntax.is_some() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary reference root `{root}` has intrinsic reference syntax and must not declare `syntax`"
+                )));
+            }
+        }
+        LexicalSemantic::Context { key, ty } => {
+            if key.trim().is_empty() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary context root `{root}` has an empty context key"
+                )));
+            }
+            if ty.trim().is_empty() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary context root `{root}` has an empty semantic type"
+                )));
+            }
+            if syntax.is_some() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary context root `{root}` has intrinsic context syntax and must not declare `syntax`"
+                )));
+            }
+        }
     }
     Ok(())
 }
@@ -199,6 +232,11 @@ fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
     match (&entry.semantic, &entry.syntax) {
         (LexicalSemantic::Constant { name, .. }, None) => LexemeConfig::Atom {
             semantic: name.clone().unwrap_or_else(|| entry.root.clone()),
+        },
+        (LexicalSemantic::Reference, None) => LexemeConfig::Reference,
+        (LexicalSemantic::Context { key, ty }, None) => LexemeConfig::Context {
+            key: key.clone(),
+            ty: ty.clone(),
         },
         (LexicalSemantic::Operator { name }, Some(surface)) => match surface {
             SurfaceFormConfig::Class { role } => LexemeConfig::Class {
@@ -271,6 +309,16 @@ pub struct SemanticAnalysis {
     pub explanation: String,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct DiscourseSurfaceAnalysis {
+    pub syntax: SurfaceExpr,
+    pub typed: TypedSurfaceAst,
+    pub resolved: ResolvedSurfaceAst,
+    pub canonical_surface: String,
+    pub inferred_type: String,
+    pub canonical_semantics: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LanguageError {
     Io { path: PathBuf, message: String },
@@ -279,6 +327,7 @@ pub enum LanguageError {
     Morphology(MorphologyError),
     SyntaxConfig(SyntaxConfigError),
     Syntax(SurfaceError),
+    Discourse(DiscourseResolutionError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -400,6 +449,38 @@ impl LanguagePackage {
             .map_err(LanguageError::Syntax)
     }
 
+    pub fn analyze_surface_with_discourse(
+        &self,
+        expression: &str,
+        discourse: &DiscourseState,
+    ) -> Result<DiscourseSurfaceAnalysis, LanguageError> {
+        self.syntax
+            .validate_environment(&self.semantics)
+            .map_err(LanguageError::Syntax)?;
+        let syntax = self
+            .syntax
+            .parse(expression)
+            .map_err(LanguageError::Syntax)?;
+        let canonical_surface = self
+            .syntax
+            .linearize(&syntax)
+            .map_err(LanguageError::Syntax)?;
+        let typed = self
+            .syntax
+            .elaborate(&syntax, &self.semantics)
+            .map_err(LanguageError::Syntax)?;
+        let resolved = resolve_surface(&typed, discourse, &self.semantics)
+            .map_err(LanguageError::Discourse)?;
+        Ok(DiscourseSurfaceAnalysis {
+            syntax,
+            typed,
+            canonical_surface,
+            inferred_type: resolved.inferred_type.to_string(),
+            canonical_semantics: canonicalize(&resolved.term).to_string(),
+            resolved,
+        })
+    }
+
     pub fn explain(&self, expression: &str) -> Result<SemanticAnalysis, LanguageError> {
         let parsed = parse_term(expression).map_err(|errors| {
             LanguageError::SemanticExpression(
@@ -474,7 +555,6 @@ fn validate_morphology(
     Ok(())
 }
 
-
 fn validate_syntax(
     syntax: &SyntaxEngine,
     phonology: &PhonologyConfig,
@@ -542,6 +622,7 @@ impl fmt::Display for LanguageError {
             Self::Morphology(error) => write!(f, "morphology: {error}"),
             Self::SyntaxConfig(error) => write!(f, "syntax config: {error}"),
             Self::Syntax(error) => write!(f, "syntax: {error}"),
+            Self::Discourse(error) => write!(f, "discourse: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {
