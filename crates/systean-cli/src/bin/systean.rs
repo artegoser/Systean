@@ -334,11 +334,10 @@ fn root_segment(language: &LanguagePackage, args: Vec<String>) -> ExitCode {
             println!("unique: {}", parts.join(" | "));
             ExitCode::SUCCESS
         }
-        Segmentation::Ambiguous { examples } => {
+        Segmentation::Ambiguous { first, second } => {
             eprintln!("ambiguous spoken segmentation:");
-            for example in examples {
-                eprintln!("  {}", example.join(" | "));
-            }
+            eprintln!("  {}", first.join(" | "));
+            eprintln!("  {}", second.join(" | "));
             ExitCode::FAILURE
         }
         Segmentation::Impossible => {
