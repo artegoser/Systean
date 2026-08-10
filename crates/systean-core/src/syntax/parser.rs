@@ -234,8 +234,12 @@ impl ParserState<'_> {
 
 fn push_flattened(operator: &str, expression: SurfaceExpr, output: &mut Vec<SurfaceExpr>) {
     match expression {
-        SurfaceExpr::Infix { operator: nested_operator, operands } if nested_operator == operator => {
-            output.extend(operands);
+        SurfaceExpr::Infix { operator: nested_operator, operands } => {
+            if nested_operator == operator {
+                output.extend(operands);
+            } else {
+                output.push(SurfaceExpr::Infix { operator: nested_operator, operands });
+            }
         }
         other => output.push(other),
     }
