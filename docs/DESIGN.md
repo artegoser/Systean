@@ -1270,135 +1270,41 @@ These should not be casually reopened while implementing unrelated features.
 
 ---
 
-## 32. Major unresolved design questions
+## 32. End-state architecture status
 
-These are intentionally left open. They should be solved before prematurely freezing concrete grammar.
+The remaining language layers now have a frozen meta-architecture in [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md). The implementation sequence and completion criteria are tracked in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 
-### Phonology
+The architecture is therefore no longer waiting on open questions such as whether references use heuristics, whether names are a separate foreign category, whether omission has its own guessing subsystem, or whether numbers/quotation should be ordinary lexical roots. Those ownership and pipeline decisions are settled.
 
-The alphabet/pronunciation inventory and first-root-syllable stress are settled and implemented. Remaining questions are limited to mechanisms that are not yet required by ordinary bare roots:
+What intentionally remains human language authoring rather than architecture includes:
 
-- adaptation procedure for proper names;
-- whether future bound morphology requires additional morpheme-boundary phonotactic constraints;
-- whether any deterministic allomorphy is ever desirable.
+- exact surface forms for future reference/alias/focus/repair constructions;
+- proper-name marker and deterministic name adaptation details;
+- spoken numeral inventory and compact notation details;
+- unit/time/affect vocabulary;
+- manually authored content roots and predicate frames;
+- corpus-driven refinement of semantic signatures where the generic architecture already supports the required mechanism.
 
-### Morphology
-
-The v1 baseline is settled as bare-root identity and is implemented in `language/morphology.toml` / `systean-core`. Remaining morphology questions are intentionally demand-driven:
-
-- exact form of proper-name marking;
-- whether any future strictly local derivation is useful enough to justify bound morphology;
-- phonological realization rules for such a derivation if one is introduced.
-
-No general derivation DSL should be invented before a concrete semantic requirement exists.
-
-### Syntax
-
-The structural v1 baseline is now implemented by `language/syntax.toml`, `language/dictionary.toml`, and `systean-core`: canonical primary-participant/predicate/rest frame order, no free unmarked reordering, `ki ... ku` grouping, quantifier scope by appearance, `AND > OR`, explicit speech-act constructions, and semantic-type-driven rather than POS-driven parsing. `syntax.toml` contains policy only; dictionary roots are compiled automatically into one surface lexicon instead of being re-declared in a second table.
-
-Remaining syntax questions are narrower:
-
-- manually chosen surface roots/particles for the implemented construction classes;
-- clause/reference boundary rules and discourse references;
-- explicit inverse-quantifier-scope syntax once reference binding has a surface form;
-- focus/topic realization;
-- quotation boundaries in speech and writing.
-
-### Semantic calculus
-
-- exact generic term representation;
-- exact type system strength;
-- binder representation;
-- event/time model;
-- exact representation of concrete processes, states, and habitual/repeated activity targets;
-- exact aspectual signatures for start/cease/continue/finish/interrupt/repeat;
-- quantifier inventory;
-- generic/statistical statement model;
-- uncertainty/approximation model;
-- exact boundary between literal semantic structure, canonicalization, and downstream logical entailment;
-- speech-act representation.
-
-### Lexicon
-
-The canonical dictionary format is settled as one human-readable `definition` per manually authored root. Remaining questions are:
-
-- bootstrap strategy for primitive concepts;
-- criteria for assigning new roots;
-- deprecation rules and revision metadata.
-
-Roots are authored manually; tooling validates legality and collisions but does not generate vocabulary.
-
-### Conversation / discourse
-
-- exact discourse-reference mechanism;
-- shorthand reference rules;
-- local definitions and lifetime/scope;
-- emotion/interjection targeting;
-- explicit repair/correction constructions in spoken conversation.
-
-### Numerals and formal notation
-
-- exact spoken names/forms for digits;
-- cardinal composition algorithm;
-- scale/exponent realization;
-- supported numeric notations;
-- exact treatment of precision/significant digits;
-- unit system integration.
+The fixed phoneme/alphabet inventory, first-root-syllable stress, bare-root morphology, structural surface syntax, core particles, dictionary ownership, and generic semantic engine remain unchanged.
 
 ---
 
+## 33. Implementation order
 
-### Current engine phase
+The authoritative order is now maintained in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md). At a high level:
 
-The Rust workspace implements executable semantic, phonological, and morphology-v1 foundations behind one `LanguagePackage`. Native CLI and browser WASM consumers both use `systean-core`; there is no independent TypeScript language implementation.
+1. typed elaboration and deterministic discourse/reference resolution;
+2. aliases, discourse boundaries, and safe omission;
+3. proper names and quotation;
+4. a manually authored first playable vocabulary and multi-utterance playground;
+5. structured literals, numbers, quantities, units, and time;
+6. event/aspect completion and explicit uncertainty/generic constructions;
+7. speech acts, affect, focus/topic, repair, and full text boundaries;
+8. whole-language ambiguity compiler and compatibility checks;
+9. analyzer/generator productization;
+10. Systean 1.0 freeze.
 
-The current executable boundaries are:
-
-```text
-semantic spec DSL
-    -> Chumsky parser
-    -> configured Environment
-    -> parsed semantic expression
-    -> canonical named-role Term
-    -> type checker
-
-alphabet.toml + phonology.toml
-    -> validated orthography/phoneme mapping
-    -> pronunciation / reverse spelling
-    -> syllabification
-    -> root-aware stress
-    -> manual-root validation / spoken segmentation checks
-
-dictionary.toml + morphology.toml
-    -> one lexical definition + semantic identity per root
-    -> dictionary-compiled surface lexicon
-    -> typed lexical constants / validated operator realizations
-    -> bare-root morphological analysis/generation
-    -> root boundary
-    -> phonological word analysis
-```
-
-See `SEMANTICS.md`, `PHONOLOGY.md`, `MORPHOLOGY.md`, `ENGINE_ARCHITECTURE.md`, and `../README.md` for the implemented subset and test commands.
-
-## 33. Recommended next design order
-
-Future work should not begin by inventing more vocabulary or individual grammar particles.
-
-A safer order is:
-
-1. keep extending the formal semantic model only where regression cases require it;
-2. treat the existing alphabet and implemented phonology baseline as fixed input to surface design;
-3. keep the implemented bare-root morphology invariant and extend it only for concrete local derivations;
-4. keep the implemented recursive surface syntax/scope engine and fixed core particles stable while manually assigning remaining content vocabulary;
-5. define reference/discourse rules;
-6. define numbers/quantities/time as structured subsystems;
-7. define proper names and external quotation;
-8. define speech acts and expressive/emotional constructions;
-9. build the language compiler's whole-language ambiguity/collision checks;
-10. begin constructing actual Systean surface grammar;
-11. expose all layers through the analyzer/site.
-
-The purpose of this order is to prevent the project from returning to the original failure mode: inventing surface grammar before the semantic and architectural constraints are stable.
+Each implementation phase receives tests when implemented. Architecture-only documentation does not require placeholder tests.
 
 ---
 

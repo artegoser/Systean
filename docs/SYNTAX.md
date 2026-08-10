@@ -279,16 +279,17 @@ The regression suite covers:
 - dictionary-only addition of new constant roots without syntax-config edits;
 - surface-to-semantic type checking, including wrong-type operator application.
 
-## 14. Current intentionally unresolved items
+## 14. Planned higher syntax/discourse layers
 
-Structural syntax is now executable and its core logic/quantifier/speech-act particles are normative. These items remain unresolved:
+The structural surface grammar in this document is implemented. The architecture of the remaining higher layers is now defined in [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md) and scheduled in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 
-1. manually chosen content predicates/classes and any future focus particle;
-2. surface reference/discourse syntax;
-3. explicit inverse-quantifier-scope syntax that uses those references without hidden binding;
-4. proper-name syntax;
-5. quotation and nested quotation boundaries;
-6. actual focus/topic operator semantics;
-7. discourse-proven safe argument omission.
+They include:
 
-None of these gaps permit heuristic parsing in the meantime.
+1. typed unresolved-reference slots and deterministic discourse resolution;
+2. aliases, discourse boundaries, and safe argument omission through the same resolver;
+3. explicit inverse-quantifier scope using ordinary binding/reference machinery rather than hidden binding;
+4. proper-name and quotation structures;
+5. explicit focus/topic constructions without argument reordering;
+6. repair/correction and complete text/turn boundaries.
+
+The exact future particles/roots remain manual language-authoring decisions. None of these layers permits heuristic parsing while unimplemented.

@@ -1258,26 +1258,23 @@ The following semantic decisions should be treated as baseline unless a later de
 
 ---
 
-## 39. Remaining semantic questions
+## 39. End-state semantic architecture
 
-The architecture is now constrained, but several concrete choices remain open:
+The remaining semantic domains now have a fixed ownership and pipeline architecture in [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md), with implementation sequencing in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 
-- refinement of the current Rust term model after corpus testing;
-- whether `Record`/`Field` are primitive IR nodes or compilation conveniences;
-- exact type-system strength and subtyping rules;
-- exact representation of events vs. processes vs. states;
-- whether activity patterns/habits are a dedicated semantic type or a compositional operator over event predicates;
-- exact aspectual signatures for `start`, `cease`, `continue`, `finish`, `interrupt`, and `repeat`;
-- exact temporal interval model;
-- exact generic/statistical semantics (`most`, `typically`, etc.);
-- exact approximation and contextual-standard model;
-- exact speech-act inventory;
-- exact emotion/affect model and targeting;
-- exact discourse-state and local-reference representation;
-- refinement of the current semantic specification DSL (syntax, diagnostics, modules, provenance);
-- which normalization rules are guaranteed by the core engine versus declared by packages.
+Concrete semantic signatures may still be refined from corpora, but they must fit the established generic mechanisms:
 
-These should be solved with semantic test cases before concrete surface grammar is frozen.
+- typed compositional terms and named roles;
+- explicit occurrence/activity targets for aspect;
+- typed discourse referents with unique resolution;
+- structured literals for numbers/names/quoted text rather than lexical duplication;
+- explicit quantity/time/context values;
+- explicit unknown/unspecified/withheld/approximate structures;
+- proposition/utterance separation for speech acts and affect;
+- explicit focus/topic/repair targets;
+- canonicalization separated from theorem proving and world validation.
+
+Remaining surface vocabulary and corpus-driven signature choices are language-authoring work, not open engine architecture.
 
 ---
 
