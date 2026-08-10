@@ -176,8 +176,19 @@ impl<'env> Checker<'env> {
         bindings: &mut BTreeMap<String, Type>,
         context: &str,
     ) -> Result<(), CheckError> {
-        match expected {
-            Type::Variable(variable) => match bindings.get(variable) {
+        self.collect_type_bindings(expected, actual, bindings)?;
+        let resolved_expected = expected.substitute(bindings);
+        self.require_assignable(&resolved_expected, actual, context)
+    }
+
+    fn collect_type_bindings(
+        &self,
+        expected: &Type,
+        actual: &Type,
+        bindings: &mut BTreeMap<String, Type>,
+    ) -> Result<(), CheckError> {
+        match (expected, actual) {
+            (Type::Variable(variable), actual) => match bindings.get(variable) {
                 Some(bound) if bound != actual => Err(CheckError::ConflictingTypeVariable {
                     variable: variable.clone(),
                     first: bound.clone(),
@@ -189,57 +200,46 @@ impl<'env> Checker<'env> {
                     Ok(())
                 }
             },
-            Type::Generic {
-                name: expected_name,
-                arguments: expected_arguments,
-            } => match actual {
+            (
+                Type::Generic {
+                    name: expected_name,
+                    arguments: expected_arguments,
+                },
                 Type::Generic {
                     name: actual_name,
                     arguments: actual_arguments,
-                } if expected_name == actual_name
-                    && expected_arguments.len() == actual_arguments.len() => {
-                    for (expected, actual) in expected_arguments.iter().zip(actual_arguments) {
-                        self.match_type(expected, actual, bindings, context)?;
-                    }
-                    let resolved_expected = expected.substitute(bindings);
-                    self.require_assignable(&resolved_expected, actual, context)
+                },
+            ) if expected_name == actual_name
+                && expected_arguments.len() == actual_arguments.len() => {
+                for (expected, actual) in expected_arguments.iter().zip(actual_arguments) {
+                    self.collect_type_bindings(expected, actual, bindings)?;
                 }
-                _ => self.require_assignable(expected, actual, context),
-            },
-            Type::Function {
-                parameters: expected_parameters,
-                returns: expected_returns,
-            } => match actual {
+                Ok(())
+            }
+            (
+                Type::Function {
+                    parameters: expected_parameters,
+                    returns: expected_returns,
+                },
                 Type::Function {
                     parameters: actual_parameters,
                     returns: actual_returns,
-                } if expected_parameters.len() == actual_parameters.len() => {
-                    for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
-                        self.match_type(&expected.ty, &actual.ty, bindings, context)?;
-                    }
-                    self.match_type(expected_returns, actual_returns, bindings, context)?;
-                    let resolved_expected = expected.substitute(bindings);
-                    self.require_assignable(&resolved_expected, actual, context)
+                },
+            ) if expected_parameters.len() == actual_parameters.len() => {
+                for (expected, actual) in expected_parameters.iter().zip(actual_parameters) {
+                    self.collect_type_bindings(&expected.ty, &actual.ty, bindings)?;
                 }
-                _ => self.require_assignable(expected, actual, context),
-            },
-            Type::Record(expected_fields) => match actual {
-                Type::Record(actual_fields) => {
-                    for (name, expected_field) in expected_fields {
-                        let Some(actual_field) = actual_fields.get(name) else {
-                            return Err(CheckError::TypeMismatch {
-                                context: context.to_owned(),
-                                expected: expected.clone(),
-                                actual: actual.clone(),
-                            });
-                        };
-                        self.match_type(expected_field, actual_field, bindings, context)?;
+                self.collect_type_bindings(expected_returns, actual_returns, bindings)
+            }
+            (Type::Record(expected_fields), Type::Record(actual_fields)) => {
+                for (name, expected_field) in expected_fields {
+                    if let Some(actual_field) = actual_fields.get(name) {
+                        self.collect_type_bindings(expected_field, actual_field, bindings)?;
                     }
-                    Ok(())
                 }
-                _ => self.require_assignable(expected, actual, context),
-            },
-            Type::Named(_) => self.require_assignable(expected, actual, context),
+                Ok(())
+            }
+            _ => Ok(()),
         }
     }
 

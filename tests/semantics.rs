@@ -27,11 +27,15 @@ operator not(value: Proposition) -> Proposition;
 operator equal<T>(left: $T, right: $T) -> Proposition;
 operator needs_entity_predicate(predicate: fn(value: Entity) -> Proposition) -> Proposition;
 operator needs_person_predicate(predicate: fn(value: Person) -> Proposition) -> Proposition;
+operator needs_entity_factory(factory: fn() -> Entity) -> Proposition;
+operator needs_person_factory(factory: fn() -> Person) -> Proposition;
 
 const john: Entity;
 const alice: Person;
 const entity_predicate: fn(value: Entity) -> Proposition;
 const person_predicate: fn(value: Person) -> Proposition;
+const entity_factory: fn() -> Entity;
+const person_factory: fn() -> Person;
 const mary: Entity;
 const cigarette_x: Entity;
 const cigarette_kind: Entity;
@@ -189,10 +193,29 @@ fn subtype_values_flow_only_toward_supertypes() {
 #[test]
 fn function_assignability_is_contravariant_in_parameters() {
     let environment = environment();
-    let accepted = lower_term(parse_term("needs_person_predicate(predicate = entity_predicate)").unwrap());
+    let accepted =
+        lower_term(parse_term("needs_person_predicate(predicate = entity_predicate)").unwrap());
     Checker::new(&environment).infer(&accepted).unwrap();
-    let rejected = lower_term(parse_term("needs_entity_predicate(predicate = person_predicate)").unwrap());
-    assert!(matches!(Checker::new(&environment).infer(&rejected).unwrap_err(), CheckError::TypeMismatch { .. }));
+
+    let rejected =
+        lower_term(parse_term("needs_entity_predicate(predicate = person_predicate)").unwrap());
+    assert!(matches!(
+        Checker::new(&environment).infer(&rejected).unwrap_err(),
+        CheckError::TypeMismatch { .. }
+    ));
+}
+
+#[test]
+fn function_assignability_is_covariant_in_returns() {
+    let environment = environment();
+    let accepted = lower_term(parse_term("needs_entity_factory(factory = person_factory)").unwrap());
+    Checker::new(&environment).infer(&accepted).unwrap();
+
+    let rejected = lower_term(parse_term("needs_person_factory(factory = entity_factory)").unwrap());
+    assert!(matches!(
+        Checker::new(&environment).infer(&rejected).unwrap_err(),
+        CheckError::TypeMismatch { .. }
+    ));
 }
 
 #[test]
