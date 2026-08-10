@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url';
 import adapter from '@sveltejs/adapter-auto';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
@@ -13,7 +14,7 @@ const config = {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter(),
 		alias: {
-			'$systean-config': '../lib/config'
+			'$systean-config': fileURLToPath(new URL('../lib/config', import.meta.url))
 		}
 	}
 };
