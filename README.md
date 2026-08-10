@@ -25,7 +25,7 @@ Implemented now:
 - lexical/bound-name lowering;
 - a small semantic specification DSL;
 - a Chumsky `0.13.0` parser for the specification DSL and semantic expressions;
-- executable tests for scope and activity distinctions discussed in the design documents.
+- data-driven everyday, ambiguity, and canonical-equivalence semantic regression corpora.
 
 This DSL is **not Systean surface syntax**. It is an implementation/specification language used to build and test the canonical semantic layer before phonology, morphology, and human-facing grammar are frozen.
 
@@ -79,6 +79,16 @@ cease(target = smoke(agent = john, object = cigarette_x))
 ```
 
 Named-role order is not semantically significant. The parser canonicalizes call arguments by role name.
+
+## Semantic regression corpus
+
+```text
+tests/corpus/everyday.tsv
+tests/corpus/ambiguity.tsv
+tests/corpus/equivalence.tsv
+```
+
+The everyday corpus checks types, the ambiguity corpus checks that intended distinctions do not collapse, and the equivalence corpus checks representation-only differences such as binder names and named-role order. `spec/semantics/corpus.semsys` is testing vocabulary, not frozen surface-language vocabulary.
 
 ## Repository direction
 

@@ -1170,9 +1170,11 @@ A Systean revision should fail semantic compilation if any of the following can 
 
 ---
 
-## 36. Property-based semantic tests
+## 36. Semantic regression and property-based tests
 
-The future implementation should generate semantic structures and verify round trips such as:
+The executable implementation includes everyday, adversarial ambiguity, and canonical-equivalence corpora under `tests/corpus/`.
+
+Property-based generation remains a later layer. It should generate semantic structures and verify round trips such as:
 
 ```text
 parse(generate(term)) == term
