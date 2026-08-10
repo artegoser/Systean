@@ -79,7 +79,7 @@ fn check(language_path: &Path, args: Vec<String>) -> ExitCode {
     );
     println!("roots: {}", language.roots().roots().len());
     println!("morphology: {}", language.morphology().config().strategy);
-    println!("syntax: compiled ({} lexical surface bindings)", language.syntax().config().lexemes.len());
+    println!("syntax: compiled ({} lexical roots)", language.syntax().lexicon().len());
     println!("semantics: compiled");
     ExitCode::SUCCESS
 }
@@ -317,7 +317,7 @@ fn syntax(language_path: &Path, mut args: Vec<String>) -> ExitCode {
             for (operator, precedence) in &config.logic.precedence {
                 println!("precedence {operator}: {precedence}");
             }
-            println!("surface lexemes: {}", config.lexemes.len());
+            println!("lexical roots: {}", language.syntax().lexicon().len());
             ExitCode::SUCCESS
         }
         "analyze" => {

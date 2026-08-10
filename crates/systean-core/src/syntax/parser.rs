@@ -1,17 +1,19 @@
 use std::fmt;
 
-use chumsky::error::Rich;
+use chumsky::extra::Err;
 use chumsky::prelude::*;
 
-use super::{Argument, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SyntaxConfig};
-
-type Extra<'src> = extra::Err<Rich<'src, char>>;
+use super::{
+    Argument, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SurfaceParseError {
     pub token: usize,
     pub message: String,
 }
+
+type Extra<'src> = Err<Rich<'src, char>>;
 
 fn token_parser<'src>() -> impl Parser<'src, &'src str, Vec<String>, Extra<'src>> + Clone {
     text::ident::<_, Extra<'src>>()
@@ -37,15 +39,30 @@ pub fn tokenize(source: &str) -> Result<Vec<String>, Vec<SurfaceParseError>> {
         })
 }
 
-pub fn parse_surface(source: &str, config: &SyntaxConfig) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
+pub fn parse_surface(
+    source: &str,
+    config: &SyntaxConfig,
+    lexicon: &SurfaceLexicon,
+) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
     let tokens = tokenize(source)?;
     if tokens.is_empty() {
-        return Err(vec![SurfaceParseError { token: 0, message: "surface expression is empty".into() }]);
+        return Err(vec![SurfaceParseError {
+            token: 0,
+            message: "surface expression is empty".into(),
+        }]);
     }
-    let mut parser = ParserState { tokens, index: 0, config };
+    let mut parser = ParserState {
+        tokens,
+        index: 0,
+        config,
+        lexicon,
+    };
     let expression = parser.parse_expression(0)?;
     if parser.index != parser.tokens.len() {
-        return Err(vec![parser.error(format!("unexpected token `{}`", parser.tokens[parser.index]))]);
+        return Err(vec![parser.error(format!(
+            "unexpected token `{}`",
+            parser.tokens[parser.index]
+        ))]);
     }
     Ok(expression)
 }
@@ -54,13 +71,20 @@ struct ParserState<'a> {
     tokens: Vec<String>,
     index: usize,
     config: &'a SyntaxConfig,
+    lexicon: &'a SurfaceLexicon,
 }
 
 impl ParserState<'_> {
-    fn parse_expression(&mut self, minimum_precedence: u16) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
+    fn parse_expression(
+        &mut self,
+        minimum_precedence: u16,
+    ) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         let mut left = self.parse_operand()?;
         loop {
-            if self.peek().is_some_and(|token| token.as_str() == self.config.scope.close.as_str()) {
+            if self
+                .peek()
+                .is_some_and(|token| token.as_str() == self.config.scope.close.as_str())
+            {
                 break;
             }
             let Some((surface, precedence)) = self.peek_infix() else {
@@ -88,25 +112,73 @@ impl ParserState<'_> {
                     self.index += 1;
                     return Ok(expression);
                 }
-                _ => return Err(vec![self.error(format!("expected scope close marker `{}`", self.config.scope.close))]),
+                _ => {
+                    return Err(vec![self.error(format!(
+                        "expected scope close marker `{}`",
+                        self.config.scope.close
+                    ))]);
+                }
             }
         }
         if token == self.config.scope.close {
-            return Err(vec![self.error(format!("unexpected scope close marker `{token}`"))]);
+            return Err(vec![self.error(format!(
+                "unexpected scope close marker `{token}`"
+            ))]);
         }
-        match self.config.lexemes.get(&token) {
+
+        match self.lexicon.get(&token) {
             Some(LexemeConfig::Prefix { .. }) => {
                 self.index += 1;
                 let operand = self.parse_operand()?;
-                Ok(SurfaceExpr::Prefix { operator: token, operand: Box::new(operand) })
+                Ok(SurfaceExpr::Prefix {
+                    operator: token,
+                    operand: Box::new(operand),
+                })
             }
             Some(LexemeConfig::SpeechAct { .. }) => {
                 self.index += 1;
                 let content = self.parse_operand()?;
-                Ok(SurfaceExpr::SpeechAct { operator: token, content: Box::new(content) })
+                Ok(SurfaceExpr::SpeechAct {
+                    operator: token,
+                    content: Box::new(content),
+                })
             }
-            _ => self.parse_clause(),
+            Some(LexemeConfig::Atom { .. }) if !self.atom_starts_clause() => {
+                self.index += 1;
+                Ok(SurfaceExpr::Atom(token))
+            }
+            Some(LexemeConfig::Atom { .. })
+            | Some(LexemeConfig::Quantifier { .. })
+            | Some(LexemeConfig::Predicate { .. }) => self.parse_clause(),
+            Some(other) => Err(vec![self.error(format!(
+                "`{token}` cannot start a standalone surface expression ({})",
+                lexeme_kind(other)
+            ))]),
+            None => Err(vec![self.error(format!(
+                "unknown lexical root `{token}`"
+            ))]),
         }
+    }
+
+    fn atom_starts_clause(&self) -> bool {
+        if self.config.order.frame != FrameOrder::PrimaryPredicateRest {
+            return false;
+        }
+        let mut index = self.index.saturating_add(1);
+        while self
+            .tokens
+            .get(index)
+            .is_some_and(|token| matches!(self.lexicon.get(token), Some(LexemeConfig::Prefix { .. })))
+        {
+            index += 1;
+        }
+        matches!(
+            self.tokens.get(index).and_then(|token| self.lexicon.get(token)),
+            Some(LexemeConfig::Predicate {
+                primary_role: Some(_),
+                ..
+            })
+        )
     }
 
     fn parse_clause(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
@@ -123,15 +195,24 @@ impl ParserState<'_> {
             Some(self.parse_argument()?)
         };
         let mut inner_prefixes = Vec::new();
-        while self.peek().is_some_and(|token| matches!(self.config.lexemes.get(token), Some(LexemeConfig::Prefix { .. }))) {
+        while self
+            .peek()
+            .is_some_and(|token| matches!(self.lexicon.get(token), Some(LexemeConfig::Prefix { .. })))
+        {
             inner_prefixes.push(self.tokens[self.index].clone());
             self.index += 1;
         }
         let predicate = self.take_predicate()?;
-        let rest_count = match self.config.lexemes.get(&predicate) {
-            Some(LexemeConfig::Predicate { primary_role, rest_roles, .. }) => {
+        let rest_count = match self.lexicon.get(&predicate) {
+            Some(LexemeConfig::Predicate {
+                primary_role,
+                rest_roles,
+                ..
+            }) => {
                 if primary_role.is_some() != primary.is_some() {
-                    return Err(vec![self.error(format!("predicate `{predicate}` primary participant shape does not match the surface clause"))]);
+                    return Err(vec![self.error(format!(
+                        "predicate `{predicate}` primary participant shape does not match the surface clause"
+                    ))]);
                 }
                 rest_roles.len()
             }
@@ -141,28 +222,49 @@ impl ParserState<'_> {
         for _ in 0..rest_count {
             rest.push(self.parse_argument()?);
         }
-        Ok(SurfaceExpr::Clause(Clause { primary, inner_prefixes, predicate, rest }))
+        Ok(SurfaceExpr::Clause(Clause {
+            primary,
+            inner_prefixes,
+            predicate,
+            rest,
+        }))
     }
 
     fn parse_predicate_arguments(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         let predicate = self.take_predicate()?;
-        let (primary_count, rest_count) = match self.config.lexemes.get(&predicate) {
-            Some(LexemeConfig::Predicate { primary_role, rest_roles, .. }) => (if primary_role.is_some() { 1 } else { 0 }, rest_roles.len()),
+        let (primary_count, rest_count) = match self.lexicon.get(&predicate) {
+            Some(LexemeConfig::Predicate {
+                primary_role,
+                rest_roles,
+                ..
+            }) => (
+                usize::from(primary_role.is_some()),
+                rest_roles.len(),
+            ),
             _ => unreachable!(),
         };
-        let primary = if primary_count == 1 { Some(self.parse_argument()?) } else { None };
+        let primary = if primary_count == 1 {
+            Some(self.parse_argument()?)
+        } else {
+            None
+        };
         let mut rest = Vec::with_capacity(rest_count);
         for _ in 0..rest_count {
             rest.push(self.parse_argument()?);
         }
-        Ok(SurfaceExpr::Clause(Clause { primary, inner_prefixes: Vec::new(), predicate, rest }))
+        Ok(SurfaceExpr::Clause(Clause {
+            primary,
+            inner_prefixes: Vec::new(),
+            predicate,
+            rest,
+        }))
     }
 
     fn parse_argument(&mut self) -> Result<Argument, Vec<SurfaceParseError>> {
         let Some(token) = self.peek().cloned() else {
             return Err(vec![self.error("expected argument".into())]);
         };
-        match self.config.lexemes.get(&token) {
+        match self.lexicon.get(&token) {
             Some(LexemeConfig::Atom { .. }) => {
                 self.index += 1;
                 Ok(Argument::Atom(token))
@@ -170,18 +272,30 @@ impl ParserState<'_> {
             Some(LexemeConfig::Quantifier { .. }) => {
                 self.index += 1;
                 let Some(restriction) = self.peek().cloned() else {
-                    return Err(vec![self.error(format!("quantifier `{token}` requires a restriction"))]);
+                    return Err(vec![self.error(format!(
+                        "quantifier `{token}` requires a restriction"
+                    ))]);
                 };
-                match self.config.lexemes.get(&restriction) {
+                match self.lexicon.get(&restriction) {
                     Some(LexemeConfig::Class { .. }) => {
                         self.index += 1;
-                        Ok(Argument::Quantified { quantifier: token, restriction })
+                        Ok(Argument::Quantified {
+                            quantifier: token,
+                            restriction,
+                        })
                     }
-                    _ => Err(vec![self.error(format!("quantifier `{token}` must be followed by a class expression, found `{restriction}`"))]),
+                    _ => Err(vec![self.error(format!(
+                        "quantifier `{token}` must be followed by a class expression, found `{restriction}`"
+                    ))]),
                 }
             }
-            Some(other) => Err(vec![self.error(format!("`{token}` is not an argument lexeme ({})", lexeme_kind(other)))]),
-            None => Err(vec![self.error(format!("unknown surface word `{token}`"))]),
+            Some(other) => Err(vec![self.error(format!(
+                "`{token}` is not an argument lexeme ({})",
+                lexeme_kind(other)
+            ))]),
+            None => Err(vec![self.error(format!(
+                "unknown lexical root `{token}`"
+            ))]),
         }
     }
 
@@ -189,38 +303,56 @@ impl ParserState<'_> {
         let Some(token) = self.peek().cloned() else {
             return Err(vec![self.error("expected predicate".into())]);
         };
-        if matches!(self.config.lexemes.get(&token), Some(LexemeConfig::Predicate { .. })) {
+        if matches!(self.lexicon.get(&token), Some(LexemeConfig::Predicate { .. })) {
             self.index += 1;
             Ok(token)
         } else {
-            Err(vec![self.error(format!("expected predicate, found `{token}`"))])
+            Err(vec![self.error(format!(
+                "expected predicate, found `{token}`"
+            ))])
         }
     }
 
     fn peek_is_zero_primary_predicate(&self) -> bool {
-        self.peek().is_some_and(|token| matches!(
-            self.config.lexemes.get(token),
-            Some(LexemeConfig::Predicate { primary_role: None, .. })
-        ))
+        self.peek().is_some_and(|token| {
+            matches!(
+                self.lexicon.get(token),
+                Some(LexemeConfig::Predicate {
+                    primary_role: None,
+                    ..
+                })
+            )
+        })
     }
 
     fn peek_infix(&self) -> Option<(String, u16)> {
         let token = self.peek()?;
-        let LexemeConfig::Infix { semantic, .. } = self.config.lexemes.get(token)? else {
+        let LexemeConfig::Infix { semantic, .. } = self.lexicon.get(token)? else {
             return None;
         };
         let precedence = self.config.precedence(semantic)?;
         Some((token.clone(), precedence))
     }
 
-    fn combine_infix(&self, surface: String, left: SurfaceExpr, right: SurfaceExpr) -> SurfaceExpr {
+    fn combine_infix(
+        &self,
+        surface: String,
+        left: SurfaceExpr,
+        right: SurfaceExpr,
+    ) -> SurfaceExpr {
         if self.config.logic.flatten_same_operator {
             let mut operands = Vec::new();
             push_flattened(&surface, left, &mut operands);
             push_flattened(&surface, right, &mut operands);
-            return SurfaceExpr::Infix { operator: surface, operands };
+            return SurfaceExpr::Infix {
+                operator: surface,
+                operands,
+            };
         }
-        SurfaceExpr::Infix { operator: surface, operands: vec![left, right] }
+        SurfaceExpr::Infix {
+            operator: surface,
+            operands: vec![left, right],
+        }
     }
 
     fn peek(&self) -> Option<&String> {
@@ -228,17 +360,26 @@ impl ParserState<'_> {
     }
 
     fn error(&self, message: String) -> SurfaceParseError {
-        SurfaceParseError { token: self.index, message }
+        SurfaceParseError {
+            token: self.index,
+            message,
+        }
     }
 }
 
 fn push_flattened(operator: &str, expression: SurfaceExpr, output: &mut Vec<SurfaceExpr>) {
     match expression {
-        SurfaceExpr::Infix { operator: nested_operator, operands } => {
+        SurfaceExpr::Infix {
+            operator: nested_operator,
+            operands,
+        } => {
             if nested_operator == operator {
                 output.extend(operands);
             } else {
-                output.push(SurfaceExpr::Infix { operator: nested_operator, operands });
+                output.push(SurfaceExpr::Infix {
+                    operator: nested_operator,
+                    operands,
+                });
             }
         }
         other => output.push(other),

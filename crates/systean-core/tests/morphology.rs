@@ -56,6 +56,7 @@ fn dictionary_rejects_pos_specific_lexical_meanings() {
         r#"
         [sol]
         definition = "one lexical identity"
+        semantic = { kind = "constant", type = "Entity" }
         adj = "old contextual adjective meaning"
         "#,
     )
@@ -66,6 +67,6 @@ fn dictionary_rejects_pos_specific_lexical_meanings() {
 
 #[test]
 fn dictionary_requires_one_definition_per_root() {
-    let error = Dictionary::from_toml("[sol]\n").unwrap_err();
+    let error = Dictionary::from_toml("[sol]\nsemantic = { kind = \"constant\", type = \"Entity\" }\n").unwrap_err();
     assert!(error.to_string().contains("non-empty `definition`"));
 }

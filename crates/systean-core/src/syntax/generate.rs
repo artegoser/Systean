@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Argument, LexemeConfig, SurfaceExpr, SyntaxConfig};
+use super::{Argument, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceGenerationError {
@@ -8,18 +8,30 @@ pub enum SurfaceGenerationError {
     MissingPrecedence(String),
 }
 
-pub fn linearize_surface(expression: &SurfaceExpr, config: &SyntaxConfig) -> Result<String, SurfaceGenerationError> {
-    Ok(Generator { config }.render(expression, None)?.join(" "))
+pub fn linearize_surface(
+    expression: &SurfaceExpr,
+    config: &SyntaxConfig,
+    lexicon: &SurfaceLexicon,
+) -> Result<String, SurfaceGenerationError> {
+    Ok(Generator { config, lexicon }
+        .render(expression, None)?
+        .join(" "))
 }
 
 struct Generator<'a> {
     config: &'a SyntaxConfig,
+    lexicon: &'a SurfaceLexicon,
 }
 
 impl Generator<'_> {
-    fn render(&self, expression: &SurfaceExpr, parent: Option<ParentContext<'_>>) -> Result<Vec<String>, SurfaceGenerationError> {
+    fn render(
+        &self,
+        expression: &SurfaceExpr,
+        parent: Option<ParentContext<'_>>,
+    ) -> Result<Vec<String>, SurfaceGenerationError> {
         let own = self.precedence(expression)?;
         let mut tokens = match expression {
+            SurfaceExpr::Atom(surface) => vec![surface.clone()],
             SurfaceExpr::Clause(clause) => {
                 let mut tokens = Vec::new();
                 match self.config.order.frame {
@@ -61,7 +73,13 @@ impl Generator<'_> {
                     if index > 0 {
                         tokens.push(operator.clone());
                     }
-                    tokens.extend(self.render(operand, Some(ParentContext::Infix { operator, precedence: own }))?);
+                    tokens.extend(self.render(
+                        operand,
+                        Some(ParentContext::Infix {
+                            operator,
+                            precedence: own,
+                        }),
+                    )?);
                 }
                 tokens
             }
@@ -73,11 +91,21 @@ impl Generator<'_> {
         Ok(tokens)
     }
 
-    fn needs_group(&self, expression: &SurfaceExpr, own: u16, parent: Option<ParentContext<'_>>) -> Result<bool, SurfaceGenerationError> {
-        let Some(parent) = parent else { return Ok(false) };
+    fn needs_group(
+        &self,
+        expression: &SurfaceExpr,
+        own: u16,
+        parent: Option<ParentContext<'_>>,
+    ) -> Result<bool, SurfaceGenerationError> {
+        let Some(parent) = parent else {
+            return Ok(false);
+        };
         match parent {
             ParentContext::Prefix => Ok(matches!(expression, SurfaceExpr::Infix { .. })),
-            ParentContext::Infix { operator: parent_operator, precedence: parent_precedence } => {
+            ParentContext::Infix {
+                operator: parent_operator,
+                precedence: parent_precedence,
+            } => {
                 if own < parent_precedence {
                     return Ok(true);
                 }
@@ -95,10 +123,12 @@ impl Generator<'_> {
     fn precedence(&self, expression: &SurfaceExpr) -> Result<u16, SurfaceGenerationError> {
         match expression {
             SurfaceExpr::Infix { operator, .. } => {
-                let Some(LexemeConfig::Infix { semantic, .. }) = self.config.lexemes.get(operator) else {
+                let Some(LexemeConfig::Infix { semantic, .. }) = self.lexicon.get(operator) else {
                     return Err(SurfaceGenerationError::MissingLexeme(operator.clone()));
                 };
-                self.config.precedence(semantic).ok_or_else(|| SurfaceGenerationError::MissingPrecedence(semantic.clone()))
+                self.config
+                    .precedence(semantic)
+                    .ok_or_else(|| SurfaceGenerationError::MissingPrecedence(semantic.clone()))
             }
             _ => Ok(u16::MAX),
         }
@@ -107,7 +137,10 @@ impl Generator<'_> {
     fn render_argument(&self, argument: &Argument) -> Vec<String> {
         match argument {
             Argument::Atom(surface) => vec![surface.clone()],
-            Argument::Quantified { quantifier, restriction } => vec![quantifier.clone(), restriction.clone()],
+            Argument::Quantified {
+                quantifier,
+                restriction,
+            } => vec![quantifier.clone(), restriction.clone()],
         }
     }
 }
@@ -115,14 +148,21 @@ impl Generator<'_> {
 #[derive(Clone, Copy)]
 enum ParentContext<'a> {
     Prefix,
-    Infix { operator: &'a str, precedence: u16 },
+    Infix {
+        operator: &'a str,
+        precedence: u16,
+    },
 }
 
 impl fmt::Display for SurfaceGenerationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingLexeme(surface) => write!(f, "surface lexeme `{surface}` is not declared"),
-            Self::MissingPrecedence(operator) => write!(f, "surface operator `{operator}` has no precedence"),
+            Self::MissingLexeme(surface) => {
+                write!(f, "surface lexeme `{surface}` is not declared")
+            }
+            Self::MissingPrecedence(operator) => {
+                write!(f, "surface operator `{operator}` has no precedence")
+            }
         }
     }
 }

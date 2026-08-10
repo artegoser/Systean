@@ -3,20 +3,40 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
 };
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
 use crate::semantics::{Checker, Environment, Explainer, Type, canonicalize};
-use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term};
-use crate::syntax::{SurfaceAnalysis, SurfaceError, SyntaxConfig, SyntaxConfigError, SyntaxEngine};
+use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
+use crate::syntax::{
+    LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceFormConfig, SurfaceLexicon, SyntaxConfig,
+    SyntaxConfigError, SyntaxEngine,
+};
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum LexicalSemantic {
+    Constant {
+        #[serde(default)]
+        name: Option<String>,
+        #[serde(rename = "type")]
+        ty: String,
+    },
+    Operator {
+        name: String,
+    },
+}
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct DictionaryEntry {
     pub root: String,
     pub definition: String,
+    pub semantic: LexicalSemantic,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub syntax: Option<SurfaceFormConfig>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
@@ -28,38 +48,13 @@ impl Dictionary {
     pub fn from_toml(source: &str) -> Result<Self, LanguageError> {
         let value: toml::Value = toml::from_str(source)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
-        let table = value
-            .as_table()
-            .ok_or_else(|| LanguageError::Dictionary("dictionary root must be a TOML table".into()))?;
+        let table = value.as_table().ok_or_else(|| {
+            LanguageError::Dictionary("dictionary root must be a TOML table".into())
+        })?;
         let mut entries = table
             .iter()
             .filter(|(key, _)| key.as_str() != "meta")
-            .map(|(root, value)| {
-                let fields = value.as_table().ok_or_else(|| {
-                    LanguageError::Dictionary(format!(
-                        "dictionary entry `{root}` must be a TOML table"
-                    ))
-                })?;
-                if let Some(unknown) = fields.keys().find(|name| name.as_str() != "definition") {
-                    return Err(LanguageError::Dictionary(format!(
-                        "dictionary entry `{root}` contains unsupported field `{unknown}`; lexical roots have one canonical definition, not POS-specific meanings"
-                    )));
-                }
-                let definition = fields
-                    .get("definition")
-                    .and_then(toml::Value::as_str)
-                    .map(str::trim)
-                    .filter(|definition| !definition.is_empty())
-                    .ok_or_else(|| {
-                        LanguageError::Dictionary(format!(
-                            "dictionary entry `{root}` must contain a non-empty `definition`"
-                        ))
-                    })?;
-                Ok(DictionaryEntry {
-                    root: root.to_lowercase(),
-                    definition: definition.to_owned(),
-                })
-            })
+            .map(|(root, value)| parse_dictionary_entry(root, value))
             .collect::<Result<Vec<_>, LanguageError>>()?;
         entries.sort_by(|left, right| left.root.cmp(&right.root));
         Ok(Self { entries })
@@ -67,6 +62,189 @@ impl Dictionary {
 
     pub fn entries(&self) -> &[DictionaryEntry] {
         &self.entries
+    }
+
+    pub fn surface_lexicon(&self) -> SurfaceLexicon {
+        let entries = self
+            .entries
+            .iter()
+            .map(|entry| (entry.root.clone(), compile_surface_lexeme(entry)))
+            .collect::<BTreeMap<_, _>>();
+        SurfaceLexicon::new(entries)
+    }
+
+    fn install_constants(&self, environment: &mut Environment) -> Result<(), LanguageError> {
+        for entry in &self.entries {
+            let LexicalSemantic::Constant { name, ty } = &entry.semantic else {
+                continue;
+            };
+            let semantic_name = name.as_deref().unwrap_or(&entry.root);
+            let parsed_type = parse_type(ty).map_err(|errors| {
+                LanguageError::Dictionary(format!(
+                    "dictionary entry `{}` has invalid semantic type `{}`: {}",
+                    entry.root,
+                    ty,
+                    errors
+                        .into_iter()
+                        .map(|error| error.to_string())
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ))
+            })?;
+            environment
+                .define_constant(semantic_name.to_owned(), parsed_type)
+                .map_err(|error| {
+                    LanguageError::Dictionary(format!(
+                        "dictionary entry `{}` cannot define semantic constant `{semantic_name}`: {error}",
+                        entry.root
+                    ))
+                })?;
+        }
+        Ok(())
+    }
+}
+
+fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryEntry, LanguageError> {
+    let fields = value.as_table().ok_or_else(|| {
+        LanguageError::Dictionary(format!("dictionary entry `{root}` must be a TOML table"))
+    })?;
+    if let Some(unknown) = fields.keys().find(|name| {
+        !matches!(name.as_str(), "definition" | "semantic" | "syntax")
+    }) {
+        return Err(LanguageError::Dictionary(format!(
+            "dictionary entry `{root}` contains unsupported field `{unknown}`; lexical roots have one canonical identity, not POS-specific meanings"
+        )));
+    }
+    let definition = fields
+        .get("definition")
+        .and_then(toml::Value::as_str)
+        .map(str::trim)
+        .filter(|definition| !definition.is_empty())
+        .ok_or_else(|| {
+            LanguageError::Dictionary(format!(
+                "dictionary entry `{root}` must contain a non-empty `definition`"
+            ))
+        })?;
+    let semantic_value = fields.get("semantic").ok_or_else(|| {
+        LanguageError::Dictionary(format!(
+            "dictionary entry `{root}` must contain one `semantic` binding"
+        ))
+    })?;
+    let semantic: LexicalSemantic = semantic_value.clone().try_into().map_err(|error| {
+        LanguageError::Dictionary(format!(
+            "dictionary entry `{root}` has invalid `semantic` binding: {error}"
+        ))
+    })?;
+    let syntax = fields
+        .get("syntax")
+        .map(|value| {
+            value.clone().try_into::<SurfaceFormConfig>().map_err(|error| {
+                LanguageError::Dictionary(format!(
+                    "dictionary entry `{root}` has invalid `syntax` realization: {error}"
+                ))
+            })
+        })
+        .transpose()?;
+
+    validate_lexical_binding(root, &semantic, syntax.as_ref())?;
+
+    Ok(DictionaryEntry {
+        root: root.to_lowercase(),
+        definition: definition.to_owned(),
+        semantic,
+        syntax,
+    })
+}
+
+fn validate_lexical_binding(
+    root: &str,
+    semantic: &LexicalSemantic,
+    syntax: Option<&SurfaceFormConfig>,
+) -> Result<(), LanguageError> {
+    match semantic {
+        LexicalSemantic::Constant { name, ty } => {
+            if name.as_ref().is_some_and(|name| name.trim().is_empty()) {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary entry `{root}` has an empty semantic constant name"
+                )));
+            }
+            if ty.trim().is_empty() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary entry `{root}` has an empty semantic type"
+                )));
+            }
+            if syntax.is_some() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary constant root `{root}` is automatically a surface atom and must not duplicate that in `syntax`"
+                )));
+            }
+        }
+        LexicalSemantic::Operator { name } => {
+            if name.trim().is_empty() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary entry `{root}` has an empty semantic operator name"
+                )));
+            }
+            if syntax.is_none() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary operator root `{root}` requires one explicit `syntax` realization"
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
+    match (&entry.semantic, &entry.syntax) {
+        (LexicalSemantic::Constant { name, .. }, None) => LexemeConfig::Atom {
+            semantic: name.clone().unwrap_or_else(|| entry.root.clone()),
+        },
+        (LexicalSemantic::Operator { name }, Some(surface)) => match surface {
+            SurfaceFormConfig::Class { role } => LexemeConfig::Class {
+                semantic: name.clone(),
+                role: role.clone(),
+            },
+            SurfaceFormConfig::Predicate {
+                primary_role,
+                rest_roles,
+            } => LexemeConfig::Predicate {
+                semantic: name.clone(),
+                primary_role: primary_role.clone(),
+                rest_roles: rest_roles.clone(),
+            },
+            SurfaceFormConfig::Prefix { role } => LexemeConfig::Prefix {
+                semantic: name.clone(),
+                role: role.clone(),
+            },
+            SurfaceFormConfig::Infix {
+                left_role,
+                right_role,
+            } => LexemeConfig::Infix {
+                semantic: name.clone(),
+                left_role: left_role.clone(),
+                right_role: right_role.clone(),
+            },
+            SurfaceFormConfig::Quantifier {
+                binder_role,
+                variable_type,
+                restriction_operator,
+                restriction_role,
+                body_role,
+            } => LexemeConfig::Quantifier {
+                semantic: name.clone(),
+                binder_role: binder_role.clone(),
+                variable_type: variable_type.clone(),
+                restriction_operator: restriction_operator.clone(),
+                restriction_role: restriction_role.clone(),
+                body_role: body_role.clone(),
+            },
+            SurfaceFormConfig::SpeechAct { role } => LexemeConfig::SpeechAct {
+                semantic: name.clone(),
+                role: role.clone(),
+            },
+        },
+        _ => unreachable!("dictionary lexical bindings are validated during parsing"),
     }
 }
 
@@ -149,15 +327,18 @@ impl LanguagePackage {
         let morphology = MorphologyEngine::new(
             MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
         );
-        let syntax = SyntaxEngine::new(
-            SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?,
-        );
+        let syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
         validate_roots(&phonology, &roots)?;
         validate_morphology(&morphology, &phonology, &roots)?;
+
+        let mut semantics = semantics;
+        dictionary_parsed.install_constants(&mut semantics)?;
+        let syntax = SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon());
         validate_syntax(&syntax, &phonology, &roots, &semantics)?;
+
         Ok(Self {
             phonology,
             morphology,
@@ -310,8 +491,19 @@ fn validate_syntax(
             ))));
         }
     }
-    for surface in syntax.config().lexemes.keys() {
-        validate_surface_token("surface lexeme", surface, phonology)?;
+    if syntax.lexicon().len() != roots.roots().len() {
+        return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+            "compiled surface lexicon has {} entries for {} dictionary roots",
+            syntax.lexicon().len(),
+            roots.roots().len()
+        ))));
+    }
+    for root in roots.roots() {
+        if !syntax.lexicon().contains_key(root) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "dictionary root `{root}` is missing from the compiled surface lexicon"
+            ))));
+        }
     }
     Ok(())
 }

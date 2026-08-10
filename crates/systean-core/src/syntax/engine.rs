@@ -1,18 +1,19 @@
-use std::fmt;
-
 use std::collections::BTreeSet;
+use std::fmt;
 
 use crate::semantics::{Environment, canonicalize};
 use crate::spec::parse_type;
 
 use super::{
-    LoweredSurface, SurfaceExpr, SurfaceGenerationError, SurfaceLowerError, SurfaceParseError,
-    SyntaxConfig, linearize_surface, lower_surface, parse_surface,
+    LexemeConfig, LoweredSurface, SurfaceExpr, SurfaceGenerationError, SurfaceLexicon,
+    SurfaceLowerError, SurfaceParseError, SyntaxConfig, linearize_surface, lower_surface,
+    parse_surface,
 };
 
 #[derive(Clone, Debug)]
 pub struct SyntaxEngine {
     config: SyntaxConfig,
+    lexicon: SurfaceLexicon,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -32,28 +33,36 @@ pub enum SurfaceError {
 }
 
 impl SyntaxEngine {
-    pub fn new(config: SyntaxConfig) -> Self {
-        Self { config }
+    pub fn new(config: SyntaxConfig, lexicon: SurfaceLexicon) -> Self {
+        Self { config, lexicon }
     }
 
     pub fn config(&self) -> &SyntaxConfig {
         &self.config
     }
 
+    pub fn lexicon(&self) -> &SurfaceLexicon {
+        &self.lexicon
+    }
+
     pub fn validate_environment(&self, environment: &Environment) -> Result<(), SurfaceError> {
-        for (surface, lexeme) in &self.config.lexemes {
+        for (surface, lexeme) in self.lexicon.iter() {
             match lexeme {
-                super::LexemeConfig::Atom { semantic } => {
+                LexemeConfig::Atom { semantic } => {
                     if environment.constant_type(semantic).is_none() {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "surface atom `{surface}` references unknown semantic constant `{semantic}`"
+                            "lexical root `{surface}` references unknown semantic constant `{semantic}`"
                         )));
                     }
                 }
-                super::LexemeConfig::Class { semantic, role } => {
+                LexemeConfig::Class { semantic, role } => {
                     validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
                 }
-                super::LexemeConfig::Predicate { semantic, primary_role, rest_roles } => {
+                LexemeConfig::Predicate {
+                    semantic,
+                    primary_role,
+                    rest_roles,
+                } => {
                     let roles = primary_role
                         .iter()
                         .map(String::as_str)
@@ -61,18 +70,27 @@ impl SyntaxEngine {
                         .collect::<Vec<_>>();
                     validate_operator_roles(environment, surface, semantic, roles)?;
                 }
-                super::LexemeConfig::Prefix { semantic, role } => {
+                LexemeConfig::Prefix { semantic, role } => {
                     validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
                 }
-                super::LexemeConfig::Infix { semantic, left_role, right_role } => {
-                    validate_operator_roles(environment, surface, semantic, [left_role.as_str(), right_role.as_str()])?;
+                LexemeConfig::Infix {
+                    semantic,
+                    left_role,
+                    right_role,
+                } => {
+                    validate_operator_roles(
+                        environment,
+                        surface,
+                        semantic,
+                        [left_role.as_str(), right_role.as_str()],
+                    )?;
                     if self.config.precedence(semantic).is_none() {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "surface infix `{surface}` semantic operator `{semantic}` has no precedence"
+                            "infix lexical root `{surface}` semantic operator `{semantic}` has no precedence"
                         )));
                     }
                 }
-                super::LexemeConfig::Quantifier {
+                LexemeConfig::Quantifier {
                     semantic,
                     binder_role,
                     variable_type,
@@ -89,17 +107,21 @@ impl SyntaxEngine {
                     )?;
                     let ty = parse_type(variable_type).map_err(|errors| {
                         SurfaceError::InvalidBinding(format!(
-                            "surface quantifier `{surface}` has invalid binder type `{variable_type}`: {}",
-                            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
+                            "quantifier lexical root `{surface}` has invalid binder type `{variable_type}`: {}",
+                            errors
+                                .into_iter()
+                                .map(|error| error.to_string())
+                                .collect::<Vec<_>>()
+                                .join("; ")
                         ))
                     })?;
                     if !environment.is_well_formed_type(&ty) {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "surface quantifier `{surface}` uses unknown binder type `{variable_type}`"
+                            "quantifier lexical root `{surface}` uses unknown binder type `{variable_type}`"
                         )));
                     }
                 }
-                super::LexemeConfig::SpeechAct { semantic, role } => {
+                LexemeConfig::SpeechAct { semantic, role } => {
                     validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
                 }
             }
@@ -108,18 +130,26 @@ impl SyntaxEngine {
     }
 
     pub fn parse(&self, source: &str) -> Result<SurfaceExpr, SurfaceError> {
-        parse_surface(source, &self.config).map_err(SurfaceError::Parse)
+        parse_surface(source, &self.config, &self.lexicon).map_err(SurfaceError::Parse)
     }
 
     pub fn linearize(&self, syntax: &SurfaceExpr) -> Result<String, SurfaceError> {
-        linearize_surface(syntax, &self.config).map_err(SurfaceError::Generate)
+        linearize_surface(syntax, &self.config, &self.lexicon).map_err(SurfaceError::Generate)
     }
 
-    pub fn lower(&self, syntax: &SurfaceExpr, environment: &Environment) -> Result<LoweredSurface, SurfaceError> {
-        lower_surface(syntax, &self.config, environment).map_err(SurfaceError::Lower)
+    pub fn lower(
+        &self,
+        syntax: &SurfaceExpr,
+        environment: &Environment,
+    ) -> Result<LoweredSurface, SurfaceError> {
+        lower_surface(syntax, &self.lexicon, environment).map_err(SurfaceError::Lower)
     }
 
-    pub fn analyze(&self, source: &str, environment: &Environment) -> Result<SurfaceAnalysis, SurfaceError> {
+    pub fn analyze(
+        &self,
+        source: &str,
+        environment: &Environment,
+    ) -> Result<SurfaceAnalysis, SurfaceError> {
         self.validate_environment(environment)?;
         let syntax = self.parse(source)?;
         let canonical_surface = self.linearize(&syntax)?;
@@ -138,7 +168,9 @@ impl fmt::Display for SurfaceError {
         match self {
             Self::Parse(errors) => {
                 for (index, error) in errors.iter().enumerate() {
-                    if index > 0 { writeln!(f)?; }
+                    if index > 0 {
+                        writeln!(f)?;
+                    }
                     write!(f, "{error}")?;
                 }
                 Ok(())
@@ -160,14 +192,18 @@ fn validate_operator_roles<'a>(
 ) -> Result<(), SurfaceError> {
     let signature = environment.operator(semantic).ok_or_else(|| {
         SurfaceError::InvalidBinding(format!(
-            "surface lexeme `{surface}` references unknown semantic operator `{semantic}`"
+            "lexical root `{surface}` references unknown semantic operator `{semantic}`"
         ))
     })?;
     let configured = roles.into_iter().collect::<BTreeSet<_>>();
-    let declared = signature.parameters.iter().map(|parameter| parameter.name.as_str()).collect::<BTreeSet<_>>();
+    let declared = signature
+        .parameters
+        .iter()
+        .map(|parameter| parameter.name.as_str())
+        .collect::<BTreeSet<_>>();
     if configured != declared {
         return Err(SurfaceError::InvalidBinding(format!(
-            "surface lexeme `{surface}` maps `{semantic}` roles {:?}, but semantic signature requires {:?}",
+            "lexical root `{surface}` maps `{semantic}` roles {:?}, but semantic signature requires {:?}",
             configured, declared
         )));
     }

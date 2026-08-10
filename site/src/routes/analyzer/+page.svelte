@@ -118,11 +118,11 @@
 				<div>scope policy: {syntaxPolicy.explicitScope}</div>
 				<div>quantifier scope: {syntaxPolicy.quantifierScope}</div>
 				<div>precedence: {Object.entries(syntaxPolicy.precedence).sort(([, left], [, right]) => right - left).map(([operator, precedence]) => `${operator.toUpperCase()}=${precedence}`).join(' > ')}</div>
-				<div>lexical surface bindings: {syntaxPolicy.lexicalBindings}</div>
+				<div>lexical roots: {syntaxPolicy.lexicalRoots}</div>
 			</div>
-			{#if syntaxPolicy.lexicalBindings === 0}
+			{#if syntaxPolicy.lexicalRoots === 0}
 				<div class="small-text mt-3 text-left">
-					The structural parser is active, but normative operator/predicate roots have not been assigned yet.
+					The structural parser is active, but the dictionary contains no lexical roots.
 				</div>
 			{:else}
 				<textarea class="input m-0 mt-3 w-full min-h-20" bind:value={surfaceExpression} placeholder="Systean surface expression"></textarea>

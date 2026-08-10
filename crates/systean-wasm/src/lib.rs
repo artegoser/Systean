@@ -151,7 +151,7 @@ pub fn syntax_policy_json() -> Result<String, JsValue> {
         "quantifierScope": format!("{:?}", config.scope.quantifier_order),
         "precedence": &config.logic.precedence,
         "flattenSameOperator": config.logic.flatten_same_operator,
-        "lexicalBindings": config.lexemes.len(),
+        "lexicalRoots": language.syntax().lexicon().len(),
     }))
 }
 

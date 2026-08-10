@@ -1,37 +1,106 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systean_core::language::LanguagePackage;
 use systean_core::semantics::canonicalize;
-use systean_core::spec::compile_sources;
-use systean_core::syntax::{SurfaceExpr, SyntaxConfig, SyntaxEngine};
+use systean_core::syntax::SurfaceExpr;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn engine() -> (SyntaxEngine, systean_core::semantics::Environment) {
+fn fixture_language(extra_dictionary: &str) -> LanguagePackage {
     let repo = repository();
-    let config = SyntaxConfig::from_toml(
-        &fs::read_to_string(repo.join("tests/fixtures/syntax/surface.toml")).unwrap(),
+    let alphabet = fs::read_to_string(repo.join("language/alphabet.toml")).unwrap();
+    let phonology = fs::read_to_string(repo.join("language/phonology.toml")).unwrap();
+    let morphology = fs::read_to_string(repo.join("language/morphology.toml")).unwrap();
+    let syntax = fs::read_to_string(repo.join("language/syntax.toml")).unwrap();
+    let mut dictionary = fs::read_to_string(repo.join("language/dictionary.toml")).unwrap();
+    dictionary.push('\n');
+    dictionary.push_str(
+        &fs::read_to_string(repo.join("tests/fixtures/syntax/lexicon.toml")).unwrap(),
+    );
+    dictionary.push('\n');
+    dictionary.push_str(extra_dictionary);
+    let core = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let fixture = fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap();
+
+    LanguagePackage::from_sources(
+        &alphabet,
+        &phonology,
+        &morphology,
+        &syntax,
+        &dictionary,
+        &[
+            ("language/semantics/core.semsys", &core),
+            ("tests/fixtures/semantics/syntax.semsys", &fixture),
+        ],
     )
-    .unwrap();
-    let environment = compile_sources([
-        (
-            "language/semantics/core.semsys".to_owned(),
-            fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap(),
-        ),
-        (
-            "tests/fixtures/semantics/syntax.semsys".to_owned(),
-            fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap(),
-        ),
-    ])
-    .unwrap();
-    (SyntaxEngine::new(config), environment)
+    .unwrap()
+}
+
+fn language() -> LanguagePackage {
+    fixture_language("")
 }
 
 fn semantics(source: &str) -> String {
-    let (engine, environment) = engine();
-    engine.analyze(source, &environment).unwrap().canonical_semantics
+    language().analyze_surface(source).unwrap().canonical_semantics
+}
+
+#[test]
+fn every_dictionary_root_is_compiled_into_the_surface_lexicon() {
+    let language = language();
+    assert_eq!(language.syntax().lexicon().len(), language.roots().roots().len());
+    for root in language.roots().roots() {
+        assert!(
+            language.syntax().lexicon().contains_key(root),
+            "dictionary root `{root}` was missing from the compiled surface lexicon"
+        );
+    }
+}
+
+#[test]
+fn bare_constant_root_needs_no_duplicate_syntax_binding() {
+    let language = language();
+    let parsed = language.syntax().parse("sol").unwrap();
+    assert_eq!(parsed, SurfaceExpr::Atom("sol".into()));
+
+    let analysis = language.analyze_surface("sol").unwrap();
+    assert_eq!(analysis.canonical_surface, "sol");
+    assert_eq!(analysis.inferred_type, "Entity");
+    assert_eq!(analysis.canonical_semantics, "sol");
+}
+
+#[test]
+fn adding_a_constant_root_requires_no_syntax_config_change() {
+    let language = fixture_language(
+        r#"
+[lu]
+definition = "Fixture entity added only to the dictionary."
+semantic = { kind = "constant", type = "Entity" }
+"#,
+    );
+
+    assert!(language.syntax().lexicon().contains_key("lu"));
+    assert_eq!(
+        language.analyze_surface("lu si").unwrap().canonical_semantics,
+        "sleep(sleeper = lu)"
+    );
+}
+
+#[test]
+fn invalid_operator_application_reaches_semantic_type_checking() {
+    let language = language();
+    let error = language.analyze_surface("ne sol").unwrap_err().to_string();
+    assert!(error.contains("expects `Proposition` but received `Entity`"), "{error}");
+    assert!(!error.contains("unknown lexical root"), "{error}");
+}
+
+#[test]
+fn unknown_root_is_rejected_as_lexical_not_as_missing_config_binding() {
+    let language = language();
+    let error = language.syntax().parse("xax").unwrap_err().to_string();
+    assert!(error.contains("unknown lexical root `xax`"), "{error}");
 }
 
 #[test]
@@ -77,21 +146,27 @@ fn and_binds_more_tightly_than_or() {
 
 #[test]
 fn generator_inserts_scope_markers_only_when_precedence_requires_them() {
-    let (engine, _) = engine();
-    let parsed = engine.parse("ki mi si zo tu si ku va mi vi tu").unwrap();
+    let language = language();
+    let parsed = language
+        .syntax()
+        .parse("ki mi si zo tu si ku va mi vi tu")
+        .unwrap();
     assert_eq!(
-        engine.linearize(&parsed).unwrap(),
+        language.syntax().linearize(&parsed).unwrap(),
         "ki mi si zo tu si ku va mi vi tu"
     );
 
-    let redundant = engine.parse("ki mi si ku").unwrap();
-    assert_eq!(engine.linearize(&redundant).unwrap(), "mi si");
+    let redundant = language.syntax().parse("ki mi si ku").unwrap();
+    assert_eq!(language.syntax().linearize(&redundant).unwrap(), "mi si");
 }
 
 #[test]
 fn same_logical_operator_chain_is_flattened() {
-    let (engine, _) = engine();
-    let parsed = engine.parse("mi si va tu si va mi vi tu").unwrap();
+    let language = language();
+    let parsed = language
+        .syntax()
+        .parse("mi si va tu si va mi vi tu")
+        .unwrap();
     let SurfaceExpr::Infix { operator, operands } = parsed else {
         panic!("expected flattened infix expression");
     };
@@ -101,11 +176,20 @@ fn same_logical_operator_chain_is_flattened() {
 
 #[test]
 fn redundant_grouping_inside_associative_chains_is_normalized() {
-    let (engine, _) = engine();
-    let grouped = engine.parse("mi si va ki tu si va mi vi tu ku").unwrap();
-    let flat = engine.parse("mi si va tu si va mi vi tu").unwrap();
+    let language = language();
+    let grouped = language
+        .syntax()
+        .parse("mi si va ki tu si va mi vi tu ku")
+        .unwrap();
+    let flat = language
+        .syntax()
+        .parse("mi si va tu si va mi vi tu")
+        .unwrap();
     assert_eq!(grouped, flat);
-    assert_eq!(engine.linearize(&grouped).unwrap(), "mi si va tu si va mi vi tu");
+    assert_eq!(
+        language.syntax().linearize(&grouped).unwrap(),
+        "mi si va tu si va mi vi tu"
+    );
 }
 
 #[test]
@@ -120,20 +204,21 @@ fn explicit_speech_acts_do_not_use_word_order_tricks() {
 
 #[test]
 fn required_frame_arguments_are_not_omitted_without_discourse_resolution() {
-    let (engine, _) = engine();
-    assert!(engine.parse("mi vi").is_err());
+    let language = language();
+    assert!(language.syntax().parse("mi vi").is_err());
 }
 
 #[test]
 fn noncanonical_argument_order_is_rejected() {
-    let (engine, _) = engine();
-    assert!(engine.parse("vi mi tu").is_err());
+    let language = language();
+    assert!(language.syntax().parse("vi mi tu").is_err());
 }
 
 #[test]
 fn parse_linearize_round_trip_preserves_surface_ast() {
-    let (engine, _) = engine();
+    let language = language();
     for source in [
+        "sol",
         "mi vi tu",
         "ne ra pe si",
         "ra pe ne si",
@@ -142,18 +227,24 @@ fn parse_linearize_round_trip_preserves_surface_ast() {
         "ki mi si zo tu si ku va mi vi tu",
         "ke ne ki mi si va tu si ku",
     ] {
-        let parsed = engine.parse(source).unwrap();
-        let canonical = engine.linearize(&parsed).unwrap();
-        let reparsed = engine.parse(&canonical).unwrap();
+        let parsed = language.syntax().parse(source).unwrap();
+        let canonical = language.syntax().linearize(&parsed).unwrap();
+        let reparsed = language.syntax().parse(&canonical).unwrap();
         assert_eq!(parsed, reparsed, "source={source}, canonical={canonical}");
     }
 }
 
 #[test]
 fn surface_lowering_is_type_checked() {
-    let (engine, environment) = engine();
-    let analysis = engine.analyze("ra pe vi mu du", &environment).unwrap();
+    let language = language();
+    let analysis = language.analyze_surface("ra pe vi mu du").unwrap();
     assert_eq!(analysis.inferred_type, "Proposition");
-    let lowered = engine.lower(&analysis.syntax, &environment).unwrap();
-    assert_eq!(canonicalize(&lowered.term).to_string(), analysis.canonical_semantics);
+    let lowered = language
+        .syntax()
+        .lower(&analysis.syntax, language.semantics())
+        .unwrap();
+    assert_eq!(
+        canonicalize(&lowered.term).to_string(),
+        analysis.canonical_semantics
+    );
 }

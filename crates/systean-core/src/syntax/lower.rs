@@ -4,7 +4,7 @@ use std::fmt;
 use crate::semantics::{Checker, Environment, Term, Type};
 use crate::spec::parse_type;
 
-use super::{Argument, Clause, LexemeConfig, SurfaceExpr, SyntaxConfig};
+use super::{Argument, Clause, LexemeConfig, SurfaceExpr, SurfaceLexicon};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoweredSurface {
@@ -23,10 +23,10 @@ pub enum SurfaceLowerError {
 
 pub fn lower_surface(
     expression: &SurfaceExpr,
-    config: &SyntaxConfig,
+    lexicon: &SurfaceLexicon,
     environment: &Environment,
 ) -> Result<LoweredSurface, SurfaceLowerError> {
-    let mut lowerer = Lowerer { config, quantifier_index: 0 };
+    let mut lowerer = Lowerer { lexicon, quantifier_index: 0 };
     let term = lowerer.lower_expr(expression)?;
     let inferred_type = Checker::new(environment)
         .infer(&term)
@@ -35,7 +35,7 @@ pub fn lower_surface(
 }
 
 struct Lowerer<'a> {
-    config: &'a SyntaxConfig,
+    lexicon: &'a SurfaceLexicon,
     quantifier_index: usize,
 }
 
@@ -56,6 +56,7 @@ enum ScopeIntroduction {
 impl Lowerer<'_> {
     fn lower_expr(&mut self, expression: &SurfaceExpr) -> Result<Term, SurfaceLowerError> {
         match expression {
+            SurfaceExpr::Atom(surface) => self.lower_atom(surface),
             SurfaceExpr::Clause(clause) => self.lower_clause(clause),
             SurfaceExpr::Prefix { operator, operand } => {
                 let operand = self.lower_expr(operand)?;
@@ -78,6 +79,16 @@ impl Lowerer<'_> {
                 Ok(term)
             }
         }
+    }
+
+    fn lower_atom(&self, surface: &str) -> Result<Term, SurfaceLowerError> {
+        let LexemeConfig::Atom { semantic } = self.lexeme(surface)? else {
+            return Err(SurfaceLowerError::WrongLexemeKind {
+                surface: surface.to_owned(),
+                expected: "atom",
+            });
+        };
+        Ok(Term::Const(semantic.clone()))
     }
 
     fn lower_clause(&mut self, clause: &Clause) -> Result<Term, SurfaceLowerError> {
@@ -236,7 +247,9 @@ impl Lowerer<'_> {
     }
 
     fn lexeme(&self, surface: &str) -> Result<&LexemeConfig, SurfaceLowerError> {
-        self.config.lexemes.get(surface).ok_or_else(|| SurfaceLowerError::MissingLexeme(surface.to_owned()))
+        self.lexicon
+            .get(surface)
+            .ok_or_else(|| SurfaceLowerError::MissingLexeme(surface.to_owned()))
     }
 }
 

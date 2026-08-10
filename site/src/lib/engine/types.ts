@@ -59,7 +59,7 @@ export interface SyntaxPolicy {
 	quantifierScope: string;
 	precedence: Record<string, number>;
 	flattenSameOperator: boolean;
-	lexicalBindings: number;
+	lexicalRoots: number;
 }
 
 export interface SurfaceAnalysis {

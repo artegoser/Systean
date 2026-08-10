@@ -1,30 +1,47 @@
 [meta]
-description = "Defines the canonical lexical roots of the Systean language. Each root has one lexical identity."
-version = "2.0"
+description = "Defines the canonical lexical roots of Systean. Each root has one lexical identity, semantic binding, and—only when needed—one surface realization."
+version = "3.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
+semantic = { kind = "constant", type = "Entity" }
 
 [ke]
 definition = "Marks an utterance as a truth question about its propositional content."
+semantic = { kind = "operator", name = "ask_truth" }
+syntax = { kind = "speech_act", role = "content" }
 
 [ne]
 definition = "Logical negation of a proposition."
+semantic = { kind = "operator", name = "not" }
+syntax = { kind = "prefix", role = "value" }
 
 [va]
 definition = "Logical conjunction: all joined propositions hold."
+semantic = { kind = "operator", name = "and" }
+syntax = { kind = "infix", left_role = "left", right_role = "right" }
 
 [zo]
 definition = "Logical disjunction: at least one joined proposition holds."
+semantic = { kind = "operator", name = "or" }
+syntax = { kind = "infix", left_role = "left", right_role = "right" }
 
 [ra]
 definition = "Universal quantification over every entity satisfying the stated restriction."
+semantic = { kind = "operator", name = "forall" }
+syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "implies", restriction_role = "condition", body_role = "consequence" }
 
 [mu]
 definition = "Existential quantification: at least one entity satisfies the stated restriction and body."
+semantic = { kind = "operator", name = "exists" }
+syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
 
 [da]
 definition = "Marks propositional content as a command speech act."
+semantic = { kind = "operator", name = "command" }
+syntax = { kind = "speech_act", role = "content" }
 
 [me]
 definition = "Marks propositional content as a request speech act."
+semantic = { kind = "operator", name = "request" }
+syntax = { kind = "speech_act", role = "content" }

@@ -1,9 +1,10 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct SyntaxConfig {
     pub meta: Option<MetaConfig>,
     pub order: OrderConfig,
@@ -15,8 +16,6 @@ pub struct SyntaxConfig {
     pub commands: ExplicitOperatorConfig,
     pub focus: FocusConfig,
     pub grammar: GrammarConfig,
-    #[serde(default)]
-    pub lexemes: BTreeMap<String, LexemeConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -114,33 +113,31 @@ pub struct GrammarConfig {
     pub traditional_pos: bool,
 }
 
+/// Surface realization attached to one lexical root in `dictionary.toml`.
+///
+/// Semantic identity is deliberately not repeated here. Constant roots need no
+/// explicit surface realization and become atoms automatically. Operator roots
+/// select one of these structural realizations and obtain their semantic symbol
+/// from the same dictionary entry.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum LexemeConfig {
-    Atom {
-        semantic: String,
-    },
+pub enum SurfaceFormConfig {
     Class {
-        semantic: String,
         role: String,
     },
     Predicate {
-        semantic: String,
         primary_role: Option<String>,
         #[serde(default)]
         rest_roles: Vec<String>,
     },
     Prefix {
-        semantic: String,
         role: String,
     },
     Infix {
-        semantic: String,
         left_role: String,
         right_role: String,
     },
     Quantifier {
-        semantic: String,
         binder_role: String,
         variable_type: String,
         restriction_operator: String,
@@ -148,7 +145,6 @@ pub enum LexemeConfig {
         body_role: String,
     },
     SpeechAct {
-        semantic: String,
         role: String,
     },
 }
@@ -158,8 +154,6 @@ pub enum SyntaxConfigError {
     Toml(String),
     EmptyScopeMarker(&'static str),
     EqualScopeMarkers(String),
-    ScopeMarkerIsLexeme(String),
-    MissingPrecedence(String),
     UnsupportedPolicy(String),
 }
 
@@ -173,30 +167,46 @@ impl SyntaxConfig {
 
     pub fn validate(&self) -> Result<(), SyntaxConfigError> {
         if self.order.free_order {
-            return Err(SyntaxConfigError::UnsupportedPolicy("free unmarked word order".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "free unmarked word order".into(),
+            ));
         }
         if self.scope.explicit != ExplicitScopePolicy::WhenAmbiguous {
-            return Err(SyntaxConfigError::UnsupportedPolicy("mandatory scope delimiters".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "mandatory scope delimiters".into(),
+            ));
         }
         if self.scope.quantifier_order != QuantifierScopePolicy::Appearance {
-            return Err(SyntaxConfigError::UnsupportedPolicy("explicit-only quantifier scope".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "explicit-only quantifier scope".into(),
+            ));
         }
         if self.roles.realization != RoleRealization::FrameOrder {
-            return Err(SyntaxConfigError::UnsupportedPolicy("mandatory role markers".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "mandatory role markers".into(),
+            ));
         }
         if self.arguments.omission == ArgumentOmission::Contextual {
-            return Err(SyntaxConfigError::UnsupportedPolicy("pragmatic/contextual argument omission".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "pragmatic/contextual argument omission".into(),
+            ));
         }
         if self.questions.realization != ExplicitOperatorRealization::ExplicitOperator
             || self.commands.realization != ExplicitOperatorRealization::ExplicitOperator
         {
-            return Err(SyntaxConfigError::UnsupportedPolicy("non-explicit question/command realization".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "non-explicit question/command realization".into(),
+            ));
         }
         if self.focus.reorders {
-            return Err(SyntaxConfigError::UnsupportedPolicy("focus by word-order rearrangement".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "focus by word-order rearrangement".into(),
+            ));
         }
         if self.grammar.traditional_pos {
-            return Err(SyntaxConfigError::UnsupportedPolicy("traditional POS-driven grammar".into()));
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "traditional POS-driven grammar".into(),
+            ));
         }
         if self.scope.open.trim().is_empty() {
             return Err(SyntaxConfigError::EmptyScopeMarker("open"));
@@ -205,23 +215,9 @@ impl SyntaxConfig {
             return Err(SyntaxConfigError::EmptyScopeMarker("close"));
         }
         if self.scope.open == self.scope.close {
-            return Err(SyntaxConfigError::EqualScopeMarkers(self.scope.open.clone()));
-        }
-        for marker in [&self.scope.open, &self.scope.close] {
-            if self.lexemes.contains_key(marker) {
-                return Err(SyntaxConfigError::ScopeMarkerIsLexeme(marker.clone()));
-            }
-        }
-        let mut infix_semantics = BTreeSet::new();
-        for lexeme in self.lexemes.values() {
-            if let LexemeConfig::Infix { semantic, .. } = lexeme {
-                infix_semantics.insert(semantic.clone());
-            }
-        }
-        for semantic in infix_semantics {
-            if !self.logic.precedence.contains_key(&semantic) {
-                return Err(SyntaxConfigError::MissingPrecedence(semantic));
-            }
+            return Err(SyntaxConfigError::EqualScopeMarkers(
+                self.scope.open.clone(),
+            ));
         }
         Ok(())
     }
@@ -235,10 +231,12 @@ impl fmt::Display for SyntaxConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Toml(error) => write!(f, "syntax TOML: {error}"),
-            Self::EmptyScopeMarker(which) => write!(f, "syntax scope {which} marker must not be empty"),
-            Self::EqualScopeMarkers(marker) => write!(f, "syntax scope markers must differ; both are `{marker}`"),
-            Self::ScopeMarkerIsLexeme(marker) => write!(f, "scope marker `{marker}` must not also be a lexical surface token"),
-            Self::MissingPrecedence(operator) => write!(f, "infix semantic operator `{operator}` has no configured precedence"),
+            Self::EmptyScopeMarker(which) => {
+                write!(f, "syntax scope {which} marker must not be empty")
+            }
+            Self::EqualScopeMarkers(marker) => {
+                write!(f, "syntax scope markers must differ; both are `{marker}`")
+            }
             Self::UnsupportedPolicy(policy) => write!(f, "unsupported syntax policy `{policy}`"),
         }
     }
