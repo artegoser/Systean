@@ -7,6 +7,7 @@ use wasm_bindgen::prelude::*;
 const ALPHABET: &str = include_str!("../../../language/alphabet.toml");
 const PHONOLOGY: &str = include_str!("../../../language/phonology.toml");
 const MORPHOLOGY: &str = include_str!("../../../language/morphology.toml");
+const SYNTAX: &str = include_str!("../../../language/syntax.toml");
 const DICTIONARY: &str = include_str!("../../../language/dictionary.toml");
 const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
 
@@ -18,6 +19,7 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             ALPHABET,
             PHONOLOGY,
             MORPHOLOGY,
+            SYNTAX,
             DICTIONARY,
             &[("language/semantics/core.semsys", SEMANTICS_CORE)],
         )
@@ -134,4 +136,34 @@ pub fn explain_json(expression: &str) -> Result<String, JsValue> {
         .explain(expression)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
     serde_json::to_string(&analysis).map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn syntax_policy_json() -> Result<String, JsValue> {
+    let language = language()?;
+    let config = language.syntax().config();
+    json_string(json!({
+        "frameOrder": format!("{:?}", config.order.frame),
+        "freeOrder": config.order.free_order,
+        "scopeOpen": &config.scope.open,
+        "scopeClose": &config.scope.close,
+        "explicitScope": format!("{:?}", config.scope.explicit),
+        "quantifierScope": format!("{:?}", config.scope.quantifier_order),
+        "precedence": &config.logic.precedence,
+        "flattenSameOperator": config.logic.flatten_same_operator,
+        "lexicalBindings": config.lexemes.len(),
+    }))
+}
+
+#[wasm_bindgen]
+pub fn analyze_surface_json(expression: &str) -> Result<String, JsValue> {
+    let analysis = language()?
+        .analyze_surface(expression)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    json_string(json!({
+        "canonicalSurface": analysis.canonical_surface,
+        "inferredType": analysis.inferred_type,
+        "canonicalSemantics": analysis.canonical_semantics,
+        "syntax": analysis.syntax.to_string(),
+    }))
 }

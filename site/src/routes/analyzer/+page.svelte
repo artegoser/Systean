@@ -1,15 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { loadEngine, type SysteanEngine } from '$lib/engine';
-	import type { SemanticAnalysis, WordAnalysis } from '$lib/types';
+	import type { SemanticAnalysis, SurfaceAnalysis, SyntaxPolicy, WordAnalysis } from '$lib/types';
 	import { app_state } from '$lib/state.svelte';
 
 	let engine = $state<SysteanEngine | null>(null);
 	let word = $state('sol');
 	let wordAnalysis = $state<WordAnalysis | null>(null);
+	let surfaceExpression = $state('');
+	let surfaceAnalysis = $state<SurfaceAnalysis | null>(null);
+	let syntaxPolicy = $state<SyntaxPolicy | null>(null);
 	let semanticExpression = $state('equal(left = 1, right = 1)');
 	let semanticAnalysis = $state<SemanticAnalysis | null>(null);
 	let wordError = $state('');
+	let surfaceError = $state('');
 	let semanticError = $state('');
 
 	app_state.current_tab = 3;
@@ -17,10 +21,12 @@
 	onMount(async () => {
 		try {
 			engine = await loadEngine();
+			syntaxPolicy = engine.syntaxPolicy();
 			analyzeWord();
 			explainSemantics();
 		} catch (cause) {
 			wordError = errorText(cause);
+			surfaceError = wordError;
 			semanticError = wordError;
 		}
 	});
@@ -33,6 +39,17 @@
 		} catch (cause) {
 			wordAnalysis = null;
 			wordError = errorText(cause);
+		}
+	}
+
+	function analyzeSurface() {
+		if (!engine || !surfaceExpression.trim()) return;
+		try {
+			surfaceAnalysis = engine.analyzeSurface(surfaceExpression);
+			surfaceError = '';
+		} catch (cause) {
+			surfaceAnalysis = null;
+			surfaceError = errorText(cause);
 		}
 	}
 
@@ -88,6 +105,39 @@
 					{/each}
 				</div>
 			</div>
+		{/if}
+	</section>
+
+
+	<section class="bg-accent/10 border-2 border-accent/10 rounded-xl p-4">
+		<h2 class="text-2xl font-black">Surface syntax</h2>
+		{#if syntaxPolicy}
+			<div class="mt-3 grid gap-1 font-mono text-sm">
+				<div>frame: {syntaxPolicy.frameOrder}</div>
+				<div>scope: {syntaxPolicy.scopeOpen} ... {syntaxPolicy.scopeClose}</div>
+				<div>scope policy: {syntaxPolicy.explicitScope}</div>
+				<div>quantifier scope: {syntaxPolicy.quantifierScope}</div>
+				<div>precedence: {Object.entries(syntaxPolicy.precedence).sort(([, left], [, right]) => right - left).map(([operator, precedence]) => `${operator.toUpperCase()}=${precedence}`).join(' > ')}</div>
+				<div>lexical surface bindings: {syntaxPolicy.lexicalBindings}</div>
+			</div>
+			{#if syntaxPolicy.lexicalBindings === 0}
+				<div class="small-text mt-3 text-left">
+					The structural parser is active, but normative operator/predicate roots have not been assigned yet.
+				</div>
+			{:else}
+				<textarea class="input m-0 mt-3 w-full min-h-20" bind:value={surfaceExpression} placeholder="Systean surface expression"></textarea>
+				<button class="small-text link mt-2" onclick={analyzeSurface}>Analyze surface</button>
+				{#if surfaceError}
+					<div class="text-red-400 mt-3 font-bold">{surfaceError}</div>
+				{:else if surfaceAnalysis}
+					<div class="mt-3 font-mono break-all">
+						<div>canonical surface: {surfaceAnalysis.canonicalSurface}</div>
+						<div>type: {surfaceAnalysis.inferredType}</div>
+						<div>semantics: {surfaceAnalysis.canonicalSemantics}</div>
+						<div>syntax: {surfaceAnalysis.syntax}</div>
+					</div>
+				{/if}
+			{/if}
 		{/if}
 	</section>
 

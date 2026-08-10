@@ -2,6 +2,8 @@ import type {
 	Alphabet,
 	Dictionary,
 	SemanticAnalysis,
+	SurfaceAnalysis,
+	SyntaxPolicy,
 	WordAnalysis
 } from './types';
 
@@ -14,6 +16,8 @@ interface WasmModule {
 	analyze_word_json: (word: string) => string;
 	generate_word: (root: string) => string;
 	explain_json: (expression: string) => string;
+	syntax_policy_json: () => string;
+	analyze_surface_json: (expression: string) => string;
 }
 
 export interface SysteanEngine {
@@ -24,6 +28,8 @@ export interface SysteanEngine {
 	analyzeWord(word: string): WordAnalysis;
 	generateWord(root: string): string;
 	explain(expression: string): SemanticAnalysis;
+	syntaxPolicy(): SyntaxPolicy;
+	analyzeSurface(expression: string): SurfaceAnalysis;
 }
 
 let enginePromise: Promise<SysteanEngine> | undefined;
@@ -44,6 +50,8 @@ async function createEngine(): Promise<SysteanEngine> {
 		spell: (pronunciation) => wasm.spell(pronunciation),
 		analyzeWord: (word) => JSON.parse(wasm.analyze_word_json(word)) as WordAnalysis,
 		generateWord: (root) => wasm.generate_word(root),
-		explain: (expression) => JSON.parse(wasm.explain_json(expression)) as SemanticAnalysis
+		explain: (expression) => JSON.parse(wasm.explain_json(expression)) as SemanticAnalysis,
+		syntaxPolicy: () => JSON.parse(wasm.syntax_policy_json()) as SyntaxPolicy,
+		analyzeSurface: (expression) => JSON.parse(wasm.analyze_surface_json(expression)) as SurfaceAnalysis
 	};
 }

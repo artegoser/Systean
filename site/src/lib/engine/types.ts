@@ -49,3 +49,22 @@ export interface SemanticAnalysis {
 	canonical: string;
 	explanation: string;
 }
+
+export interface SyntaxPolicy {
+	frameOrder: string;
+	freeOrder: boolean;
+	scopeOpen: string;
+	scopeClose: string;
+	explicitScope: string;
+	quantifierScope: string;
+	precedence: Record<string, number>;
+	flattenSameOperator: boolean;
+	lexicalBindings: number;
+}
+
+export interface SurfaceAnalysis {
+	canonicalSurface: string;
+	inferredType: string;
+	canonicalSemantics: string;
+	syntax: string;
+}
