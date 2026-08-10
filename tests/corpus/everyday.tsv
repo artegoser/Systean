@@ -12,3 +12,4 @@ ten repeated digits	DigitSequence	repeat_digit(value = digit(value = 7), count =
 ten groups of seven	Number	multiply(left = 10, right = 7)
 explicit unknown information	Proposition	unknown_to(knower = speaker, information = identity_x)
 explicit withheld information	Proposition	withheld_by(holder = speaker, information = identity_x)
+exactly three persons	Proposition	exactly(count = 3, predicate = bind x: Entity => person(entity = x))
