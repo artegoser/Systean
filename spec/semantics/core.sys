@@ -1,0 +1,33 @@
+type Entity;
+type Activity;
+type Proposition;
+type Number;
+type Boolean;
+type Text;
+type Utterance;
+type SpeechAct;
+type Affect;
+type Digit;
+type DigitSequence;
+
+literal integer: Number;
+literal boolean: Boolean;
+literal string: Text;
+
+operator and(left: Proposition, right: Proposition) -> Proposition;
+operator or(left: Proposition, right: Proposition) -> Proposition;
+operator not(value: Proposition) -> Proposition;
+operator implies(condition: Proposition, consequence: Proposition) -> Proposition;
+
+operator forall(predicate: fn(value: Entity) -> Proposition) -> Proposition;
+operator exists(predicate: fn(value: Entity) -> Proposition) -> Proposition;
+
+operator cease(target: Activity) -> Proposition;
+operator start(target: Activity) -> Proposition;
+operator continue(target: Activity) -> Proposition;
+operator finish(target: Activity) -> Proposition;
+operator interrupt(target: Activity) -> Proposition;
+operator habitual(activity: Activity) -> Activity;
+operator repeat(activity: Activity, count: Number) -> Activity;
+
+operator equal<T>(left: $T, right: $T) -> Proposition;

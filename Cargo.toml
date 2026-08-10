@@ -1,0 +1,12 @@
+[package]
+name = "systean"
+version = "0.1.0"
+edition = "2024"
+description = "Core engine for the Systean unambiguous artificial language"
+license = "MIT"
+
+[dependencies]
+chumsky = "=0.13.0"
+
+[lib]
+path = "src/lib.rs"
