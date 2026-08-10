@@ -1195,7 +1195,7 @@ Normative. The alphabet and its pronunciation mapping are complete and are not a
 
 ### `language/dictionary.toml`
 
-Normative v2 lexical inventory. Each root has one canonical human-readable `definition`; POS-specific contextual meanings are rejected by `LanguagePackage`. Formal semantic typing remains separate from dictionary prose.
+Normative v3 lexical inventory and lexical-semantic source of truth. Each root has one canonical human-readable `definition` and one formal `semantic` binding. Constant roots declare their broad semantic type and automatically become surface atoms. Operator roots declare one root-specific `syntax` realization in the same entry. POS-specific contextual meanings are rejected by `LanguagePackage`; full operator signatures remain separate in `.semsys`.
 
 ### `language/legacy/grammar.toml`
 
@@ -1266,7 +1266,7 @@ These should not be casually reopened while implementing unrelated features.
 30. Morphology v1 is bare-root identity: `WORD = ROOT`.
 31. Mandatory POS/class endings are rejected.
 32. Negation, number, tense, aspect, agreement, case, and other wide/nonlocal grammar are not encoded in a default lexical affix stack.
-33. The canonical dictionary stores one lexical definition per root and rejects POS-specific contextual meanings.
+33. The canonical dictionary stores one lexical definition and one formal semantic identity per root, and rejects POS-specific contextual meanings.
 
 ---
 
@@ -1294,7 +1294,7 @@ No general derivation DSL should be invented before a concrete semantic requirem
 
 ### Syntax
 
-The structural v1 baseline is now implemented in `language/syntax.toml` and `systean-core`: canonical primary-participant/predicate/rest frame order, no free unmarked reordering, `ki ... ku` grouping, quantifier scope by appearance, `AND > OR`, explicit speech-act constructions, and semantic-type-driven rather than POS-driven parsing.
+The structural v1 baseline is now implemented by `language/syntax.toml`, `language/dictionary.toml`, and `systean-core`: canonical primary-participant/predicate/rest frame order, no free unmarked reordering, `ki ... ku` grouping, quantifier scope by appearance, `AND > OR`, explicit speech-act constructions, and semantic-type-driven rather than POS-driven parsing. `syntax.toml` contains policy only; dictionary roots are compiled automatically into one surface lexicon instead of being re-declared in a second table.
 
 Remaining syntax questions are narrower:
 
@@ -1370,7 +1370,9 @@ alphabet.toml + phonology.toml
     -> manual-root validation / spoken segmentation checks
 
 dictionary.toml + morphology.toml
-    -> one lexical definition per root
+    -> one lexical definition + semantic identity per root
+    -> dictionary-compiled surface lexicon
+    -> typed lexical constants / validated operator realizations
     -> bare-root morphological analysis/generation
     -> root boundary
     -> phonological word analysis

@@ -2,7 +2,7 @@
 
 Status: **structural v1 implemented; core grammatical/operator vocabulary fixed**
 
-This document defines the current normative structural rules for Systean surface syntax. The executable policy lives in `language/syntax.toml`; the generic parser/generator/lowering engine lives in `systean-core::syntax`.
+This document defines the current normative structural rules for Systean surface syntax. Structural policy lives in `language/syntax.toml`; lexical roots, semantic identities, and root-specific surface realizations live once in `language/dictionary.toml`. The generic parser/generator/lowering engine lives in `systean-core::syntax`.
 
 The syntax engine does **not** invent grammatical roots. The following core forms were manually selected and are now normative:
 
@@ -19,7 +19,7 @@ The syntax engine does **not** invent grammatical roots. The following core form
 | `da` | command marker | `command` |
 | `me` | request marker | `request` |
 
-`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, and `me` are declared lexical roots as well as syntax bindings, so the ordinary word analyzer and root inventory recognize them. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
+`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, and `me` are declared once as lexical roots in `dictionary.toml`; the package compiler derives their surface lexicon entries from those same dictionary entries. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
 
 Test fixtures still provide temporary content vocabulary such as people, predicates, and classes. Those fixture-only forms must never be treated as normative Systean vocabulary.
 
@@ -41,7 +41,7 @@ The default clause order is:
 PRIMARY PARTICIPANT -> PREDICATE -> REMAINING FRAME ARGUMENTS
 ```
 
-A predicate's surface binding declares the exact semantic role of the primary participant and the exact ordered list of remaining roles.
+A predicate root's dictionary entry declares the exact semantic role of the primary participant and the exact ordered list of remaining roles.
 
 Conceptually:
 
@@ -63,7 +63,7 @@ Free unmarked word-order permutation is disabled. A future focus/topic construct
 
 The surface grammar does not depend on mandatory `noun`, `verb`, or `adjective` endings.
 
-Lexical roots remain bare under morphology v1. Surface bindings are selected by semantic function/type and construction, not by a final-vowel POS code.
+Lexical roots remain bare under morphology v1. Constant roots automatically become surface atoms. Operator roots attach one explicit structural realization in the same dictionary entry. No root is re-declared in `syntax.toml`.
 
 ## 4. Scope markers
 
@@ -209,30 +209,49 @@ A future focus construction must be explicit and must preserve the canonical und
 
 Likewise, relations/modifiers must structurally identify their target. Systean will not adopt natural-language-style ambiguous attachment such as an unmarked phrase that could modify either an entity or an event.
 
-## 12. Config-driven surface bindings
+## 12. Dictionary-compiled surface lexicon
 
-The generic engine supports declarative surface lexeme kinds:
+There is no independent lexical table in `syntax.toml`.
 
-- `atom` -> semantic constant;
-- `class` -> unary restriction predicate used by quantifiers;
-- `predicate` -> semantic operator plus primary/rest frame roles;
-- `prefix` -> scope-bearing unary semantic operator;
-- `infix` -> binary semantic operator with configured precedence;
-- `quantifier` -> binder operator plus explicit restriction composition;
-- `speech_act` -> explicit operator over content.
+`dictionary.toml` is the single source of lexical roots. Every dictionary root is compiled into the surface lexicon automatically:
 
-These are generic surface mechanisms. Concrete Systean words belong in the language package when manually chosen.
+- a semantic `constant` root becomes an `atom` with no extra syntax declaration;
+- an `operator` root carries exactly one root-specific `syntax` realization: `class`, `predicate`, `prefix`, `infix`, `quantifier`, or `speech_act`.
 
-A predicate binding conceptually declares information equivalent to:
+For example, an ordinary constant root needs only:
 
 ```toml
-kind = "predicate"
-semantic = "see"
-primary_role = "observer"
-rest_roles = ["observed"]
+[sol]
+definition = "..."
+semantic = { kind = "constant", type = "Entity" }
 ```
 
-The engine then builds named-role semantic IR. No world-knowledge role inference is involved.
+It is immediately recognized by morphology, phonology, and surface syntax. No second `sol` entry exists in `syntax.toml`.
+
+An operator root keeps semantic identity and surface realization together:
+
+```toml
+[ne]
+definition = "Logical negation of a proposition."
+semantic = { kind = "operator", name = "not" }
+syntax = { kind = "prefix", role = "value" }
+```
+
+The semantic operator signature itself remains declared only in `.semsys`:
+
+```text
+operator not(value: Proposition) -> Proposition;
+```
+
+This division avoids three forms of duplication:
+
+1. roots are not repeated between dictionary and syntax configuration;
+2. semantic signatures are not repeated in the dictionary;
+3. structural policy such as precedence and scope is not repeated per lexical root.
+
+`LanguagePackage` compiles these sources into one `SurfaceLexicon`, installs typed lexical constants into the semantic environment, then validates every operator realization against the `.semsys` signature.
+
+This also makes errors occur at the correct layer. A declared root such as `sol` is never rejected as an "unknown surface word" merely because it lacks a second config entry. A structurally valid but semantically ill-typed expression such as `ne sol` reaches semantic type checking and is rejected because `not` expects `Proposition` while `sol` has type `Entity`.
 
 ## 13. Parser and generator invariants
 
@@ -256,7 +275,9 @@ The regression suite covers:
 - insertion of grouping when required;
 - same-operator chain flattening;
 - explicit question/command/request constructions;
-- surface-to-semantic type checking.
+- automatic dictionary-root visibility in surface syntax;
+- dictionary-only addition of new constant roots without syntax-config edits;
+- surface-to-semantic type checking, including wrong-type operator application.
 
 ## 14. Current intentionally unresolved items
 

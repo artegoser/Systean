@@ -111,7 +111,7 @@ Morphology v1 is intentionally minimal: a lexical word is exactly its declared r
 cargo run --bin systean -- syntax check
 ```
 
-The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
+The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. `syntax.toml` contains structural policy only. Every lexical root comes from `dictionary.toml` and is compiled automatically into the surface lexicon, so adding an ordinary typed root does not require a duplicate syntax entry. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
 
 ### Semantic IR
 

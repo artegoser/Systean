@@ -39,7 +39,7 @@ Generic mechanisms only:
 - typed IR and canonicalization;
 - phonological configuration and analysis;
 - reversible morphology and root-boundary analysis;
-- config-driven surface parsing, grouping, precedence, generation and semantic lowering;
+- dictionary-compiled surface lexicon plus config-driven parsing, grouping, precedence, generation and semantic lowering;
 - root inventory validation;
 - unified `LanguagePackage` loading.
 
@@ -78,4 +78,6 @@ Svelte `dev`, `check`, and `build` invoke this step first.
 4. Legacy prototype grammar/morphology files are never loaded as active rules.
 5. Word structure comes from the Rust morphology engine; the site never guesses root boundaries.
 6. Surface structure comes from the Rust syntax engine; the site never implements precedence or scope itself.
-7. A malformed canonical package prevents consumers from initializing instead of allowing partial interpretation.
+7. Every dictionary root is compiled into the surface lexicon; `syntax.toml` never duplicates lexical roots.
+8. Typed constant roots are installed into the semantic environment from the dictionary; operator signatures remain authoritative in `.semsys`.
+9. A malformed canonical package prevents consumers from initializing instead of allowing partial interpretation.
