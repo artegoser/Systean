@@ -1,6 +1,6 @@
 # Systean Surface Syntax and Scope
 
-Status: **structural v1 implemented; core grammatical/operator vocabulary fixed**
+Status: **structural v1 + typed discourse-reference core implemented; core grammatical/operator vocabulary fixed**
 
 This document defines the current normative structural rules for Systean surface syntax. Structural policy lives in `language/syntax.toml`; lexical roots, semantic identities, and root-specific surface realizations live once in `language/dictionary.toml`. The generic parser/generator/lowering engine lives in `systean-core::syntax`.
 
@@ -18,8 +18,11 @@ The syntax engine does **not** invent grammatical roots. The following core form
 | `mu` | existential quantifier | `exists` |
 | `da` | command marker | `command` |
 | `me` | request marker | `request` |
+| `ref` | typed shorthand reference | runtime discourse resolver |
+| `mi` | current speaker | runtime context `speaker` |
+| `tu` | current addressee | runtime context `addressee` |
 
-`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, and `me` are declared once as lexical roots in `dictionary.toml`; the package compiler derives their surface lexicon entries from those same dictionary entries. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
+`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, `me`, `ref`, `mi`, and `tu` are declared once as lexical roots in `dictionary.toml`; the package compiler derives their surface lexicon entries from those same dictionary entries. `ref` is the universal typed shorthand-reference form; `mi` and `tu` are deterministic runtime-context values for the current speaker and addressee. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
 
 Test fixtures still provide temporary content vocabulary such as people, predicates, and classes. Those fixture-only forms must never be treated as normative Systean vocabulary.
 
@@ -197,9 +200,15 @@ The accepted design rule is:
 
 > An argument may be omitted only if the formal discourse/reference state yields exactly one valid referent.
 
-The current parser does not yet have the discourse state necessary to prove that condition, so v1 takes the conservative implementation: required frame arguments must be present.
+The parser now preserves structurally recoverable omissions as typed unresolved-reference slots rather than guessing a value during parsing. Elaboration obtains the exact semantic role and expected type from the predicate signature. Runtime `DiscourseState` resolution then applies the same 0/1/many rule used by explicit `ref`:
 
-It must never weaken this to ordinary pragmatic guessing.
+- zero accessible compatible referents -> unresolved-reference error;
+- exactly one -> deterministic resolution;
+- more than one -> ambiguity error with candidate diagnostics.
+
+Only omissions whose slot is structurally identifiable are accepted. In particular, omission is permitted at a deterministic clause boundary (end of expression, scope close, or infix boundary); the parser does not skip an arbitrary middle argument and then guess which role was absent.
+
+The discourse-free `analyze_surface` path deliberately rejects expressions that still contain unresolved references or runtime-context values. `analyze_surface_with_discourse` performs typed elaboration and deterministic resolution. No recency, salience, plausibility, or world-knowledge fallback exists.
 
 ## 11. Focus and modifiers
 
@@ -283,13 +292,14 @@ The regression suite covers:
 
 The structural surface grammar in this document is implemented. The architecture of the remaining higher layers is now defined in [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md) and scheduled in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 
-They include:
+The first higher layer is now implemented: typed unresolved-reference slots, explicit `ref`, deterministic `mi`/`tu` runtime context, accessibility-scoped `DiscourseState`, and 0/1/many typed reference resolution.
 
-1. typed unresolved-reference slots and deterministic discourse resolution;
-2. aliases, discourse boundaries, and safe argument omission through the same resolver;
-3. explicit inverse-quantifier scope using ordinary binding/reference machinery rather than hidden binding;
-4. proper-name and quotation structures;
-5. explicit focus/topic constructions without argument reordering;
-6. repair/correction and complete text/turn boundaries.
+Remaining layers include:
+
+1. aliases, explicit discourse boundaries, and longer-lived safe shorthand through the same resolver;
+2. explicit inverse-quantifier scope using ordinary binding/reference machinery rather than hidden binding;
+3. proper-name and quotation structures;
+4. explicit focus/topic constructions without argument reordering;
+5. repair/correction and complete text/turn boundaries.
 
 The exact future particles/roots remain manual language-authoring decisions. None of these layers permits heuristic parsing while unimplemented.

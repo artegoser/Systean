@@ -332,18 +332,18 @@ Goal: make surface syntax capable of carrying unresolved references safely into 
 
 Implementation:
 
-- [ ] Add `TypedSurfaceAst` / equivalent elaboration representation
-- [ ] Infer expected semantic types and roles for reference slots
-- [ ] Represent selected explicit `ref` unresolved references without guessing
-- [ ] Represent omitted arguments as unresolved reference slots
-- [ ] Add runtime `DiscourseState`
-- [ ] Expose selected context values `mi` (speaker) and `tu` (addressee) through the deterministic context contract
-- [ ] Add stable internal referent IDs
-- [ ] Track introduction provenance and semantic type
-- [ ] Add deterministic accessibility scopes
-- [ ] Implement 0/1/many candidate resolution
-- [ ] Return candidate diagnostics on ambiguity
-- [ ] Ensure no recency/salience/world-knowledge fallback exists
+- [x] Add `TypedSurfaceAst` / equivalent elaboration representation
+- [x] Infer expected semantic types and roles for reference slots
+- [x] Represent selected explicit `ref` unresolved references without guessing
+- [x] Represent omitted arguments as unresolved reference slots
+- [x] Add runtime `DiscourseState`
+- [x] Expose selected context values `mi` (speaker) and `tu` (addressee) through the deterministic context contract
+- [x] Add stable internal referent IDs
+- [x] Track introduction provenance and semantic type
+- [x] Add deterministic accessibility scopes
+- [x] Implement 0/1/many candidate resolution
+- [x] Return candidate diagnostics on ambiguity
+- [x] Ensure no recency/salience/world-knowledge fallback exists
 
 Required validation:
 
@@ -353,6 +353,8 @@ Required validation:
 - [ ] Wrong-type candidates are excluded structurally
 - [ ] Resolution result is independent of candidate insertion order
 - [ ] Omitted argument uses the same resolver as an explicit shorthand reference
+
+Status: implementation and regression tests are present in the repository. The validation boxes remain open until the Phase 2 test suite is executed successfully in a Rust toolchain environment.
 
 Completion result: multi-utterance state exists and no reference is resolved heuristically.
 
