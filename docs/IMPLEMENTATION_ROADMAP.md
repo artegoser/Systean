@@ -49,6 +49,275 @@ Goal: eliminate meta-architectural uncertainty before continuing feature impleme
 
 No code or tests are required for this phase.
 
+### Pre-implementation surface freeze
+
+The following forms are **author-selected language forms**. They are frozen for implementation planning, but they are not treated as executable or collision-safe until the phonology/root audit and whole-stream ambiguity tests accept them. A failed validation changes the conflicting form, not the architecture.
+
+#### Structural and speech-act forms
+
+```text
+ki    scope open                    reserved structural form
+ku    scope close                   reserved structural form
+du    utterance end                 reserved structural form
+sit   opaque quotation open         reserved structural form
+tis   opaque quotation close        reserved structural form
+
+ke    truth question
+ne    logical negation
+va    conjunction
+zo    disjunction
+ra    universal quantifier
+mu    existential quantifier
+da    command
+me    request
+```
+
+Written `.` realizes the same utterance boundary as spoken `du`. Pauses are never normative utterance boundaries. Written quotation marks may render `sit ... tis`, but the spoken delimiters carry the boundary. `?` and `!` do not create question/command semantics by themselves.
+
+#### Reference, names, binding, and discourse
+
+```text
+ref   universal typed shorthand reference
+ali   explicit local alias binding
+na    proper-name marker
+nom   lexical concept: name          not the proper-name marker
+fra   explicit discourse frame/boundary
+mi    current speaker context value
+tu    current addressee context value
+def   local formal definition
+rel   relative/restrictive binding construction
+```
+
+`ref` and omitted arguments use the same 0/1/many typed resolver. `fra` creates a structural discourse frame. Ordinary referents live in deterministic structural frames rather than for a time/count heuristic. Inner scopes may reference accessible outer values; local values do not escape their scope. `ra` binders remain local. Referents introduced only inside negation, questions, counterfactuals, opaque quotation, and other non-assertive scopes are not exported by default. Aliases remain available only for their declared lexical scope.
+
+#### Unknown information, information structure, and repair
+
+```text
+unk   unknown value
+vak   deliberately unspecified value
+hid   known-but-withheld value
+fok   focus
+top   topic
+emo   explicit affect/emotion layer
+kor   correction
+ret   retraction
+klar  clarification
+```
+
+These meanings remain semantically distinct; none is a pragmatic reinterpretation of another.
+
+#### Quantification, collections, association, and logic
+
+```text
+mini  at least N
+maks  at most N
+set   unordered set
+list  ordered sequence
+grup  group treated as a collective entity
+kol   collective interpretation
+dis   distributive interpretation
+aso   explicitly underspecified association
+imp   logical implication
+tip   typical/normal-case claim
+stat  statistical claim
+prob  probability claim
+frek  frequency claim
+hip   counterfactual causal frame
+```
+
+Generic/typical and statistical claims are separate explicit constructions. Counterfactual semantics is separate from material implication and is modeled as an explicit causal/counterfactual frame.
+
+#### Aspect and time
+
+```text
+sta   start explicit occurrence target
+dur   continue explicit occurrence target
+fin   finish explicit occurrence target
+stop  cease explicit occurrence target
+rup   interrupt explicit occurrence target
+reg   habitual/recurrent activity construction
+rep   repeat explicit occurrence target
+
+nau   current temporal anchor / now
+ante  before
+aft   after
+dat   calendar-date constructor
+zon   timezone
+```
+
+Aspect always targets an explicit Event/Process/State/Activity structure. Temporal location remains separate from aspect.
+
+#### Numeric surface system
+
+Digits:
+
+```text
+0 nul
+1 uno
+2 dva
+3 tri
+4 kvar
+5 pent
+6 siks
+7 sev
+8 okt
+9 nin
+```
+
+Numeric support forms:
+
+```text
+dig    DigitSequence marker
+minus  negative sign/operator
+plus   explicit positive sign/operator
+dot    decimal separator
+eks    explicit mathematical base-10 exponent/scientific-notation form
+apro   approximation
+ord    ordinal construction
+rat    exact rational/fraction construction
+```
+
+Ordinary integers do **not** require a `num` wrapper. A one-digit number is exactly its digit root, e.g. `pent` = 5. `dig ...` instead constructs a `DigitSequence`, so numeric value and literal digit sequence remain type-distinct.
+
+Direct decimal magnitude roots:
+
+```text
+dek   10^1
+hek   10^2
+kilo  10^3
+mega  10^6
+giga  10^9
+tera  10^12
+peta  10^15
+eksa  10^18
+zeta  10^21
+yota  10^24
+rona  10^27
+keta  10^30
+```
+
+Canonical integer speech is a sparse sum of non-zero magnitude terms:
+
+1. A magnitude precedes its coefficient, so the listener learns scale before coefficient content.
+2. A magnitude coefficient is mandatory; there is no implicit `uno`.
+3. `dek` and `hek` are used only inside a coefficient in the range 1..999.
+4. `kilo` through `keta` are outer decimal magnitude roots.
+5. Terms are emitted from larger effective magnitude to smaller effective magnitude.
+6. Zero-valued terms are omitted completely; `nul` is not padding.
+7. A final coefficient without an outer magnitude is the units term.
+8. Adjacent outer magnitude roots form a magnitude chain whose exponents add. For magnitudes above `10^30`, the canonical chain is the greedy descending decomposition over `keta ... kilo`.
+9. Outer magnitude chains are canonical; alternative decompositions of the same scale are not normative.
+10. `eks` remains an explicit mathematical exponent/scientific form and is not required for ordinary integer naming.
+
+Examples:
+
+```text
+pent
+= 5
+
+dek dva
+= 20
+
+hek kvar pent
+= 405
+
+kilo dva dek dva pent
+= 2,025
+
+mega uno pent
+= 1,000,005
+
+mega uno kilo pent sev
+= 1,005,007
+
+mega hek uno dek dva tri
+kilo hek kvar dek pent siks
+hek sev dek okt nin
+= 123,456,789
+
+keta mega uno
+= 10^36
+
+keta keta uno
+= 10^60
+```
+
+The exact spoken grammar must prove that coefficient boundaries, magnitude chains, and term boundaries are uniquely recoverable from the token stream. Root similarity alone is advisory; a form is a release blocker only when it creates more than one valid complete normative analysis.
+
+#### Initial manually selected lexical batch
+
+These are lexical roots, not POS classes. Each keeps one exact lexical/semantic identity.
+
+```text
+per    human person
+anim   animal
+lok    location
+temp   time
+obj    physical object
+vid    visual perception
+aud    auditory perception
+mov    physical movement
+ven    arrive / come to a target
+vad    go / move toward a destination
+don    transfer / give
+ten    physically hold
+hab    possess
+viv    be alive
+mor    die
+dur    continue an explicit occurrence target
+fin    finish
+nov    new
+vet    old
+bon    positive evaluation by explicit criterion
+mal    negative evaluation by explicit criterion
+ver    true
+fal    false
+sim    similar by explicit dimension
+dif    different by explicit dimension
+par    equal by explicit dimension
+mag    greater by explicit dimension
+min    lesser by explicit dimension
+in     spatially inside
+sur    spatially above
+sub    spatially below
+prok   spatially near
+dist   spatially far
+kaus   cause
+kon    condition
+pos    possible
+nes    necessary
+perm   permitted
+kap    capable
+vol    desire / want
+int    intend
+zna    know a proposition
+bel    believe a proposition
+mem    remember
+dum    think / consider a proposition
+nom    name as a lexical concept/value
+tekst  text
+ling   language
+gov    speak / utter content
+skrib  write / encode symbolic content
+```
+
+Where a lexical gloss above is still broad enough to hide multiple semantic frames, implementation must split or narrow the formal signature rather than add contextual polysemy.
+
+#### Known surface forms still requiring author selection
+
+A static fixed-alphabet preflight rejected two earlier candidate spellings before implementation:
+
+```text
+exactly N             previous candidate `exa` is invalid because `x` is not in the fixed alphabet
+intentional act       previous candidate `fac` is invalid because `c` is not in the fixed alphabet
+```
+
+The temporal `during` relation also has architecture but no selected root yet. A dedicated `most`/majority root is optional and remains unselected unless the core inventory admits that operator. These are lexical authoring items, not architecture gaps.
+
+### Pre-implementation gate
+
+There is no remaining architecture-design gate before implementation can start. The selected forms above still require executable validation, but collision fixes are local language-authoring changes. Remaining choices such as the concrete unit inventory, individual emotion/interjection vocabulary, name-payload adaptation details, calendar literal formatting, and additional everyday roots belong to their implementation phases and do not block Phase 2.
+
 ---
 
 ## Phase 2 — Typed elaboration + discourse core
@@ -59,9 +328,10 @@ Implementation:
 
 - [ ] Add `TypedSurfaceAst` / equivalent elaboration representation
 - [ ] Infer expected semantic types and roles for reference slots
-- [ ] Represent explicit unresolved references without guessing
+- [ ] Represent selected explicit `ref` unresolved references without guessing
 - [ ] Represent omitted arguments as unresolved reference slots
 - [ ] Add runtime `DiscourseState`
+- [ ] Expose selected context values `mi` (speaker) and `tu` (addressee) through the deterministic context contract
 - [ ] Add stable internal referent IDs
 - [ ] Track introduction provenance and semantic type
 - [ ] Add deterministic accessibility scopes
@@ -88,10 +358,11 @@ Goal: make long discourse manageable without ambiguous pronoun heuristics.
 
 Implementation:
 
-- [ ] Add explicit local alias binding
+- [ ] Add selected `ali` explicit local alias binding
+- [ ] Add selected local-definition/binding constructions `def` and `rel`
 - [ ] Add alias lexical scope/lifetime
 - [ ] Allow aliases for non-Entity semantic values
-- [ ] Add discourse/section boundaries
+- [ ] Add selected `fra` discourse-frame/section boundary
 - [ ] Retire ordinary shorthand candidates deterministically at boundaries
 - [ ] Permit alias lifetime to outlive ordinary shorthand scope when declared
 - [ ] Enable required-argument omission only through unique reference resolution
@@ -115,12 +386,12 @@ Goal: allow real people, places, projects, titles, and foreign text in ordinary 
 
 Implementation:
 
-- [ ] Choose one audible/visible proper-name marker
+- [ ] Implement selected audible/visible proper-name marker `na`
 - [ ] Define deterministic name payload representation
 - [ ] Define canonical pronunciation/adaptation rules
 - [ ] Keep native/foreign names in one grammatical class
 - [ ] Route same-name collisions through normal reference disambiguation
-- [ ] Add explicit external quotation boundaries
+- [ ] Implement selected explicit external quotation boundaries `sit ... tis`
 - [ ] Support nested quotation deterministically
 - [ ] Preserve quoted payload as opaque text
 - [ ] Prevent quoted foreign text from entering the ordinary root parser
@@ -142,7 +413,7 @@ Goal: stop testing only engine mechanics and make Systean usable for small real 
 
 Language authoring:
 
-- [ ] Manually author approximately 30–50 high-value content roots
+- [ ] Implement and formally bind the manually selected initial 30–50 high-value content roots listed in the pre-implementation surface freeze
 - [ ] Cover people/entities, perception, possession, movement, communication, location, basic properties, and everyday actions
 - [ ] Give every predicate/relation an explicit semantic frame
 - [ ] Avoid contextual polysemy and vague derivations
@@ -179,12 +450,12 @@ Implementation:
 - [ ] Implement `Number`
 - [ ] Implement `Digit`
 - [ ] Implement `DigitSequence`
-- [ ] Choose canonical written numeric notation
-- [ ] Choose canonical spoken digit forms
-- [ ] Define integer composition
-- [ ] Define negative-number realization
-- [ ] Define exact decimal/rational realization
-- [ ] Define scale/exponent realization
+- [ ] Implement canonical Arabic decimal numeral notation for written `Number` values
+- [ ] Implement selected spoken digit forms `nul/uno/dva/tri/kvar/pent/siks/sev/okt/nin`
+- [ ] Implement the selected sparse magnitude-first integer composition
+- [ ] Implement selected negative-number realization with `minus`
+- [ ] Implement exact decimal `dot` and exact rational `rat` realization
+- [ ] Implement direct `dek/hek/kilo/mega/giga/tera/peta/eksa/zeta/yota/rona/keta` magnitudes, canonical large-scale chaining, and explicit `eks` exponent notation
 - [ ] Keep approximation outside exact numeric parsing
 
 Required validation:
@@ -193,6 +464,9 @@ Required validation:
 - [ ] Spoken number → same semantic value
 - [ ] Number and digit sequence cannot silently coerce into each other
 - [ ] Very large/small supported forms remain deterministic
+- [ ] Magnitude is recoverable before its coefficient in canonical speech
+- [ ] Zero magnitude terms are omitted rather than spoken as padding
+- [ ] Every accepted spoken integer has exactly one complete numeric parse
 - [ ] Alternative accepted forms, if any, regenerate canonically
 
 Completion result: exact numeric expressions are first-class language values.
@@ -232,10 +506,11 @@ Implementation:
 
 - [ ] Finalize `Instant` / `Interval` / `Duration` / calendar type split
 - [ ] Add calendar/date literal codec if compact notation is used
+- [ ] Implement selected calendar/time support forms `dat` and `zon`
 - [ ] Add deterministic spoken date/time generation
-- [ ] Add explicit before/after/during relations
+- [ ] Add selected temporal forms (`ante` before, `aft` after) and the explicit during relation once its final lexical root is authored
 - [ ] Add duration relations
-- [ ] Add deterministic context-bound values such as `now`
+- [ ] Add selected context-bound `nau` (`now`) and context-provider contract
 - [ ] Define context input contract for speaker/addressee/time/place when used
 - [ ] Keep temporal relation independent from aspectual target identity
 
@@ -258,12 +533,12 @@ Implementation:
 
 - [ ] Finalize concrete `Event` / `Process` / `State` / `Activity` construction patterns
 - [ ] Finalize habitual/repeated activity representation
-- [ ] Surface-realize `start`
-- [ ] Surface-realize `cease`
-- [ ] Surface-realize `continue`
-- [ ] Surface-realize `finish`
-- [ ] Surface-realize `interrupt`
-- [ ] Surface-realize `repeat`
+- [ ] Surface-realize `start` as `sta`
+- [ ] Surface-realize `cease` as `stop`
+- [ ] Surface-realize `continue` as `dur`
+- [ ] Surface-realize `finish` as `fin`
+- [ ] Surface-realize `interrupt` as `rup`
+- [ ] Surface-realize `repeat` as `rep`
 - [ ] Ensure target selection is structural, never guessed
 
 Required validation:
@@ -284,11 +559,11 @@ Goal: make incomplete knowledge explicit rather than pragmatically ambiguous.
 
 Implementation:
 
-- [ ] Surface-realize explicit unspecified values
-- [ ] Surface-realize unknown-to-agent claims
-- [ ] Surface-realize withheld values
+- [ ] Surface-realize explicit unspecified values as `vak`
+- [ ] Surface-realize unknown-to-agent claims with typed `unk` plus an explicit/context-bound knower
+- [ ] Surface-realize withheld values as `hid`
 - [ ] Keep existential quantification distinct
-- [ ] Add approximation construction
+- [ ] Add approximation construction `apro`
 - [ ] Add explicit tolerance/range where required
 - [ ] Add contextual-standard mechanism only with declared context parameters
 
@@ -309,11 +584,15 @@ Goal: express non-universal generalizations without relying on ordinary-language
 
 Implementation:
 
-- [ ] Define semantics for any accepted generic operator
-- [ ] Define `most`/majority semantics if included
-- [ ] Define frequency/typicality operators if included
-- [ ] Define probability claims if included
-- [ ] Choose surface forms only after semantic signatures are fixed
+- [ ] Implement the accepted separation between typical/normal (`tip`) and statistical (`stat`) claims
+- [ ] Define `most`/majority semantics only if it is admitted to the core inventory; its surface root is still unselected
+- [ ] Implement selected frequency `frek` and typicality `tip` operators with explicit domain/measure parameters
+- [ ] Implement explicit probability claims as `prob`
+- [ ] Bind selected `tip/stat/prob/frek` forms to exact semantic signatures
+- [ ] Implement explicit cardinal constraints: selected `mini` / `maks`, plus an exact-N root after its replacement form is author-approved
+- [ ] Implement `set`, `list`, and `grup` collection identities plus `kol` / `dis` interpretation operators
+- [ ] Implement explicitly underspecified association `aso`
+- [ ] Implement surface implication `imp` and counterfactual causal frame `hip` as distinct constructions
 
 Required validation:
 
@@ -334,8 +613,8 @@ Implementation:
 
 - [ ] Formalize unmarked/default assertion behavior
 - [ ] Keep `ke` truth-question semantics
-- [ ] Add explicit value-question construction
-- [ ] Add choice-question construction if needed
+- [ ] Implement value questions as `ke` over an explicit typed `unk` slot; no interrogative word-order inversion
+- [ ] Express choice questions compositionally with `ke` over explicit alternatives (for example `zo`) unless testing proves a dedicated construction is needed
 - [ ] Define answer structures where they carry semantic content
 - [ ] Keep `da` command semantics
 - [ ] Keep `me` request semantics
@@ -358,12 +637,12 @@ Goal: preserve human expressivity without allowing prosody or word order to rewr
 
 Implementation:
 
-- [ ] Define affect target model
+- [ ] Define affect target model under selected explicit affect layer `emo`
 - [ ] Define affect/intensity semantics
 - [ ] Manually choose core expressive particles/interjections
 - [ ] Define standalone affect utterances
-- [ ] Define focus operator
-- [ ] Define topic operator if useful
+- [ ] Define selected focus operator `fok`
+- [ ] Define selected topic operator `top`
 - [ ] Keep canonical core argument order unchanged
 - [ ] Keep prosody semantically non-rewriting
 
@@ -384,9 +663,9 @@ Goal: support natural conversation when speakers make mistakes or refine previou
 
 Implementation:
 
-- [ ] Add explicit retract act
-- [ ] Add explicit correction/replace act
-- [ ] Add clarification of a prior reference
+- [ ] Add selected explicit retract act `ret`
+- [ ] Add selected explicit correction/replace act `kor`
+- [ ] Add selected clarification act `klar`
 - [ ] Add repair target references
 - [ ] Preserve historical parse/provenance
 - [ ] Update discourse commitments deterministically
@@ -408,9 +687,9 @@ Goal: move from sentence parsing to complete text/discourse parsing.
 
 Implementation:
 
-- [ ] Define normative utterance boundary
-- [ ] Define turn boundary
-- [ ] Define discourse block/section boundary
+- [ ] Implement spoken utterance boundary `du` and written `.` realization
+- [ ] Define turn boundary as deterministic channel/discourse metadata; add a spoken marker only if a semantic distinction cannot otherwise be recovered
+- [ ] Implement selected discourse block/frame boundary `fra`
 - [ ] Define document-level structure where needed
 - [ ] Give semantically relevant written boundaries spoken equivalents
 - [ ] Integrate boundaries with referent accessibility
