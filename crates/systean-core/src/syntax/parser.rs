@@ -60,7 +60,7 @@ impl ParserState<'_> {
     fn parse_expression(&mut self, minimum_precedence: u16) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         let mut left = self.parse_operand()?;
         loop {
-            if self.peek().is_some_and(|token| token == self.config.scope.close) {
+            if self.peek().is_some_and(|token| token.as_str() == self.config.scope.close.as_str()) {
                 break;
             }
             let Some((surface, precedence)) = self.peek_infix() else {
@@ -84,7 +84,7 @@ impl ParserState<'_> {
             self.index += 1;
             let expression = self.parse_expression(0)?;
             match self.peek() {
-                Some(close) if close == self.config.scope.close => {
+                Some(close) if close.as_str() == self.config.scope.close.as_str() => {
                     self.index += 1;
                     return Ok(expression);
                 }
