@@ -8,12 +8,12 @@ use systean::spec::{compile_specification, lower_term, parse_specification, pars
 fn main() -> ExitCode {
     let mut args = env::args().skip(1);
     let Some(spec_path) = args.next() else {
-        eprintln!("usage: systean-sem <spec.sys> <semantic-expression>");
+        eprintln!("usage: systean-sem <spec.semsys> <semantic-expression>");
         return ExitCode::from(2);
     };
     let expression = args.collect::<Vec<_>>().join(" ");
     if expression.is_empty() {
-        eprintln!("usage: systean-sem <spec.sys> <semantic-expression>");
+        eprintln!("usage: systean-sem <spec.semsys> <semantic-expression>");
         return ExitCode::from(2);
     }
 

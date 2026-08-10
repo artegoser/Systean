@@ -29,8 +29,8 @@ src/spec/
   compile.rs
 
 spec/semantics/
-  core.sys
-  demo.sys
+  core.semsys
+  demo.semsys
 ```
 
 The semantic specification/expression parser is implemented with `chumsky = 0.13.0` (pinned exactly in `Cargo.toml`). This parser is for the **specification DSL**, not the future spoken/written Systean surface grammar.

@@ -3,7 +3,7 @@ use systean::spec::{compile_specification, parse_specification};
 
 #[test]
 fn core_spec_parses_and_compiles() {
-    let source = include_str!("../spec/semantics/core.sys");
+    let source = include_str!("../spec/semantics/core.semsys");
     let spec = parse_specification(source).expect("core semantic spec should parse");
     let environment = compile_specification(&spec).expect("core semantic spec should compile");
 

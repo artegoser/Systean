@@ -40,29 +40,29 @@ cargo test
 
 ## Try the semantic checker
 
-A small demo specification is included at `spec/semantics/demo.sys`.
+A small demo specification is included at `spec/semantics/demo.semsys`.
 
 Current smoking process:
 
 ```bash
-cargo run --bin systean-sem -- spec/semantics/demo.sys \
+cargo run --bin systean-sem -- spec/semantics/demo.semsys \
   'cease(target = smoke(agent = john, object = cigarette_x))'
 ```
 
 Habitual smoking activity:
 
 ```bash
-cargo run --bin systean-sem -- spec/semantics/demo.sys \
+cargo run --bin systean-sem -- spec/semantics/demo.semsys \
   'cease(target = habitual(activity = smoke(agent = john, object = cigarette_kind)))'
 ```
 
 Different quantifier/negation scope:
 
 ```bash
-cargo run --bin systean-sem -- spec/semantics/demo.sys \
+cargo run --bin systean-sem -- spec/semantics/demo.semsys \
   'not(value = forall(predicate = bind x: Entity => arrived(entity = x)))'
 
-cargo run --bin systean-sem -- spec/semantics/demo.sys \
+cargo run --bin systean-sem -- spec/semantics/demo.semsys \
   'forall(predicate = bind x: Entity => not(value = arrived(entity = x)))'
 ```
 
