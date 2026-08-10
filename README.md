@@ -60,15 +60,18 @@ The explainer prints the inferred type, canonical IR, role tree, and `.semsys` d
 
 ```text
 type Entity;
-type Activity;
+type Occurrence;
+type Process;
+subtype Process: Occurrence;
 type Proposition;
+type Number;
 
 literal integer: Number;
 
 const john: Entity;
 
-operator smoke(agent: Entity, object: Entity) -> Activity;
-operator cease(target: Activity) -> Proposition;
+operator smoke(agent: Entity, object: Entity) -> Process;
+operator cease(target: Occurrence) -> Proposition;
 operator equal<T>(left: $T, right: $T) -> Proposition;
 ```
 
@@ -94,11 +97,11 @@ The everyday corpus checks types, the ambiguity corpus checks that intended dist
 
 Next major stages are:
 
-1. validate/refine the semantic IR against a larger adversarial and everyday corpus;
-2. extend the package/rule schema only where semantic tests require it;
-3. design phonology and phonotactics;
-4. design morphology;
-5. build deterministic surface grammar parsing/generation over the semantic layer.
+1. grow the semantic regression corpus as new edge cases are discovered;
+2. extend the package/rule schema only where those semantic tests require it;
+3. finish still-open semantic areas in `docs/SEMANTICS.md`, especially temporal intervals, discourse/reference state, and richer affect/utterance structures;
+4. design phonology and phonotactics;
+5. design morphology and deterministic surface grammar parsing/generation over the semantic layer.
 
 ### Prototype DSL limitations
 

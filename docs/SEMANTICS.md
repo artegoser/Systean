@@ -34,6 +34,7 @@ src/spec/
 
 spec/semantics/
   core.semsys
+  corpus.semsys
   demo.semsys
 ```
 
