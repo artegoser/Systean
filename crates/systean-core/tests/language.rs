@@ -47,6 +47,10 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert_eq!(language.semantics().constant_type("sol"), Some(&Type::named("Entity")));
     assert_eq!(language.syntax().config().scope.open, "ki");
     assert_eq!(language.syntax().config().scope.close, "ku");
+    assert_eq!(language.syntax().config().discourse.alias, "ali");
+    assert_eq!(language.syntax().config().discourse.definition, "def");
+    assert_eq!(language.syntax().config().discourse.relative, "rel");
+    assert_eq!(language.syntax().config().discourse.frame, "fra");
     assert!(
         language.syntax().config().logic.precedence["and"]
             > language.syntax().config().logic.precedence["or"]
@@ -103,6 +107,12 @@ reorders = false
 
 [grammar]
 traditional_pos = false
+
+[discourse]
+alias = "ali"
+definition = "def"
+relative = "rel"
+frame = "fra"
 
 [lexemes.ne]
 kind = "prefix"
@@ -210,6 +220,18 @@ semantic = { kind = "constant", type = "Entity" }
 
     let error = package_from_dictionary(dictionary).unwrap_err();
     assert!(error.to_string().contains("scope marker `ki` collides"));
+}
+
+#[test]
+fn language_package_reserves_discourse_markers_from_lexical_roots() {
+    let dictionary = r#"
+[fra]
+definition = "must collide with the reserved discourse frame marker"
+semantic = { kind = "constant", type = "Entity" }
+"#;
+
+    let error = package_from_dictionary(dictionary).unwrap_err();
+    assert!(error.to_string().contains("discourse frame marker `fra` collides"));
 }
 
 #[test]
