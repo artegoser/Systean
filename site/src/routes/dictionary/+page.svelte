@@ -5,8 +5,19 @@
 	import { app_state } from '$lib/state.svelte';
 
 	let entries = $state<DictionaryEntry[]>([]);
+	let query = $state('');
 	let error = $state('');
 	let loading = $state(true);
+
+	let filtered = $derived(
+		entries.filter((entry) => {
+			const needle = query.trim().toLowerCase();
+			if (!needle) return true;
+			return `${entry.root} ${entry.definition} ${JSON.stringify(entry.semantic)} ${JSON.stringify(entry.syntax ?? {})}`
+				.toLowerCase()
+				.includes(needle);
+		})
+	);
 
 	app_state.current_tab = 2;
 
@@ -25,22 +36,29 @@
 	<title>Systean dictionary</title>
 </svelte:head>
 
-<div class="flex flex-col items-center gap-4 max-w-180 w-full">
+<div class="flex flex-col items-center gap-4 max-w-220 w-full">
 	<div class="big-text mt-6">Systean dictionary</div>
-	<div class="small-text text-center">
-		The dictionary is loaded and parsed by the same Rust language package as the CLI.
-	</div>
+	<div class="small-text text-center">Lexical definitions, semantic bindings and canonical surface frames from the compiled package.</div>
 
 	{#if loading}
 		<div class="small-text">Loading language engine…</div>
 	{:else if error}
 		<div class="text-red-400 text-center font-bold">{error}</div>
 	{:else}
+		<input class="input m-0 w-full" bind:value={query} placeholder="Search roots, definitions, operators or frame roles" />
+		<div class="small-text">{filtered.length} / {entries.length} entries</div>
 		<div class="flex flex-col gap-3 w-full">
-			{#each entries as entry}
+			{#each filtered as entry}
 				<article class="bg-accent/10 border-2 border-accent/10 rounded-xl p-4">
-					<div class="text-3xl font-black">{entry.root}</div>
+					<div class="flex flex-wrap gap-3 items-baseline justify-between">
+						<div class="text-3xl font-black">{entry.root}</div>
+						<div class="font-mono text-sm break-all">{JSON.stringify(entry.semantic)}</div>
+					</div>
 					<div class="mt-3 text-stone-200/80 whitespace-pre-line">{entry.definition}</div>
+					<div class="mt-3 rounded-lg bg-black/10 p-3">
+						<div class="font-black text-sm">Canonical surface frame</div>
+						<div class="font-mono text-sm mt-1 break-all">{entry.syntax ? JSON.stringify(entry.syntax) : 'bare atom'}</div>
+					</div>
 				</article>
 			{/each}
 		</div>

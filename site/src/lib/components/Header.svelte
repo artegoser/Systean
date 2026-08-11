@@ -6,7 +6,7 @@
 		{ name: 'About', link: '/' },
 		{ name: 'Alphabet', link: '/alphabet' },
 		{ name: 'Dictionary', link: '/dictionary' },
-		{ name: 'Analyzer', link: '/analyzer' }
+		{ name: 'Workbench', link: '/analyzer' }
 	];
 
 	let scrollY = $state(0);
