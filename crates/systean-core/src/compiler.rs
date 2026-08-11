@@ -457,14 +457,6 @@ impl Channel {
         !matches!((self, other), (Self::Spoken, Self::Written) | (Self::Written, Self::Spoken))
     }
 
-    fn label(self) -> &'static str {
-        match self {
-            Self::Spoken => "spoken",
-            Self::Written => "written",
-            Self::Both => "spoken/written",
-        }
-    }
-
     fn spoken(self) -> bool {
         matches!(self, Self::Spoken | Self::Both)
     }

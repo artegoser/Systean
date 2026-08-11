@@ -1,9 +1,9 @@
 # mode<TAB>label<TAB>source<TAB>expected canonical surface for canonical mode
-reject	noncanonical argument order	vi mi tu
+reject	noncanonical argument order	vid na artemi na mari
 reject	stray quote close	tis
 reject	missing quote close	sit hello
 reject	noncanonical magnitude chain	kilo kilo uno
-canonical	redundant scope	ki mi si ku	mi si
-canonical	associative grouping	mi si va ki tu si va mi vi tu ku	mi si va tu si va mi vi tu
-canonical	required precedence scope	ki mi si zo tu si ku va mi vi tu	ki mi si zo tu si ku va mi vi tu
+canonical	redundant scope	ki na artemi viv ku	na artemi viv
+canonical	associative grouping	na artemi viv va ki na mari viv va na artemi vid na mari ku	na artemi viv va na mari viv va na artemi vid na mari
+canonical	required precedence scope	ki na artemi viv zo na mari viv ku va na artemi vid na mari	ki na artemi viv zo na mari viv ku va na artemi vid na mari
 canonical	explicit plus normalizes	plus pent	pent

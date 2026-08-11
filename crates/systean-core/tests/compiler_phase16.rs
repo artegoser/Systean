@@ -83,7 +83,7 @@ fn compatibility_snapshot_diff_detects_parse_or_meaning_change() {
     let snapshot = language
         .compatibility_snapshot([
             ("entity".to_owned(), "sol".to_owned()),
-            ("predicate".to_owned(), "mi vi tu".to_owned()),
+            ("predicate".to_owned(), "na artemi vid na mari".to_owned()),
         ])
         .unwrap();
     assert!(language.diff_compatibility(&snapshot).unwrap().is_empty());
