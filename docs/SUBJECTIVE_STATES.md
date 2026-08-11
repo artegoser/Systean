@@ -1,8 +1,8 @@
 # Systean Subjective-State and Affect Lexical Freeze
 
-Status: **author-selected lexical freeze; executable Phase 13 semantics implemented, awaiting author-toolchain validation**
+Status: **author-selected lexical freeze; executable Phase 13 semantics validated on the author toolchain**
 
-This document freezes the currently approved Systean roots for affective, social, romantic/sexual, bodily, and selected motivational/dispositional subjective states. These forms are manually authored language content. Phase 13 now installs them as executable dictionary entries with signatures in `language/semantics/subjective.semsys`; author-toolchain validation remains pending.
+This document freezes the currently approved Systean roots for affective, social, romantic/sexual, bodily, and selected motivational/dispositional subjective states. These forms are manually authored language content. Phase 13 installs them as executable dictionary entries with signatures in `language/semantics/subjective.semsys`; the dedicated Phase 13 suite and full workspace/WASM/site validation passed on the author toolchain on 2026-08-11.
 
 The fixed alphabet remains authoritative. No form in this document may expand or modify it.
 

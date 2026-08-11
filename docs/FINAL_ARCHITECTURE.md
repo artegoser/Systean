@@ -670,6 +670,8 @@ Boundary rules determine:
 - quotation nesting;
 - where default assertion/speech-act interpretation applies.
 
+The Phase 15 executable baseline now realizes this hierarchy as `TextDocument` → channel-metadata `TextTurn` → utterances/`fra` blocks. Raw spoken utterances end in `du`; raw written utterances end in `.`. Turn boundaries are supplied by channel metadata rather than a new lexical marker because they currently introduce no otherwise-unrecoverable semantic distinction. `fra` advances ordinary-reference accessibility while exact aliases keep their declared lexical scope. Boundary markers inside `sit ... tis` remain opaque text.
+
 ---
 
 ## 26. Canonicalization

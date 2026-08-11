@@ -674,13 +674,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Question type is recoverable without intonation
-- [ ] Requested value slot is explicit
-- [ ] Command/request distinction remains semantic
-- [ ] Prosody cannot turn assertion into question normatively
+- [x] Question type is recoverable without intonation
+- [x] Requested value slot is explicit
+- [x] Command/request distinction remains semantic
+- [x] Prosody cannot turn assertion into question normatively
 
-
-Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 12 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
+Status: **validated**. Dedicated Phase 12 tests, CLI integration, full workspace regressions, root audit, WASM build, Svelte checks, and production site build passed on the author toolchain. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: normal conversational acts are deterministic.
 
@@ -713,13 +712,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Same proposition with different explicit affect remains the same proposition but different utterance structure
-- [ ] Focus does not change semantic roles
-- [ ] Topic does not change scope unless explicitly defined to do so
-- [ ] Sarcasm never maps a proposition to its negation implicitly
+- [x] Same proposition with different explicit affect remains the same proposition but different utterance structure
+- [x] Focus does not change semantic roles
+- [x] Topic does not change scope unless explicitly defined to do so
+- [x] Sarcasm never maps a proposition to its negation implicitly
 
-
-Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 13 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
+Status: **validated**. Dedicated Phase 13 tests, CLI integration, full workspace regressions, root audit, WASM build, Svelte checks, and production site build passed on the author toolchain. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: Systean can sound human without sacrificing literal semantics.
 
@@ -740,13 +738,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Repair target must resolve uniquely
-- [ ] Correction does not silently mutate historical analyzer output
-- [ ] Retraction semantics is explicit
-- [ ] Nested/serial repairs remain deterministic
+- [x] Repair target must resolve uniquely
+- [x] Correction does not silently mutate historical analyzer output
+- [x] Retraction semantics is explicit
+- [x] Nested/serial repairs remain deterministic
 
-
-Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 14 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
+Status: **validated**. Dedicated Phase 14 tests, CLI integration, full workspace regressions, root audit, WASM build, Svelte checks, and production site build passed on the author toolchain. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: interactive conversation can recover from mistakes formally.
 
@@ -758,20 +755,22 @@ Goal: move from sentence parsing to complete text/discourse parsing.
 
 Implementation:
 
-- [ ] Implement spoken utterance boundary `du` and written `.` realization
-- [ ] Define turn boundary as deterministic channel/discourse metadata; add a spoken marker only if a semantic distinction cannot otherwise be recovered
-- [ ] Implement selected discourse block/frame boundary `fra`
-- [ ] Define document-level structure where needed
-- [ ] Give semantically relevant written boundaries spoken equivalents
-- [ ] Integrate boundaries with referent accessibility
-- [ ] Integrate boundaries with alias scope
-- [ ] Integrate boundaries with quotation and repair
+- [x] Implement spoken utterance boundary `du` and written `.` realization
+- [x] Define turn boundary as deterministic channel/discourse metadata; add a spoken marker only if a semantic distinction cannot otherwise be recovered
+- [x] Implement selected discourse block/frame boundary `fra`
+- [x] Define document-level structure where needed
+- [x] Give semantically relevant written boundaries spoken equivalents
+- [x] Integrate boundaries with referent accessibility
+- [x] Integrate boundaries with alias scope
+- [x] Integrate boundaries with quotation and repair
 
 Required validation:
 
 - [ ] Boundary meaning is recoverable in speech and writing
 - [ ] Reference lifetime changes only at declared boundaries
 - [ ] Typography alone cannot alter semantic structure
+
+Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 15 core tests and CLI integration coverage are present. See [`PHASE_15_TEXT_STRUCTURE.md`](PHASE_15_TEXT_STRUCTURE.md).
 
 Completion result: full multi-paragraph/multi-turn discourse is normative.
 

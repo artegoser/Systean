@@ -1,6 +1,6 @@
 # Phases 12–14 — Conversational Pragmatics, Subjective Experience, and Repair
 
-Status: **implemented; awaiting author-toolchain validation**
+Status: **validated on the author toolchain**
 
 This document records the executable design added in Phases 12–14. The normative lexical choices were frozen before implementation; this phase does not invent additional roots.
 
@@ -206,4 +206,4 @@ Dedicated tests exist for:
 - Phase 14 retraction, correction, clarification, immutable history, missing targets, serial/nested correction chains;
 - CLI integration across all three phases.
 
-The roadmap validation boxes remain open until these tests, the full workspace suite, root audit, WASM build, Svelte checks, and production site build run successfully on the author toolchain.
+The dedicated Phase 12–14 suites, full workspace regression suite, root audit, WASM build, Svelte checks, production site build, and scripted conversation smoke test passed on the author toolchain on 2026-08-11.

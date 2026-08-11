@@ -415,3 +415,13 @@ Ordinary surface syntax still lowers to literal proposition/utterance semantics.
 Phase 14 repair forms use exact positive conversation-history numbers: `ret N`, `N kor P`, and `N klar P`. The parser only constructs their explicit semantic terms. `ConversationState` owns history and commitment transitions, preserving immutable historical analyses while applying corrections/retractions deterministically.
 
 The CLI `discourse` playground exposes the full layer through `say`, `history`, and `commitments`. See [`PHASES_12_14.md`](PHASES_12_14.md).
+
+## Phase 15 text-stream boundaries
+
+Raw discourse streams now have an executable boundary layer. Spoken utterances terminate with configured `du`; written utterances terminate with configured `.`. Channel turns are explicit metadata containers and do not terminate an unfinished utterance. `fra` is recognized between utterances and advances the ordinary-reference frame/section. `du`, `.`, and `fra` inside `sit ... tis` remain opaque quoted text and do not split the stream.
+
+Readability punctuation `, : ; ? !` is semantically inert outside quotation. In particular, `?` does not create a question and `!` does not create a command. Decimal points between digits remain part of structured literals rather than becoming utterance boundaries.
+
+Utterance and turn boundaries preserve the current shorthand frame and alias scope. `fra` retires ordinary shorthand candidates by advancing the frame while exact aliases retain their previously defined lexical lifetime. Conversation repair history remains available across turns and `fra` inside one document; a fresh document starts fresh history by default.
+
+The executable details and tests are recorded in [`PHASE_15_TEXT_STRUCTURE.md`](PHASE_15_TEXT_STRUCTURE.md).
