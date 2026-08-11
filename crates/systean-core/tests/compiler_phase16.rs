@@ -16,8 +16,8 @@ fn language() -> LanguagePackage {
 fn whole_language_package_exposes_manifest_provenance_and_validation_report() {
     let language = language();
     assert_eq!(language.manifest().package.name, "systean");
-    assert_eq!(language.manifest().package.version, "0.16.0");
-    assert_eq!(language.manifest().package.revision, 16);
+    assert_eq!(language.manifest().package.version, "0.17.0");
+    assert_eq!(language.manifest().package.revision, 17);
     assert_eq!(language.manifest().compatibility.epoch, 1);
     assert!(language.package_fingerprint().starts_with("fnv1a64:"));
     assert!(

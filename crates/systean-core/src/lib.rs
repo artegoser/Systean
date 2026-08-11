@@ -10,3 +10,4 @@ pub mod semantics;
 pub mod spec;
 pub mod syntax;
 pub mod units;
+pub mod workbench;

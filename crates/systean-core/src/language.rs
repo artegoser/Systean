@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::compiler::{
     PackageInvariantError, PackageManifest, PackageManifestError, PackageProvenance,
     PackageValidationReport, WholeLanguageCompiler, validate_compiled_package,
-    validate_declared_corpora,
+    validate_corpus_sources, validate_declared_corpora,
 };
 use crate::discourse::{
     ConversationError, ConversationState, DiscourseFrameId, DiscourseGenerationError,
@@ -519,6 +519,76 @@ impl LanguagePackage {
             provenance,
             None,
         )
+    }
+
+    pub fn from_versioned_sources_full(
+        manifest_source: &str,
+        alphabet: &str,
+        phonology: &str,
+        morphology: &str,
+        syntax: &str,
+        dictionary: &str,
+        literals: &str,
+        units: &str,
+        semantic_sources: &[(&str, &str)],
+        compatibility_source: &str,
+        adversarial_source: &str,
+    ) -> Result<Self, LanguageError> {
+        let manifest = PackageManifest::from_toml(manifest_source)
+            .map_err(LanguageError::PackageManifest)?;
+        let semantics = compile_sources(
+            semantic_sources
+                .iter()
+                .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+        )
+        .map_err(LanguageError::Semantics)?;
+        let compatibility_path = manifest.validation.compatibility_corpus.clone();
+        let adversarial_path = manifest.validation.adversarial_corpus.clone();
+        let provenance = PackageProvenance::from_sources(
+            &manifest,
+            [
+                ("package.toml".to_owned(), manifest_source.to_owned()),
+                ("alphabet.toml".to_owned(), alphabet.to_owned()),
+                ("phonology.toml".to_owned(), phonology.to_owned()),
+                ("morphology.toml".to_owned(), morphology.to_owned()),
+                ("syntax.toml".to_owned(), syntax.to_owned()),
+                ("dictionary.toml".to_owned(), dictionary.to_owned()),
+                ("literals.toml".to_owned(), literals.to_owned()),
+                ("units.toml".to_owned(), units.to_owned()),
+                (compatibility_path.clone(), compatibility_source.to_owned()),
+                (adversarial_path.clone(), adversarial_source.to_owned()),
+            ]
+            .into_iter()
+            .chain(
+                semantic_sources
+                    .iter()
+                    .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+            ),
+        );
+        let mut package = Self::from_parts(
+            alphabet,
+            phonology,
+            morphology,
+            syntax,
+            dictionary,
+            Some((literals, units)),
+            semantics,
+            manifest,
+            provenance,
+            None,
+        )?;
+        let mut report = package.validation.clone();
+        validate_corpus_sources(
+            &package,
+            &compatibility_path,
+            compatibility_source,
+            &adversarial_path,
+            adversarial_source,
+            &mut report,
+        )
+        .map_err(LanguageError::Package)?;
+        package.validation = report;
+        Ok(package)
     }
 
     pub fn from_sources_full(

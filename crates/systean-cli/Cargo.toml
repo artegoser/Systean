@@ -7,4 +7,6 @@ authors.workspace = true
 description = "Native CLI for the Systean language engine"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
 systean-core = { path = "../systean-core" }

@@ -10,6 +10,7 @@ description = "WebAssembly bindings for the Systean language engine"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+serde.workspace = true
 serde_json.workspace = true
 systean-core = { path = "../systean-core" }
 wasm-bindgen.workspace = true

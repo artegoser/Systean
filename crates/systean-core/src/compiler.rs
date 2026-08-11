@@ -1285,14 +1285,42 @@ pub(crate) fn validate_declared_corpora(
     if language.manifest().package.revision == 0 {
         return Ok(());
     }
-    let mut errors = Vec::new();
     let compatibility_path = package_root.join(&language.manifest().validation.compatibility_corpus);
-    let compatibility = read_corpus(&compatibility_path, &mut errors);
+    let adversarial_path = package_root.join(&language.manifest().validation.adversarial_corpus);
+    let mut errors = Vec::new();
+    let compatibility_source = read_corpus_source(&compatibility_path, &mut errors);
+    let adversarial_source = read_corpus_source(&adversarial_path, &mut errors);
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    validate_corpus_sources(
+        language,
+        &compatibility_path.display().to_string(),
+        compatibility_source.as_deref().unwrap_or_default(),
+        &adversarial_path.display().to_string(),
+        adversarial_source.as_deref().unwrap_or_default(),
+        report,
+    )
+}
+
+pub(crate) fn validate_corpus_sources(
+    language: &LanguagePackage,
+    compatibility_path: &str,
+    compatibility_source: &str,
+    adversarial_path: &str,
+    adversarial_source: &str,
+    report: &mut PackageValidationReport,
+) -> Result<(), Vec<PackageInvariantError>> {
+    if language.manifest().package.revision == 0 {
+        return Ok(());
+    }
+    let mut errors = Vec::new();
+    let compatibility = parse_corpus(compatibility_source);
     let mut entries = Vec::new();
     for (line, columns) in compatibility {
         if columns.len() != 5 {
             errors.push(PackageInvariantError::Corpus {
-                path: compatibility_path.display().to_string(),
+                path: compatibility_path.into(),
                 line,
                 message: concat!(
                     "expected 5 tab-separated columns: label, source, canonical surface, ",
@@ -1308,7 +1336,7 @@ pub(crate) fn validate_declared_corpora(
             Ok(analysis) => {
                 if analysis.canonical_surface != columns[2] {
                     errors.push(PackageInvariantError::Corpus {
-                        path: compatibility_path.display().to_string(),
+                        path: compatibility_path.into(),
                         line,
                         message: format!(
                             "`{label}` canonical surface changed: expected `{}`, got `{}`",
@@ -1318,7 +1346,7 @@ pub(crate) fn validate_declared_corpora(
                 }
                 if analysis.inferred_type != columns[3] {
                     errors.push(PackageInvariantError::Corpus {
-                        path: compatibility_path.display().to_string(),
+                        path: compatibility_path.into(),
                         line,
                         message: format!(
                             "`{label}` inferred type changed: expected `{}`, got `{}`",
@@ -1328,7 +1356,7 @@ pub(crate) fn validate_declared_corpora(
                 }
                 if analysis.canonical_semantics != columns[4] {
                     errors.push(PackageInvariantError::Corpus {
-                        path: compatibility_path.display().to_string(),
+                        path: compatibility_path.into(),
                         line,
                         message: format!(
                             "`{label}` semantics changed: expected `{}`, got `{}`",
@@ -1339,7 +1367,7 @@ pub(crate) fn validate_declared_corpora(
                 entries.push((label.clone(), source.clone()));
             }
             Err(error) => errors.push(PackageInvariantError::Corpus {
-                path: compatibility_path.display().to_string(),
+                path: compatibility_path.into(),
                 line,
                 message: format!("`{label}` no longer analyzes: {error}"),
             }),
@@ -1347,13 +1375,12 @@ pub(crate) fn validate_declared_corpora(
     }
     report.compatibility_entries = entries.len();
 
-    let adversarial_path = package_root.join(&language.manifest().validation.adversarial_corpus);
-    let adversarial = read_corpus(&adversarial_path, &mut errors);
+    let adversarial = parse_corpus(adversarial_source);
     let mut adversarial_entries = 0usize;
     for (line, columns) in adversarial {
         if columns.len() < 3 || columns.len() > 4 {
             errors.push(PackageInvariantError::Corpus {
-                path: adversarial_path.display().to_string(),
+                path: adversarial_path.into(),
                 line,
                 message: "expected mode, label, source, and optional canonical surface".into(),
             });
@@ -1367,7 +1394,7 @@ pub(crate) fn validate_declared_corpora(
             "reject" => {
                 if let Ok(parsed) = language.syntax().parse(source) {
                     errors.push(PackageInvariantError::Corpus {
-                        path: adversarial_path.display().to_string(),
+                        path: adversarial_path.into(),
                         line,
                         message: format!("`{label}` must be rejected but parsed as {parsed:?}"),
                     });
@@ -1377,7 +1404,7 @@ pub(crate) fn validate_declared_corpora(
                 Ok(parsed) => match language.syntax().linearize(&parsed) {
                     Ok(canonical) if columns.get(3).is_some_and(|expected| expected == &canonical) => {}
                     Ok(canonical) => errors.push(PackageInvariantError::Corpus {
-                        path: adversarial_path.display().to_string(),
+                        path: adversarial_path.into(),
                         line,
                         message: format!(
                             "`{label}` canonicalized to `{canonical}`, expected `{}`",
@@ -1385,19 +1412,19 @@ pub(crate) fn validate_declared_corpora(
                         ),
                     }),
                     Err(error) => errors.push(PackageInvariantError::Corpus {
-                        path: adversarial_path.display().to_string(),
+                        path: adversarial_path.into(),
                         line,
                         message: format!("`{label}` failed generation: {error}"),
                     }),
                 },
                 Err(error) => errors.push(PackageInvariantError::Corpus {
-                    path: adversarial_path.display().to_string(),
+                    path: adversarial_path.into(),
                     line,
                     message: format!("`{label}` failed to parse: {error}"),
                 }),
             },
             other => errors.push(PackageInvariantError::Corpus {
-                path: adversarial_path.display().to_string(),
+                path: adversarial_path.into(),
                 line,
                 message: format!("unknown adversarial corpus mode `{other}`"),
             }),
@@ -1412,18 +1439,21 @@ pub(crate) fn validate_declared_corpora(
     }
 }
 
-fn read_corpus(path: &Path, errors: &mut Vec<PackageInvariantError>) -> Vec<(usize, Vec<String>)> {
-    let source = match fs::read_to_string(path) {
-        Ok(source) => source,
+fn read_corpus_source(path: &Path, errors: &mut Vec<PackageInvariantError>) -> Option<String> {
+    match fs::read_to_string(path) {
+        Ok(source) => Some(source),
         Err(error) => {
             errors.push(PackageInvariantError::Corpus {
                 path: path.display().to_string(),
                 line: 0,
                 message: error.to_string(),
             });
-            return Vec::new();
+            None
         }
-    };
+    }
+}
+
+fn parse_corpus(source: &str) -> Vec<(usize, Vec<String>)> {
     source
         .lines()
         .enumerate()

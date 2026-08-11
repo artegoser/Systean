@@ -1,7 +1,7 @@
 [package]
 name = "systean"
-version = "0.16.0"
-revision = 16
+version = "0.17.0"
+revision = 17
 
 [provenance]
 source = "language/"

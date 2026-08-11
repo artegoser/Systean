@@ -36,6 +36,7 @@ fn main() -> ExitCode {
         "literals" => literals(&language_path, args),
         "discourse" => discourse(&language_path, args),
         "roots" => roots(&language_path, args),
+        "workbench" => workbench(&language_path, args),
         _ => {
             usage();
             ExitCode::from(2)
@@ -923,6 +924,127 @@ fn print_discourse_help(language: &LanguagePackage) {
     println!("  quit");
 }
 
+
+fn workbench(language_path: &Path, mut args: Vec<String>) -> ExitCode {
+    if args.is_empty() {
+        usage();
+        return ExitCode::from(2);
+    }
+    let command = args.remove(0);
+    let language = match load_language(language_path) {
+        Ok(language) => language,
+        Err(code) => return code,
+    };
+    let result = match command.as_str() {
+        "package" if args.is_empty() => print_workbench_json(&systean_core::workbench::package_info(&language)),
+        "word" => {
+            let [word] = args.as_slice() else {
+                usage();
+                return ExitCode::from(2);
+            };
+            match systean_core::workbench::analyze_word(&language, word) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        "surface" => {
+            let source = args.join(" ");
+            if source.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            match systean_core::workbench::analyze_surface(
+                &language,
+                &source,
+                &DiscourseState::new(),
+            ) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        "utterance" => {
+            let source = args.join(" ");
+            if source.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            match systean_core::workbench::analyze_utterance(
+                &language,
+                &source,
+                &DiscourseState::new(),
+            ) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        "text" => {
+            if args.len() < 2 {
+                usage();
+                return ExitCode::from(2);
+            }
+            let realization = match args[0].as_str() {
+                "spoken" => TextRealization::Spoken,
+                "written" => TextRealization::Written,
+                _ => {
+                    usage();
+                    return ExitCode::from(2);
+                }
+            };
+            let source = args[1..].join(" ");
+            match systean_core::workbench::analyze_text_stream(&language, &source, realization) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        "generate" => {
+            let source = args.join(" ");
+            if source.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            match systean_core::workbench::generate_surface(&language, &source) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        "literal" => {
+            let source = args.join(" ");
+            if source.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            match systean_core::workbench::analyze_literal(&language, &source) {
+                Ok(value) => print_workbench_json(&value),
+                Err(error) => return fail_workbench(error),
+            }
+        }
+        _ => {
+            usage();
+            return ExitCode::from(2);
+        }
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("workbench serialization error: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn print_workbench_json(value: &impl serde::Serialize) -> Result<(), serde_json::Error> {
+    println!("{}", serde_json::to_string_pretty(value)?);
+    Ok(())
+}
+
+fn fail_workbench(error: systean_core::workbench::WorkbenchDiagnostic) -> ExitCode {
+    match serde_json::to_string_pretty(&error) {
+        Ok(json) => eprintln!("{json}"),
+        Err(_) => eprintln!("workbench error: {}", error.message),
+    }
+    ExitCode::FAILURE
+}
+
 fn roots(language_path: &Path, mut args: Vec<String>) -> ExitCode {
     if args.is_empty() {
         usage();
@@ -1060,6 +1182,6 @@ fn fail(label: &str, error: impl std::fmt::Display) -> ExitCode {
 
 fn usage() {
     eprintln!(
-        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] literals analyze <structured-literal>\n  systean [--language <path>] literals convert <quantity> --to <unit-id>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>"
+        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] literals analyze <structured-literal>\n  systean [--language <path>] literals convert <quantity> --to <unit-id>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>\n  systean [--language <path>] workbench package\n  systean [--language <path>] workbench word <word>\n  systean [--language <path>] workbench surface <surface-expression>\n  systean [--language <path>] workbench utterance <surface-expression>\n  systean [--language <path>] workbench text spoken|written <text-stream>\n  systean [--language <path>] workbench generate <semantic-expression>\n  systean [--language <path>] workbench literal <structured-literal>"
     );
 }

@@ -1,9 +1,11 @@
 use std::sync::OnceLock;
 
 use serde_json::json;
+use systean_core::discourse::{DiscourseState, TextRealization};
 use systean_core::language::LanguagePackage;
 use wasm_bindgen::prelude::*;
 
+const PACKAGE: &str = include_str!("../../../language/package.toml");
 const ALPHABET: &str = include_str!("../../../language/alphabet.toml");
 const PHONOLOGY: &str = include_str!("../../../language/phonology.toml");
 const MORPHOLOGY: &str = include_str!("../../../language/morphology.toml");
@@ -11,6 +13,8 @@ const SYNTAX: &str = include_str!("../../../language/syntax.toml");
 const DICTIONARY: &str = include_str!("../../../language/dictionary.toml");
 const LITERALS: &str = include_str!("../../../language/literals.toml");
 const UNITS: &str = include_str!("../../../language/units.toml");
+const COMPATIBILITY_CORPUS: &str = include_str!("../../../language/corpus/compatibility.tsv");
+const ADVERSARIAL_CORPUS: &str = include_str!("../../../language/corpus/adversarial.tsv");
 const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
 const SEMANTICS_PRAGMATICS: &str = include_str!("../../../language/semantics/pragmatics.semsys");
 const SEMANTICS_SUBJECTIVE: &str = include_str!("../../../language/semantics/subjective.semsys");
@@ -19,7 +23,8 @@ static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
 
 fn language() -> Result<&'static LanguagePackage, JsValue> {
     match LANGUAGE.get_or_init(|| {
-        LanguagePackage::from_sources_full(
+        LanguagePackage::from_versioned_sources_full(
+            PACKAGE,
             ALPHABET,
             PHONOLOGY,
             MORPHOLOGY,
@@ -28,10 +33,12 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             LITERALS,
             UNITS,
             &[
-                ("language/semantics/core.semsys", SEMANTICS_CORE),
-                ("language/semantics/pragmatics.semsys", SEMANTICS_PRAGMATICS),
-                ("language/semantics/subjective.semsys", SEMANTICS_SUBJECTIVE),
+                ("semantics/core.semsys", SEMANTICS_CORE),
+                ("semantics/pragmatics.semsys", SEMANTICS_PRAGMATICS),
+                ("semantics/subjective.semsys", SEMANTICS_SUBJECTIVE),
             ],
+            COMPATIBILITY_CORPUS,
+            ADVERSARIAL_CORPUS,
         )
         .map_err(|error| error.to_string())
     }) {
@@ -194,4 +201,71 @@ pub fn analyze_utterance_json(expression: &str) -> Result<String, JsValue> {
         "canonicalUtterance": analysis.pragmatics.utterance.to_string(),
         "utteranceType": analysis.pragmatics.inferred_type.to_string(),
     }))
+}
+
+
+fn workbench_json<T: serde::Serialize>(
+    result: Result<T, systean_core::workbench::WorkbenchDiagnostic>,
+) -> Result<String, JsValue> {
+    match result {
+        Ok(value) => serde_json::to_string(&value)
+            .map_err(|error| JsValue::from_str(&error.to_string())),
+        Err(error) => {
+            let payload = serde_json::to_string(&error).unwrap_or_else(|_| error.message.clone());
+            Err(JsValue::from_str(&payload))
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub fn package_info_json() -> Result<String, JsValue> {
+    serde_json::to_string(&systean_core::workbench::package_info(language()?))
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn workbench_word_json(word: &str) -> Result<String, JsValue> {
+    workbench_json(systean_core::workbench::analyze_word(language()?, word))
+}
+
+#[wasm_bindgen]
+pub fn workbench_surface_json(expression: &str) -> Result<String, JsValue> {
+    workbench_json(systean_core::workbench::analyze_surface(
+        language()?,
+        expression,
+        &DiscourseState::new(),
+    ))
+}
+
+#[wasm_bindgen]
+pub fn workbench_utterance_json(expression: &str) -> Result<String, JsValue> {
+    workbench_json(systean_core::workbench::analyze_utterance(
+        language()?,
+        expression,
+        &DiscourseState::new(),
+    ))
+}
+
+#[wasm_bindgen]
+pub fn workbench_text_json(source: &str, realization: &str) -> Result<String, JsValue> {
+    let realization = match realization {
+        "spoken" => TextRealization::Spoken,
+        "written" => TextRealization::Written,
+        other => return Err(JsValue::from_str(&format!("unknown text realization `{other}`"))),
+    };
+    workbench_json(systean_core::workbench::analyze_text_stream(
+        language()?,
+        source,
+        realization,
+    ))
+}
+
+#[wasm_bindgen]
+pub fn generate_surface_json(semantics: &str) -> Result<String, JsValue> {
+    workbench_json(systean_core::workbench::generate_surface(language()?, semantics))
+}
+
+#[wasm_bindgen]
+pub fn inspect_literal_json(source: &str) -> Result<String, JsValue> {
+    workbench_json(systean_core::workbench::analyze_literal(language()?, source))
 }
