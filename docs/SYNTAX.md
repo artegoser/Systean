@@ -299,7 +299,7 @@ The structural surface grammar in this document is implemented. The architecture
 
 The typed discourse layer, scoped aliases/boundaries, proper-name construction, opaque quotation, and the first playable content vocabulary are now implemented. `ref`, omission, aliases, `mi`/`tu`, `na`, and `sit ... tis` all flow through the same validated language package.
 
-Remaining higher layers include structured numbers and quantities, time/aspect completion, unknown-information constructions, generic/statistical claims, focus/affect/repair, explicit utterance/document boundaries, and the whole-language ambiguity compiler. None of these layers permits heuristic parsing while unimplemented.
+Structured numbers/quantities, time/aspect, unknown-information constructions, generic/statistical claims, and the Phase 12–14 conversational pragmatics/affect/repair layer are now implemented. Remaining higher work is explicit utterance/document stream boundaries and the whole-language ambiguity compiler. No remaining layer may introduce heuristic parsing.
 
 ## Phase 3 discourse control layer
 
@@ -402,3 +402,16 @@ sit ... tis
 The text between the matching boundaries is captured as an opaque `Text` literal before ordinary Systean lexical parsing. Foreign spelling, punctuation, digits, and otherwise invalid Systean tokens inside that payload are preserved rather than interpreted as roots. Nested `sit ... tis` pairs are balanced deterministically and remain literal boundary text inside the outer payload. A missing or stray boundary is a structural parse error.
 
 Quotation boundaries are configured in `syntax.toml`; they are reserved against dictionary-root and local-alias collisions. The WASM syntax-policy API exposes the same boundaries used by the Rust parser.
+
+
+## Phases 12–14 communicative and repair layer
+
+The executable surface package now includes the selected lexical forms `emo`, `fok`, `top`, `ret`, `kor`, and `klar` in `dictionary.toml`. Their semantic operators are declared in `.semsys`; global communicative operator ownership is mapped through `[pragmatics]` in `syntax.toml`.
+
+Ordinary surface syntax still lowers to literal proposition/utterance semantics. `LanguagePackage::analyze_utterance*` adds the deterministic communicative classification layer: an unmarked proposition becomes a default assertion, `ke` is classified as truth/value/choice from explicit typed structure, and `da`/`me` remain distinct.
+
+`TARGET fok P` and `TARGET top P` are explicit infix constructions. Communicative analysis requires `TARGET` to be structurally present in `P`; neither construction may reassign semantic roles or silently alter logical scope.
+
+Phase 14 repair forms use exact positive conversation-history numbers: `ret N`, `N kor P`, and `N klar P`. The parser only constructs their explicit semantic terms. `ConversationState` owns history and commitment transitions, preserving immutable historical analyses while applying corrections/retractions deterministically.
+
+The CLI `discourse` playground exposes the full layer through `say`, `history`, and `commitments`. See [`PHASES_12_14.md`](PHASES_12_14.md).

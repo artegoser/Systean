@@ -34,6 +34,8 @@ crates/systean-core/src/spec/
 
 language/semantics/
   core.semsys
+  pragmatics.semsys
+  subjective.semsys
 
 tests/fixtures/semantics/
   corpus.semsys
@@ -51,7 +53,7 @@ smoke(agent = john, object = cigarette_x)
 smoke(object = cigarette_x, agent = john)
 ```
 
-The implementation now includes representation-level canonicalization: bound variables are alpha-renamed deterministically, while role maps and record fields use deterministic key ordering. Core quantification is package-defined (`forall`, `exists`, `exactly`, `at_least`, and `at_most`) rather than represented by Rust enums. This is intentionally not a theorem prover: algebraic or logical rewrites such as commutativity are not assumed by the generic engine. Generic type constructors declare their arity explicitly, are invariant unless a future specification mechanism declares variance, and subtype cycles are rejected during specification compilation. Multiple `.semsys` files can be compiled as one semantic package, and definitions retain file/declaration provenance for the semantic explainer. The package-level core distinguishes configurable `Occurrence`, `Event`, `Process`, `State`, and `Activity` types without hardcoding them in Rust. Temporal interval semantics, discourse state, affect structures, logical inference, and the final richer event/activity model remain design work.
+The implementation now includes representation-level canonicalization: bound variables are alpha-renamed deterministically, while role maps and record fields use deterministic key ordering. Core quantification is package-defined (`forall`, `exists`, `exactly`, `at_least`, and `at_most`) rather than represented by Rust enums. This is intentionally not a theorem prover: algebraic or logical rewrites such as commutativity are not assumed by the generic engine. Generic type constructors declare their arity explicitly, are invariant unless a future specification mechanism declares variance, and subtype cycles are rejected during specification compilation. Multiple `.semsys` files compile as one semantic package, and definitions retain file/declaration provenance for the semantic explainer. The package-level language now includes explicit occurrence/aspect, temporal structured values, deterministic discourse/reference state, Phase 12 communicative classification, Phase 13 subjective/affect semantics, and Phase 14 immutable conversation history with commitment repair. Logical inference and external world validation remain deliberately downstream.
 
 ---
 
@@ -1298,3 +1300,21 @@ For every proposed lexeme, operator, grammatical construction, or shorthand, ask
 10. Can a different semantic structure produce the same normative surface form?
 
 If questions 4, 5, 6, 7, or 10 expose hidden guessing, the proposal is incompatible with the current Systean goal.
+
+
+## 40. Executable conversational pragmatics and subjective experience
+
+Phases 12–14 implement the previously frozen proposition/utterance, affect, focus/topic, and repair architecture. Exact executable details are recorded in [`PHASES_12_14.md`](PHASES_12_14.md).
+
+The core distinction is preserved:
+
+```text
+P : Proposition
+assert(content = P) : Utterance
+```
+
+An unmarked top-level proposition is wrapped only by communicative analysis; ordinary semantic analysis still exposes `P`. Questions remain explicit through `ke`; a typed `unk` embedded in the question content identifies a requested value, while an explicit `or` content identifies a choice question. No intonation or world-knowledge rule chooses the question class.
+
+The subjective hierarchy is executable as `SubjectiveExperience`, `SubjectiveState`, `SubjectiveEvent`, and `Affect`. Experienced states/events remain distinct from the explicit `emo` expressive utterance. The 86 author-selected roots have distinct semantic operators and explicit `experiencer`/`intensity` roles, with an additional typed target where required by the frozen lexical meaning. `orgaz` preserves event identity as `SubjectiveEvent`.
+
+Focus/topic are utterance-level structures whose declared target must occur in the nested proposition. Repair acts reference stable positive history IDs; immutable `HistoryEntry` values preserve the original source, canonical surface, and pragmatic analysis while a separate commitment graph records correction/retraction transitions.

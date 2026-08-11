@@ -663,14 +663,14 @@ Language-authoring freeze:
 
 Implementation:
 
-- [ ] Formalize unmarked/default assertion behavior
-- [ ] Keep `ke` truth-question semantics
-- [ ] Implement value questions as `ke` over an explicit typed `unk` slot; no interrogative word-order inversion
-- [ ] Express choice questions compositionally with `ke` over explicit alternatives (for example `zo`) unless testing proves a dedicated construction is needed
-- [ ] Define answer structures where they carry semantic content
-- [ ] Keep `da` command semantics
-- [ ] Keep `me` request semantics
-- [ ] Add other speech acts only when exact semantics are justified
+- [x] Formalize unmarked/default assertion behavior
+- [x] Keep `ke` truth-question semantics
+- [x] Implement value questions as `ke` over an explicit typed `unk` slot; no interrogative word-order inversion
+- [x] Express choice questions compositionally with `ke` over explicit alternatives (for example `zo`) unless testing proves a dedicated construction is needed
+- [x] Define answer structures where they carry semantic content
+- [x] Keep `da` command semantics
+- [x] Keep `me` request semantics
+- [x] Add other speech acts only when exact semantics are justified
 
 Required validation:
 
@@ -678,6 +678,9 @@ Required validation:
 - [ ] Requested value slot is explicit
 - [ ] Command/request distinction remains semantic
 - [ ] Prosody cannot turn assertion into question normatively
+
+
+Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 12 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: normal conversational acts are deterministic.
 
@@ -699,14 +702,14 @@ Language-authoring freeze:
 
 Implementation:
 
-- [ ] Define affect target model under selected explicit affect layer `emo`
-- [ ] Define affect/intensity semantics and typed state signatures
-- [ ] Add the author-selected affective/social roots required by Phase 13
-- [ ] Define standalone affect utterances compositionally through `emo`
-- [ ] Define selected focus operator `fok`
-- [ ] Define selected topic operator `top`
-- [ ] Keep canonical core argument order unchanged
-- [ ] Keep prosody semantically non-rewriting
+- [x] Define affect target model under selected explicit affect layer `emo`
+- [x] Define affect/intensity semantics and typed state signatures
+- [x] Add the author-selected affective/social roots required by Phase 13
+- [x] Define standalone affect utterances compositionally through `emo`
+- [x] Define selected focus operator `fok`
+- [x] Define selected topic operator `top`
+- [x] Keep canonical core argument order unchanged
+- [x] Keep prosody semantically non-rewriting
 
 Required validation:
 
@@ -714,6 +717,9 @@ Required validation:
 - [ ] Focus does not change semantic roles
 - [ ] Topic does not change scope unless explicitly defined to do so
 - [ ] Sarcasm never maps a proposition to its negation implicitly
+
+
+Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 13 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: Systean can sound human without sacrificing literal semantics.
 
@@ -725,12 +731,12 @@ Goal: support natural conversation when speakers make mistakes or refine previou
 
 Implementation:
 
-- [ ] Add selected explicit retract act `ret`
-- [ ] Add selected explicit correction/replace act `kor`
-- [ ] Add selected clarification act `klar`
-- [ ] Add repair target references
-- [ ] Preserve historical parse/provenance
-- [ ] Update discourse commitments deterministically
+- [x] Add selected explicit retract act `ret`
+- [x] Add selected explicit correction/replace act `kor`
+- [x] Add selected clarification act `klar`
+- [x] Add repair target references
+- [x] Preserve historical parse/provenance
+- [x] Update discourse commitments deterministically
 
 Required validation:
 
@@ -738,6 +744,9 @@ Required validation:
 - [ ] Correction does not silently mutate historical analyzer output
 - [ ] Retraction semantics is explicit
 - [ ] Nested/serial repairs remain deterministic
+
+
+Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 14 tests and CLI integration coverage are present; required validation remains open until the author runs them with the full workspace/WASM/site checks. See [`PHASES_12_14.md`](PHASES_12_14.md).
 
 Completion result: interactive conversation can recover from mistakes formally.
 
