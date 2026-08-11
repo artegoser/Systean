@@ -31,7 +31,7 @@ reg   construct habitual Activity from one Occurrence
 rep   construct repeated Activity from one Occurrence plus explicit Number count
 ```
 
-`stop proc` and `stop reg proc` are therefore different terms. Stopping a habitual activity does not imply that no future occurrence can happen. `fin proc` is also different from `stop proc`: completion and cessation remain separate operators.
+`stop prun` and `stop reg prun` are therefore different terms. Stopping a habitual activity does not imply that no future occurrence can happen. `fin prun` is also different from `stop prun`: completion and cessation remain separate operators.
 
 `rep` always carries an explicit numeric count. There is no implicit "again", default count, world-state test, or previous-event lookup.
 

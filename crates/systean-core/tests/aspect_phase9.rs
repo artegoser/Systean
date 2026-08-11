@@ -61,17 +61,17 @@ fn phase9_aspect_roots_apply_only_to_explicit_occurrence_targets() {
     bind_semantic(
         &language,
         &mut discourse,
-        "proc",
+        "prun",
         "process_of(content = move(mover = sol))",
     );
 
     let cases = [
-        ("sta proc", "start(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("dur proc", "continue(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("fin proc", "finish(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("stop proc", "cease(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("rup proc", "interrupt(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("reg proc", "habitual(activity = process_of(content = move(mover = sol)))", "Activity"),
+        ("sta prun", "start(target = process_of(content = move(mover = sol)))", "Proposition"),
+        ("dur prun", "continue(target = process_of(content = move(mover = sol)))", "Proposition"),
+        ("fin prun", "finish(target = process_of(content = move(mover = sol)))", "Proposition"),
+        ("stop prun", "cease(target = process_of(content = move(mover = sol)))", "Proposition"),
+        ("rup prun", "interrupt(target = process_of(content = move(mover = sol)))", "Proposition"),
+        ("reg prun", "habitual(activity = process_of(content = move(mover = sol)))", "Activity"),
     ];
 
     for (surface, semantics, ty) in cases {
@@ -90,15 +90,15 @@ fn stopping_one_process_is_not_stopping_its_habitual_activity() {
     bind_semantic(
         &language,
         &mut discourse,
-        "proc",
+        "prun",
         "process_of(content = move(mover = sol))",
     );
 
     let concrete = language
-        .analyze_surface_with_discourse("stop proc", &discourse)
+        .analyze_surface_with_discourse("stop prun", &discourse)
         .unwrap();
     let habitual = language
-        .analyze_surface_with_discourse("stop reg proc", &discourse)
+        .analyze_surface_with_discourse("stop reg prun", &discourse)
         .unwrap();
 
     assert_ne!(concrete.canonical_semantics, habitual.canonical_semantics);
@@ -115,15 +115,15 @@ fn finish_and_cease_remain_different_even_on_the_same_process() {
     bind_semantic(
         &language,
         &mut discourse,
-        "proc",
+        "prun",
         "process_of(content = create(creator = sol, product = sol))",
     );
 
     let finish = language
-        .analyze_surface_with_discourse("fin proc", &discourse)
+        .analyze_surface_with_discourse("fin prun", &discourse)
         .unwrap();
     let cease = language
-        .analyze_surface_with_discourse("stop proc", &discourse)
+        .analyze_surface_with_discourse("stop prun", &discourse)
         .unwrap();
 
     assert_ne!(finish.canonical_semantics, cease.canonical_semantics);
@@ -138,15 +138,15 @@ fn repetition_count_is_explicit_and_changes_the_semantic_term() {
     bind_semantic(
         &language,
         &mut discourse,
-        "proc",
+        "prun",
         "process_of(content = move(mover = sol))",
     );
 
     let three = language
-        .analyze_surface_with_discourse("proc rep tri", &discourse)
+        .analyze_surface_with_discourse("prun rep tri", &discourse)
         .unwrap();
     let four = language
-        .analyze_surface_with_discourse("proc rep kvar", &discourse)
+        .analyze_surface_with_discourse("prun rep kvar", &discourse)
         .unwrap();
 
     assert_eq!(three.inferred_type, "Activity");
@@ -163,13 +163,13 @@ fn aspect_parsing_does_not_require_world_state_or_prior_speaker_knowledge() {
     bind_semantic(
         &language,
         &mut first,
-        "proc",
+        "prun",
         "process_of(content = move(mover = sol))",
     );
     bind_semantic(
         &language,
         &mut second,
-        "proc",
+        "prun",
         "process_of(content = move(mover = sol))",
     );
     second
@@ -177,10 +177,10 @@ fn aspect_parsing_does_not_require_world_state_or_prior_speaker_knowledge() {
         .unwrap();
 
     let without_context = language
-        .analyze_surface_with_discourse("rup proc", &first)
+        .analyze_surface_with_discourse("rup prun", &first)
         .unwrap();
     let with_unrelated_context = language
-        .analyze_surface_with_discourse("rup proc", &second)
+        .analyze_surface_with_discourse("rup prun", &second)
         .unwrap();
     assert_eq!(without_context.canonical_semantics, with_unrelated_context.canonical_semantics);
 }

@@ -36,10 +36,10 @@ fn run_script(script: &str) -> (String, String, bool) {
 fn playground_exposes_explicit_aspect_targets_and_repetition() {
     let (stdout, stderr, success) = run_script(
         "intro-sem process_of(content = move(mover = sol))\n\
-         bind proc r0\n\
-         analyze sta proc\n\
-         analyze stop reg proc\n\
-         analyze proc rep tri\n\
+         bind prun r0\n\
+         analyze sta prun\n\
+         analyze stop reg prun\n\
+         analyze prun rep tri\n\
          quit\n",
     );
 
