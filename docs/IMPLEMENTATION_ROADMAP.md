@@ -322,7 +322,7 @@ A dedicated `most`/majority primitive is **not** part of the core inventory. Str
 
 ### Pre-implementation gate
 
-The pre-implementation architecture and core surface-form selection are complete. There is no remaining design or lexical-authoring gate before implementation can start. The selected forms above still require executable phonology, collision, and whole-stream ambiguity validation, but any failed form is a local language-authoring correction rather than an architecture change. Remaining choices such as the concrete unit inventory, individual emotion/interjection vocabulary, name-payload adaptation details, calendar literal formatting, and additional everyday roots belong to their implementation phases and do not block Phase 2.
+The pre-implementation architecture and core surface-form selection are complete. There is no remaining design or lexical-authoring gate before implementation can start. The selected forms above still require executable phonology, collision, and whole-stream ambiguity validation, but any failed form is a local language-authoring correction rather than an architecture change. The subjective-state/affect inventory is now author-frozen in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md), including the decision not to create a parallel 1.0 interjection lexicon. Remaining language-content work is primarily additional everyday roots, final unit-inventory decisions, and corpus-driven signature refinement inside the existing architecture.
 
 ---
 
@@ -584,13 +584,13 @@ Implementation:
 
 Required validation:
 
-- [ ] Stop one concrete occurrence differs from stop a habit
-- [ ] Finish an object-targeted process differs from cease an activity
-- [ ] Repetition count is explicit
-- [ ] Parser does not check whether the event actually happened
-- [ ] Parser does not require prior speaker knowledge
+- [x] Stop one concrete occurrence differs from stop a habit
+- [x] Finish an object-targeted process differs from cease an activity
+- [x] Repetition count is explicit
+- [x] Parser does not check whether the event actually happened
+- [x] Parser does not require prior speaker knowledge
 
-Status: implementation and dedicated Phase 9 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
+Status: **validated**. Dedicated Phase 9 tests, the full workspace regression suite, the root audit, WASM/Svelte production checks, and the scripted discourse smoke test passed on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: aspect is expressive without lexical sense guessing.
 
@@ -612,12 +612,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Unknown ≠ unspecified ≠ existential ≠ withheld
-- [ ] Approximate 10 ≠ exact 10
-- [ ] Contextual standards expose their context dependency
-- [ ] No world-knowledge inference decides missing parameters
+- [x] Unknown ≠ unspecified ≠ existential ≠ withheld
+- [x] Approximate 10 ≠ exact 10
+- [x] Contextual standards expose their context dependency
+- [x] No world-knowledge inference decides missing parameters
 
-Status: implementation and dedicated Phase 10 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
+Status: **validated**. Dedicated Phase 10 tests, the full workspace regression suite, the root audit, WASM/Svelte production checks, and the scripted discourse smoke test passed on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: uncertainty and deliberate underspecification are first-class.
 
@@ -640,12 +640,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Generic ≠ universal
-- [ ] Strict majority, when expressed compositionally, is not conflated with existential, statistical, or typicality claims
-- [ ] Typical/frequency claims expose their measure/domain
-- [ ] No exception-tolerant pragmatic reinterpretation of universal claims
+- [x] Generic ≠ universal
+- [x] Strict majority, when expressed compositionally, is not conflated with existential, statistical, or typicality claims
+- [x] Typical/frequency claims expose their measure/domain
+- [x] No exception-tolerant pragmatic reinterpretation of universal claims
 
-Status: implementation and dedicated Phase 11 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
+Status: **validated**. Dedicated Phase 11 tests, the full workspace regression suite, the root audit, WASM/Svelte production checks, and the scripted discourse smoke test passed on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: statistical/general claims remain literal and typed.
 
@@ -654,6 +654,12 @@ Completion result: statistical/general claims remain literal and typed.
 ## Phase 12 — Speech acts beyond the current core
 
 Goal: complete ordinary conversational intent while keeping proposition and utterance distinct.
+
+Language-authoring freeze:
+
+- [x] Baseline value questions remain compositional through `ke` + an explicit typed `unk` slot
+- [x] Baseline choice questions remain compositional through `ke` + explicit alternatives such as `zo`
+- [x] No additional question-word or yes/no-answer roots are required for the Phase 12 baseline unless executable testing demonstrates a missing semantic distinction
 
 Implementation:
 
@@ -681,12 +687,22 @@ Completion result: normal conversational acts are deterministic.
 
 Goal: preserve human expressivity without allowing prosody or word order to rewrite literal meaning.
 
+Language-authoring freeze:
+
+- [x] Freeze the 86 newly selected subjective-state roots in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md)
+- [x] Keep experienced affect/state semantics separate from the expressive `emo` layer
+- [x] Keep intensity, target, and cause explicit rather than creating hidden/intensity-only lexical synonyms
+- [x] Keep romantic attraction, sexual attraction, sexual arousal, baseline sexual drive, lust, general love, and action desire semantically distinct
+- [x] Keep bodily subjective states separate from affect semantics
+- [x] Do not create a parallel dedicated interjection-root inventory for the 1.0 baseline; standalone expressives compose through `emo`
+- [x] Freeze the selected seven-deadly-sins coverage (`superb/avari/lusta/envi/gula/furor/leni`) without duplicating `envi` or `furor` senses
+
 Implementation:
 
 - [ ] Define affect target model under selected explicit affect layer `emo`
-- [ ] Define affect/intensity semantics
-- [ ] Manually choose core expressive particles/interjections
-- [ ] Define standalone affect utterances
+- [ ] Define affect/intensity semantics and typed state signatures
+- [ ] Add the author-selected affective/social roots required by Phase 13
+- [ ] Define standalone affect utterances compositionally through `emo`
 - [ ] Define selected focus operator `fok`
 - [ ] Define selected topic operator `top`
 - [ ] Keep canonical core argument order unchanged
@@ -819,7 +835,7 @@ Goal: publish a stable first usable standard rather than an endlessly moving pro
 
 Language content:
 
-- [ ] Core conversational vocabulary is manually authored
+- [ ] Core conversational vocabulary is manually authored, including the frozen subjective-state inventory in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md)
 - [ ] Every root has one stable definition and semantic binding
 - [ ] Core names/reference/numeric/time/pragmatic surface forms are fixed
 - [ ] Core unit inventory is fixed or explicitly versioned

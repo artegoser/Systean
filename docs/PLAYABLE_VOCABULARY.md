@@ -1,6 +1,6 @@
 # Phase 5 Playable Vocabulary
 
-Status: **implemented; runtime validation pending on the author toolchain**
+Status: **implemented and validated on the author toolchain**
 
 Phase 5 installs the first manually selected content vocabulary into the canonical `language/dictionary.toml`. These forms are ordinary bare roots. Their semantic identity and surface frame are compiled from the dictionary; the full typed operator signature remains in `language/semantics/core.semsys`.
 

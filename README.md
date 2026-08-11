@@ -13,6 +13,7 @@ The design is specified in:
 - [`docs/SYNTAX.md`](docs/SYNTAX.md)
 - [`docs/ENGINE_ARCHITECTURE.md`](docs/ENGINE_ARCHITECTURE.md)
 - [`docs/FINAL_ARCHITECTURE.md`](docs/FINAL_ARCHITECTURE.md)
+- [`docs/SUBJECTIVE_STATES.md`](docs/SUBJECTIVE_STATES.md)
 - [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
 
 ## Repository architecture
@@ -148,4 +149,4 @@ Current engine-backed pages:
 
 ## Design status
 
-Semantic, phonological, morphology-v1, and structural surface-syntax foundations are executable. The end-state architecture through discourse, names/quotation, structured literals, numbers/quantities/time, pragmatics, whole-language ambiguity compilation, tooling, and the 1.0 freeze is now documented in `docs/FINAL_ARCHITECTURE.md` and `docs/IMPLEMENTATION_ROADMAP.md`. The next executable phase is typed elaboration + reference/discourse; content vocabulary remains intentionally manual and incomplete.
+Phases 2–11 of the roadmap are implemented and validated on the author toolchain, covering discourse/reference, names/quotation, the first playable lexicon, numbers/quantities/time, aspect, explicit information status, and generic/statistical constructions. The next implementation phase is Phase 12 speech acts. The author-selected subjective-state vocabulary for Phase 13/1.0 is frozen in `docs/SUBJECTIVE_STATES.md`; additional everyday vocabulary remains intentionally manual.

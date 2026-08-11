@@ -1,6 +1,6 @@
 # Systean Phases 9–11 — Aspect, Information Status, and Generalization
 
-Status: implemented; dedicated runtime validation is pending on the author toolchain.
+Status: **implemented and validated on the author toolchain**.
 
 This document records the concrete language-package behavior implemented for roadmap Phases 9, 10, and 11. The implementation preserves the frozen alphabet, bare-root morphology, dictionary-owned lexical source of truth, typed semantic IR, and deterministic discourse rules.
 

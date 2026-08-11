@@ -740,60 +740,32 @@ For example, a quantifier equivalent to `some` should have one explicit logical 
 
 ## 18. Emotions and human expressiveness
 
-Removing metaphor and sarcasm must **not** make Systean emotionally sterile.
+Removing metaphor and sarcasm must **not** make Systean emotionally sterile. The language has an explicit expressive layer and an author-frozen subjective-state inventory documented in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md).
 
-The language should have a rich but explicit expressive layer.
+### 18.1 Experienced state and expressed affect are different
 
-### 18.1 Emotion is legitimate semantic content
+An affect root denotes an experienced affect/state concept. The explicit `emo` construction belongs to the expressive/pragmatic layer. Saying that an experiencer has an affect and expressing that affect in an utterance are therefore different semantic structures.
 
-Systean should support concise expressions for states/attitudes such as:
+The approved inventory covers positive/social affect, negative affect, neutral/cognitive-affective states, romantic/sexual states, bodily subjective states, and selected motivational/dispositional concepts. It explicitly separates concepts such as ordinary pride versus excessive self-exaltation, general love versus romantic/sexual attraction, sexual attraction versus arousal versus baseline drive versus lust, and affective states versus bodily interoceptive states.
 
-- joy;
-- excitement;
-- surprise;
-- admiration;
-- affection;
-- relief;
-- frustration;
-- anger;
-- sadness;
-- fear;
-- disgust;
-- disappointment;
-- sympathy.
+### 18.2 Standalone expressive utterances
 
-This list is illustrative, not final.
+The 1.0 baseline does **not** introduce a parallel inventory of dedicated `wow`, `ouch`, `ugh`, or similar interjection roots. Standalone expressive utterances use the same explicit `emo` layer and existing affect/state concepts. If future usability testing justifies shorter sugar, each sugar form must expand canonically to the same semantic structure and pass the complete ambiguity compiler.
 
-### 18.2 Expressive particles and interjections
+### 18.3 Intensity, target, and cause
 
-Frequent emotions should be expressible through short, pronounceable particles/interjections rather than requiring long analytic sentences equivalent to "I experience emotion X regarding proposition Y".
+Emotion intensity is systematic and explicit rather than encoded by unrelated lexical roots for every degree. Target and cause are explicit when semantically important. The implementation may expose fields equivalent to affect kind, experiencer, target, cause, and intensity, but none may be guessed from world knowledge, prosody, or conversational convention.
 
-Conceptually, an utterance may carry explicit affect such as:
-
-```text
-assert(P)
-speaker_affect(joy, target=P)
-```
-
-but the surface language should realize this naturally and compactly.
-
-An emotion particle may also function as a complete utterance when its target is uniquely established by discourse.
-
-### 18.3 Intensity
-
-Emotion intensity should be systematic rather than requiring unrelated lexical items for every degree.
-
-Systean may support regular degree/intensity mechanisms, including an expressive intensifier, provided its semantic contribution is explicit.
+This allows differences such as mild/strong fear, sadness, anger, or love to remain compositional while preserving distinct roots only for genuinely distinct state concepts.
 
 ### 18.4 Prosody remains free
 
-Humans may still:
+Speakers may:
 
-- speak loudly or softly;
-- stretch sounds;
-- laugh;
+- shout;
 - whisper;
-- pause;
+- laugh while speaking;
+- stretch vowels;
 - alter pitch/timbre;
 
 without invalidating Systean.
@@ -1278,7 +1250,7 @@ The architecture is therefore no longer waiting on open questions such as whethe
 
 What intentionally remains human language authoring rather than architecture includes:
 
-- future affect/focus/repair and other not-yet-implemented surface forms already selected in the roadmap;
+- the frozen affect/subjective-state vocabulary in `SUBJECTIVE_STATES.md` plus future implementation of `emo`/focus/topic/repair;
 - expansion of the initial unit registry where real usage requires additional units;
 - future event/aspect, uncertainty, generic/statistical, and speech-act vocabulary already assigned to later phases;
 - manually authored content roots and predicate frames;

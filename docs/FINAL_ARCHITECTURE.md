@@ -600,16 +600,20 @@ Question types that request a value, choice, reason, location, quantity, etc. ar
 
 ## 22. Affect, emotion, and expressivity
 
-Emotion is permitted as explicit semantic/pragmatic content.
+Emotion is permitted as explicit semantic/pragmatic content. The author-selected subjective-state inventory is frozen in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md).
+
+The architecture distinguishes an experienced affect/state from the explicit expressive `emo` layer. Affect roots denote experienced state concepts; `emo` attaches an explicitly declared expressive attitude to an utterance/content/target. These structures must not be silently collapsed.
 
 The architecture supports affect attached to a declared target, such as:
 
 - the utterance as a whole;
 - a proposition;
 - a referenced event/value;
-- an interjection-like standalone utterance.
+- a standalone expressive utterance.
 
-Intensity may be represented explicitly when semantically important.
+Intensity, target, and cause are explicit parameters when semantically relevant. Intensity variants are not separate lexical senses merely because ordinary languages use distinct words for weak and strong degrees. Bodily subjective states remain typed separately from affective states. Romantic attraction, sexual attraction, sexual arousal, baseline sexual drive, lust, general love, and action desire remain distinct semantic concepts.
+
+The 1.0 baseline does not require a parallel lexicon of dedicated interjection roots. Standalone expressives compose through `emo`; future convenience sugar is acceptable only with one canonical expansion.
 
 Prosody remains naturally expressive but does not reverse or replace literal propositional content. Sarcasm is not a hidden semantic-negation mechanism.
 
@@ -901,7 +905,7 @@ After this architecture is frozen, the following still require deliberate human 
 - unit vocabulary;
 - temporal vocabulary;
 - value-question constructions;
-- affect/interjection vocabulary;
+- implementation of the already frozen affect/subjective-state vocabulary in `SUBJECTIVE_STATES.md`;
 - focus/topic/repair particles;
 - discourse boundary markers;
 - everyday predicate frames and definitions.

@@ -853,7 +853,9 @@ This prevents pragmatic reinterpretation such as an ability question automatical
 
 ## 23. Emotion belongs to explicit utterance semantics
 
-Systean should preserve emotional communication without allowing emotion or prosody to secretly change proposition meaning.
+Systean should preserve emotional communication without allowing emotion or prosody to secretly change proposition meaning. The frozen author-selected affective, sexual, bodily, and motivational subjective-state lexicon is specified in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md).
+
+A semantic state saying that an experiencer actually has an affect and an expressive `emo` structure saying that an utterance expresses affect are distinct. An implementation must not infer one from the other.
 
 A semantically expressed affect may conceptually attach to an utterance/content:
 
@@ -861,11 +863,13 @@ A semantically expressed affect may conceptually attach to an utterance/content:
 Utterance {
     act: ASSERT
     content: P
-    affect: JOY(target=P, intensity=high)
+    affect: AFFECT(kind = JOY, target = P, intensity = I)
 }
 ```
 
-The surface form should be short and human, likely using regular expressive particles/interjections.
+Intensity, target, cause, and experiencer are explicit/context-bound according to normal Systean rules; missing values are never guessed from prosody or world knowledge. Intensity is compositional rather than a reason to create unrelated lexical senses for every degree.
+
+The 1.0 baseline does not require a second dedicated interjection lexicon. Standalone expressive utterances compose through the explicit `emo` layer. Bodily subjective states remain separate typed states/events even when an `emo` utterance can express a reaction to them.
 
 ### 23.1 Prosody is not canonical semantic rewriting
 
