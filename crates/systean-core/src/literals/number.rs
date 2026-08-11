@@ -1,11 +1,11 @@
 use num_bigint::BigInt;
-use num_rational::BigRational;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 
 use super::NumberConfig;
+use crate::rational::ExactRational;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ExactNumber(pub BigRational);
+pub struct ExactNumber(pub ExactRational);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NumberParse {
@@ -15,7 +15,7 @@ pub struct NumberParse {
 
 impl ExactNumber {
     pub fn from_integer(value: BigInt) -> Self {
-        Self(BigRational::from_integer(value))
+        Self(ExactRational::from_integer(value))
     }
 
     pub fn parse_written(source: &str, max_exponent: u32) -> Result<Self, String> {
@@ -29,7 +29,7 @@ impl ExactNumber {
             if denominator.is_zero() {
                 return Err("rational denominator cannot be zero".into());
             }
-            return Ok(Self(BigRational::new(numerator, denominator)));
+            return Ok(Self(ExactRational::new(numerator, denominator)));
         }
 
         let (mantissa, exponent) = match source.find(|character| matches!(character, 'e' | 'E')) {
@@ -53,9 +53,9 @@ impl ExactNumber {
         if exponent != 0 {
             let scale = pow10(exponent.unsigned_abs() as u32);
             value = if exponent > 0 {
-                value * BigRational::from_integer(scale)
+                value * ExactRational::from_integer(scale)
             } else {
-                value / BigRational::from_integer(scale)
+                value / ExactRational::from_integer(scale)
             };
         }
         Ok(Self(value))
@@ -114,7 +114,7 @@ pub fn parse_spoken_number(
         return Ok(None);
     };
     index += consumed;
-    let mut value = BigRational::from_integer(integer);
+    let mut value = ExactRational::from_integer(integer);
 
     if tokens.get(index).is_some_and(|token| token == &config.decimal) {
         index += 1;
@@ -130,7 +130,7 @@ pub fn parse_spoken_number(
         }
         let denominator = pow10(digits.len() as u32);
         let numerator = parse_bigint(&digits)?;
-        value += BigRational::new(numerator, denominator);
+        value += ExactRational::new(numerator, denominator);
     }
 
     if negative {
@@ -240,7 +240,7 @@ pub fn canonical_spoken(
 }
 
 fn scientific_spoken(
-    value: &BigRational,
+    value: &ExactRational,
     config: &NumberConfig,
     scope_open: &str,
     scope_close: &str,
@@ -355,7 +355,7 @@ fn parse_spoken_rational(
         return Err("rational denominator cannot be zero".into());
     }
     Ok(NumberParse {
-        value: ExactNumber(BigRational::new(numerator, denominator)),
+        value: ExactNumber(ExactRational::new(numerator, denominator)),
         consumed: index - start,
     })
 }
@@ -389,7 +389,7 @@ fn parse_spoken_exponent(
             config.max_explicit_exponent
         ));
     }
-    let scale = BigRational::from_integer(pow10(exponent.unsigned_abs() as u32));
+    let scale = ExactRational::from_integer(pow10(exponent.unsigned_abs() as u32));
     let value = if exponent >= 0 {
         significand.value.0 * scale
     } else {
@@ -548,7 +548,7 @@ fn coefficient_magnitude_surface(exponent: u32, config: &NumberConfig) -> Result
         .ok_or_else(|| format!("no coefficient magnitude configured for 10^{exponent}"))
 }
 
-fn parse_decimal_mantissa(source: &str) -> Result<BigRational, String> {
+fn parse_decimal_mantissa(source: &str) -> Result<ExactRational, String> {
     let negative = source.starts_with('-');
     let positive = source.starts_with('+');
     let unsigned = if negative || positive { &source[1..] } else { source };
@@ -574,10 +574,10 @@ fn parse_decimal_mantissa(source: &str) -> Result<BigRational, String> {
         numerator = numerator * &denominator + parse_bigint(fraction)?;
     }
     if negative { numerator = -numerator; }
-    Ok(BigRational::new(numerator, denominator))
+    Ok(ExactRational::new(numerator, denominator))
 }
 
-fn rational_to_decimal_or_fraction(value: &BigRational) -> String {
+fn rational_to_decimal_or_fraction(value: &ExactRational) -> String {
     if value.denom().is_one() {
         return value.numer().to_string();
     }
@@ -595,7 +595,7 @@ fn rational_to_decimal_or_fraction(value: &BigRational) -> String {
     }
 }
 
-fn finite_decimal_parts(value: &BigRational) -> Option<(BigInt, String)> {
+fn finite_decimal_parts(value: &ExactRational) -> Option<(BigInt, String)> {
     if value.is_negative() {
         return None;
     }

@@ -3,6 +3,7 @@ pub mod language;
 pub mod literals;
 pub mod morphology;
 pub mod phonology;
+pub mod rational;
 pub mod semantics;
 pub mod spec;
 pub mod syntax;

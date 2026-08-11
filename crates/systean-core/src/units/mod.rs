@@ -2,7 +2,7 @@ mod config;
 
 use std::collections::BTreeMap;
 
-use num_rational::BigRational;
+use crate::rational::ExactRational;
 
 pub use config::{DimensionConfig, UnitConfig, UnitsConfig, UnitsConfigError};
 
@@ -114,7 +114,7 @@ impl UnitRegistry {
         }
         let source_scale = source.scale().map_err(|error| error.to_string())?;
         let target_scale = target.scale().map_err(|error| error.to_string())?;
-        let ratio: BigRational = source_scale / target_scale;
+        let ratio: ExactRational = source_scale / target_scale;
         let value = ExactNumber(quantity.value.0.clone() * &ratio);
         let uncertainty = quantity.uncertainty.as_ref()
             .map(|value| ExactNumber(value.0.clone() * &ratio));

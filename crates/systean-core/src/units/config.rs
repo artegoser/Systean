@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use num_bigint::BigInt;
-use num_rational::BigRational;
+use crate::rational::ExactRational;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -110,8 +110,8 @@ impl UnitsConfig {
 }
 
 impl UnitConfig {
-    pub fn scale(&self) -> Result<BigRational, UnitsConfigError> {
-        Ok(BigRational::new(
+    pub fn scale(&self) -> Result<ExactRational, UnitsConfigError> {
+        Ok(ExactRational::new(
             parse_bigint(&self.scale_numerator)?,
             parse_bigint(&self.scale_denominator)?,
         ))
