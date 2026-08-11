@@ -6,7 +6,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 use num_bigint::BigInt;
-use num_traits::{Signed, ToPrimitive};
+use num_traits::ToPrimitive;
 
 pub use config::{CalendarConfig, LiteralConfig, LiteralConfigError, NumberConfig};
 pub use number::{ExactNumber, NumberParse, canonical_spoken as canonical_spoken_number, integer_to_spoken, parse_spoken_integer, parse_spoken_number};

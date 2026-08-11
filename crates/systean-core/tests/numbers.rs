@@ -160,13 +160,19 @@ fn ordinary_number_words_containing_t_are_not_misclassified_as_written_instants(
 }
 
 #[test]
-fn approximation_is_not_part_of_exact_number_codec() {
+fn approximation_remains_distinct_from_exact_numbers() {
     let language = language();
-    let error = language
-        .literals()
-        .unwrap()
-        .parse_complete("apro pent")
-        .unwrap_err()
-        .to_string();
-    assert!(error.contains("not a structured literal") || error.contains("requires"), "{error}");
+    let literals = language.literals().unwrap();
+    let exact = literals.parse_complete("pent").unwrap();
+    let approximate = literals.parse_complete("apro pent").unwrap();
+
+    assert_eq!(exact.semantic.ty, Type::named("Number"));
+    assert_eq!(exact.semantic.family, "number");
+    assert_eq!(exact.canonical_written, "5");
+
+    assert_eq!(approximate.semantic.ty.to_string(), "Approximate<Number>");
+    assert_eq!(approximate.semantic.family, "approximate_number");
+    assert_eq!(approximate.canonical_written, "~5");
+    assert_eq!(approximate.canonical_spoken, "apro pent");
+    assert_ne!(exact.semantic, approximate.semantic);
 }
