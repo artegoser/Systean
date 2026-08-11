@@ -35,10 +35,11 @@ fn canonical_language_package_loads_as_one_validated_unit() {
         language.phonology().alphabet.pronounce("Systean").unwrap(),
         "sjstean"
     );
-    assert_eq!(language.roots().roots().len(), 58);
+    assert_eq!(language.roots().roots().len(), 83);
     for root in [
         "sol", "ref", "mi", "tu", "na", "ke", "ne", "va", "zo", "ra", "mu", "da", "me",
-        "per", "vid", "mov", "viv", "gov", "skrib",
+        "per", "vid", "mov", "viv", "gov", "skrib", "sta", "stop", "unk", "vak",
+        "hid", "rov", "mini", "maks", "tip", "stat", "prob", "frek", "imp", "hip",
     ] {
         assert!(language.roots().roots().iter().any(|known| known == root));
     }
