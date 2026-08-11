@@ -797,12 +797,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Parser implementation order cannot silently choose between overlapping valid analyses
-- [ ] Every generated canonical form reparses to the same canonical structure
-- [ ] Every compatible version preserves parse/meaning of the compatibility corpus
-- [ ] Package compilation fails on normative collisions
+- [x] Parser implementation order cannot silently choose between overlapping valid analyses
+- [x] Every generated canonical form reparses to the same canonical structure
+- [x] Every compatible version preserves parse/meaning of the compatibility corpus
+- [x] Package compilation fails on normative collisions
 
-Status: **implemented; awaiting author-toolchain validation**. The whole-language compiler, frozen compatibility/adversarial corpora, generated round-trip suite, spoken ambiguity pass, bounded exhaustive corpus, and dedicated Phase 16 regressions are present. See [`PHASE_16_COMPILER_AMBIGUITY.md`](PHASE_16_COMPILER_AMBIGUITY.md).
+Status: **validated**. The whole-language compiler, frozen compatibility/adversarial corpora, generated round-trip suite, spoken ambiguity pass, bounded exhaustive corpus, and dedicated Phase 16 regressions are green on the author toolchain. See [`PHASE_16_COMPILER_AMBIGUITY.md`](PHASE_16_COMPILER_AMBIGUITY.md).
 
 Completion result: the language package self-validates its central guarantee.
 
@@ -814,26 +814,28 @@ Goal: expose the entire language pipeline as a practical language workbench.
 
 CLI/WASM/API:
 
-- [ ] Analyze whole discourse
-- [ ] Generate canonical surface from semantic structures
-- [ ] Show typed surface AST
-- [ ] Show unresolved/resolved references
-- [ ] Show ambiguity candidates
-- [ ] Show semantic IR and canonicalization
-- [ ] Show discourse-state transitions
-- [ ] Show full provenance
-- [ ] Expose package/version hash
+- [x] Analyze whole discourse
+- [x] Generate canonical surface from semantic structures
+- [x] Show typed surface AST
+- [x] Show unresolved/resolved references
+- [x] Show ambiguity candidates
+- [x] Show semantic IR and canonicalization
+- [x] Show discourse-state transitions
+- [x] Show full provenance
+- [x] Expose package/version hash
 
 Website:
 
-- [ ] Unified word analyzer
-- [ ] Unified discourse playground
-- [ ] Dictionary browser with semantic frames
-- [ ] Scope visualization
-- [ ] Reference/discourse visualization
-- [ ] Number/quantity/time inspectors
-- [ ] Canonical generator UI
-- [ ] Diagnostics grouped by failing layer
+- [x] Unified word analyzer
+- [x] Unified discourse playground
+- [x] Dictionary browser with semantic frames
+- [x] Scope visualization
+- [x] Reference/discourse visualization
+- [x] Number/quantity/time inspectors
+- [x] Canonical generator UI
+- [x] Diagnostics grouped by failing layer
+
+Status: **implemented; awaiting author-toolchain validation**. Core, CLI, WASM and website consume one structured workbench API; the embedded browser package now has the same versioned provenance/fingerprint contract as native loading. See [`PHASE_17_WORKBENCH.md`](PHASE_17_WORKBENCH.md).
 
 Completion result: language authoring and debugging no longer require reading raw engine internals.
 

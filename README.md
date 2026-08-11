@@ -68,7 +68,8 @@ The workspace currently contains:
 - reversible bare-root morphology with automatic root boundaries;
 - config-driven recursive surface syntax, scope, precedence and semantic lowering;
 - manual root validation/auditing and spoken segmentation checks;
-- `WholeLanguageCompiler` and immutable `LanguagePackage`, which validate module versions, provenance, cross-layer ownership, generated surface/semantic round trips, spoken ambiguity, short-expression exhaustiveness and frozen compatibility/adversarial corpora as one versioned package.
+- `WholeLanguageCompiler` and immutable `LanguagePackage`, which validate module versions, provenance, cross-layer ownership, generated surface/semantic round trips, spoken ambiguity, short-expression exhaustiveness and frozen compatibility/adversarial corpora as one versioned package;
+- a shared Phase 17 workbench API for typed AST inspection, discourse-state tracing, provenance-aware diagnostics, structured-literal inspection and semantic IR → canonical surface generation.
 
 Run the complete native test suite:
 
@@ -132,6 +133,21 @@ cargo run --bin systean -- explain 'equal(left = 1, right = 1)'
 
 The parser validates structure and types; it does not validate truth, plausibility, speaker knowledge or world state.
 
+### Workbench
+
+The Phase 17 workbench exposes the same structured reports through native CLI and WASM:
+
+```bash
+cargo run --bin systean -- workbench package
+cargo run --bin systean -- workbench word vid
+cargo run --bin systean -- workbench surface 'na artemi vid na mari'
+cargo run --bin systean -- workbench text written 'na artemi viv. ke na artemi viv.'
+cargo run --bin systean -- workbench literal '2000-12-31'
+cargo run --bin systean -- workbench generate 'see(observed = proper_name(payload = "mari"), observer = proper_name(payload = "artemi"))'
+```
+
+Reports include the package fingerprint and provenance. Workbench failures are layer-classified diagnostics; ambiguous references preserve their candidate set.
+
 ## Website
 
 The SvelteKit site does not import TOML or duplicate pronunciation logic. Its engine facade dynamically initializes the WebAssembly build from `crates/systean-wasm`.
@@ -150,9 +166,9 @@ pnpm dev
 Current engine-backed pages:
 
 - `/alphabet` — alphabet and arbitrary pronunciation;
-- `/dictionary` — dictionary loaded by Rust;
-- `/analyzer` — morphology + phonology word analysis and semantic IR explanation.
+- `/dictionary` — searchable dictionary with semantic bindings and canonical surface frames;
+- `/analyzer` — unified package/word/surface/discourse/generator/literal workbench with scope, reference and provenance visualization.
 
 ## Design status
 
-Phases 2–11 of the roadmap are implemented and validated on the author toolchain, covering discourse/reference, names/quotation, the first playable lexicon, numbers/quantities/time, aspect, explicit information status, and generic/statistical constructions. The next implementation phase is Phase 12 speech acts. The author-selected subjective-state vocabulary for Phase 13/1.0 is frozen in `docs/SUBJECTIVE_STATES.md`; additional everyday vocabulary remains intentionally manual.
+Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`. Phase 18 is the Systean 1.0 language freeze. Vocabulary remains manually authored.
