@@ -495,16 +495,16 @@ Implementation:
 
 Required validation:
 
-- [ ] Written number → semantic value → canonical written number round-trip
-- [ ] Spoken number → same semantic value
-- [ ] Number and digit sequence cannot silently coerce into each other
-- [ ] Very large/small supported forms remain deterministic
-- [ ] Magnitude is recoverable before its coefficient in canonical speech
-- [ ] Zero magnitude terms are omitted rather than spoken as padding
-- [ ] Every accepted spoken integer has exactly one complete numeric parse
-- [ ] Alternative accepted forms, if any, regenerate canonically
+- [x] Written number → semantic value → canonical written number round-trip
+- [x] Spoken number → same semantic value
+- [x] Number and digit sequence cannot silently coerce into each other
+- [x] Very large/small supported forms remain deterministic
+- [x] Magnitude is recoverable before its coefficient in canonical speech
+- [x] Zero magnitude terms are omitted rather than spoken as padding
+- [x] Every accepted spoken integer has exactly one complete numeric parse
+- [x] Alternative accepted forms, if any, regenerate canonically
 
-Status: implementation and dedicated Phase 6 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
+Status: **validated**. Dedicated numeric tests, CLI literal tests, the full workspace regression suite, root audit, WASM build, Svelte checks, and production site build passed on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 Completion result: exact numeric expressions are first-class language values.
 
@@ -526,12 +526,12 @@ Implementation:
 
 Required validation:
 
-- [ ] `Number` and `Quantity` remain type-distinct
-- [ ] Incompatible unit dimensions fail type checking where required
-- [ ] Exact conversions preserve exact values
-- [ ] Approximate measurement remains explicitly approximate
+- [x] `Number` and `Quantity` remain type-distinct
+- [x] Incompatible unit dimensions fail type checking where required
+- [x] Exact conversions preserve exact values
+- [x] Approximate measurement remains explicitly approximate
 
-Status: implementation and dedicated Phase 7 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
+Status: **validated**. Dedicated quantity/unit tests and the complete Phase 6–8 regression/build sequence passed on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 Completion result: measurements are usable in ordinary and technical language.
 
@@ -555,12 +555,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Absolute date/time round-trip
-- [ ] Relative time uses an explicit/context-bound anchor
-- [ ] Same sentence under different explicit `now` contexts resolves deterministically to different intended values without changing parse rules
-- [ ] No hidden tense inference from word order
+- [x] Absolute date/time round-trip
+- [x] Relative time uses an explicit/context-bound anchor
+- [x] Same sentence under different explicit `now` contexts resolves deterministically to different intended values without changing parse rules
+- [x] No hidden tense inference from word order
 
-Status: implementation and dedicated Phase 8 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
+Status: **validated**. Dedicated temporal tests, explicit `now`/`during` discourse smoke tests, the full workspace suite, WASM build, Svelte checks, and production site build passed on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 Completion result: normal scheduling, history, duration, and temporal description are possible.
 
@@ -572,15 +572,15 @@ Goal: make start/stop/continue/finish/repeat usable on explicit semantic targets
 
 Implementation:
 
-- [ ] Finalize concrete `Event` / `Process` / `State` / `Activity` construction patterns
-- [ ] Finalize habitual/repeated activity representation
-- [ ] Surface-realize `start` as `sta`
-- [ ] Surface-realize `cease` as `stop`
-- [ ] Surface-realize `continue` as `dur`
-- [ ] Surface-realize `finish` as `fin`
-- [ ] Surface-realize `interrupt` as `rup`
-- [ ] Surface-realize `repeat` as `rep`
-- [ ] Ensure target selection is structural, never guessed
+- [x] Finalize concrete `Event` / `Process` / `State` / `Activity` construction patterns
+- [x] Finalize habitual/repeated activity representation
+- [x] Surface-realize `start` as `sta`
+- [x] Surface-realize `cease` as `stop`
+- [x] Surface-realize `continue` as `dur`
+- [x] Surface-realize `finish` as `fin`
+- [x] Surface-realize `interrupt` as `rup`
+- [x] Surface-realize `repeat` as `rep`
+- [x] Ensure target selection is structural, never guessed
 
 Required validation:
 
@@ -589,6 +589,8 @@ Required validation:
 - [ ] Repetition count is explicit
 - [ ] Parser does not check whether the event actually happened
 - [ ] Parser does not require prior speaker knowledge
+
+Status: implementation and dedicated Phase 9 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: aspect is expressive without lexical sense guessing.
 
@@ -600,13 +602,13 @@ Goal: make incomplete knowledge explicit rather than pragmatically ambiguous.
 
 Implementation:
 
-- [ ] Surface-realize explicit unspecified values as `vak`
-- [ ] Surface-realize unknown-to-agent claims with typed `unk` plus an explicit/context-bound knower
-- [ ] Surface-realize withheld values as `hid`
-- [ ] Keep existential quantification distinct
-- [ ] Add approximation construction `apro`
-- [ ] Add explicit tolerance/range where required
-- [ ] Add contextual-standard mechanism only with declared context parameters
+- [x] Surface-realize explicit unspecified values as `vak`
+- [x] Surface-realize unknown-to-agent claims with typed `unk` plus an explicit/context-bound knower
+- [x] Surface-realize withheld values as `hid`
+- [x] Keep existential quantification distinct
+- [x] Add approximation construction `apro`
+- [x] Add explicit tolerance/range where required
+- [x] Add contextual-standard mechanism only with declared context parameters
 
 Required validation:
 
@@ -614,6 +616,8 @@ Required validation:
 - [ ] Approximate 10 ≠ exact 10
 - [ ] Contextual standards expose their context dependency
 - [ ] No world-knowledge inference decides missing parameters
+
+Status: implementation and dedicated Phase 10 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: uncertainty and deliberate underspecification are first-class.
 
@@ -625,14 +629,14 @@ Goal: express non-universal generalizations without relying on ordinary-language
 
 Implementation:
 
-- [ ] Implement the accepted separation between typical/normal (`tip`) and statistical (`stat`) claims
-- [ ] Implement selected frequency `frek` and typicality `tip` operators with explicit domain/measure parameters
-- [ ] Implement explicit probability claims as `prob`
-- [ ] Bind selected `tip/stat/prob/frek` forms to exact semantic signatures
-- [ ] Implement explicit cardinal constraints `rov` (exactly N), `mini` (at least N), and `maks` (at most N)
-- [ ] Implement `set`, `list`, and `grup` collection identities plus `kol` / `dis` interpretation operators
-- [ ] Implement explicitly underspecified association `aso`
-- [ ] Implement surface implication `imp` and counterfactual causal frame `hip` as distinct constructions
+- [x] Implement the accepted separation between typical/normal (`tip`) and statistical (`stat`) claims
+- [x] Implement selected frequency `frek` and typicality `tip` operators with explicit domain/measure parameters
+- [x] Implement explicit probability claims as `prob`
+- [x] Bind selected `tip/stat/prob/frek` forms to exact semantic signatures
+- [x] Implement explicit cardinal constraints `rov` (exactly N), `mini` (at least N), and `maks` (at most N)
+- [x] Implement `set`, `list`, and `grup` collection identities plus `kol` / `dis` interpretation operators
+- [x] Implement explicitly underspecified association `aso`
+- [x] Implement surface implication `imp` and counterfactual causal frame `hip` as distinct constructions
 
 Required validation:
 
@@ -640,6 +644,8 @@ Required validation:
 - [ ] Strict majority, when expressed compositionally, is not conflated with existential, statistical, or typicality claims
 - [ ] Typical/frequency claims expose their measure/domain
 - [ ] No exception-tolerant pragmatic reinterpretation of universal claims
+
+Status: implementation and dedicated Phase 11 core/CLI tests are present. Runtime validation remains pending on the author toolchain. See [`PHASES_9_11.md`](PHASES_9_11.md).
 
 Completion result: statistical/general claims remain literal and typed.
 
