@@ -506,7 +506,7 @@ impl Elaborator<'_> {
                                 expected_knower,
                                 &actual_knower,
                                 &mut knower_bindings,
-                                &name_role,
+                                name_role,
                             )?;
                         }
                         format!("{status}:{semantic}:{payload}")
