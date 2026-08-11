@@ -6,8 +6,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::discourse::{
-    DiscourseGenerationError, DiscourseResolutionError, DiscourseState, ReferentId,
-    ResolvedSurfaceAst, materialize_resolved_surface, resolve_surface,
+    ConversationError, ConversationState, DiscourseFrameId, DiscourseGenerationError,
+    DiscourseResolutionError, DiscourseState, ReferentId, ResolvedSurfaceAst, SectionId,
+    TextDocument, TextRealization, TextSessionState, TextStreamItem, TextStructureError, TextTurn,
+    UtteranceId, materialize_resolved_surface, parse_text_turn, resolve_surface,
 };
 use crate::literals::{LiteralConfig, LiteralConfigError, LiteralEngine, LiteralError};
 use crate::morphology::{
@@ -378,6 +380,38 @@ pub struct CommunicativeSurfaceAnalysis {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextUtteranceAnalysis {
+    pub id: UtteranceId,
+    pub section: SectionId,
+    pub source: String,
+    pub canonical_surface: String,
+    pub canonical_spoken: String,
+    pub canonical_written: String,
+    pub pragmatics: PragmaticAnalysis,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TextTurnEvent {
+    Utterance(TextUtteranceAnalysis),
+    FrameBoundary {
+        section: SectionId,
+        frame: DiscourseFrameId,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextTurnAnalysis {
+    pub key: String,
+    pub realization: TextRealization,
+    pub events: Vec<TextTurnEvent>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TextDocumentAnalysis {
+    pub turns: Vec<TextTurnAnalysis>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LanguageError {
     Io { path: PathBuf, message: String },
     Phonology(ConfigError),
@@ -391,6 +425,8 @@ pub enum LanguageError {
     Discourse(DiscourseResolutionError),
     DiscourseGenerate(DiscourseGenerationError),
     Pragmatics(PragmaticError),
+    TextStructure(TextStructureError),
+    Conversation(ConversationError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -661,6 +697,114 @@ impl LanguagePackage {
         Ok(CommunicativeSurfaceAnalysis { surface, pragmatics })
     }
 
+    pub fn apply_text_turn(
+        &self,
+        turn: &TextTurn,
+        session: &mut TextSessionState,
+        discourse: &mut DiscourseState,
+        conversation: &mut ConversationState,
+    ) -> Result<TextTurnAnalysis, LanguageError> {
+        let items = parse_text_turn(&turn.source, turn.realization, self.syntax.config())
+            .map_err(LanguageError::TextStructure)?;
+
+        let mut next_session = session.clone();
+        let mut next_discourse = discourse.clone();
+        let mut next_conversation = conversation.clone();
+        let mut events = Vec::new();
+
+        for item in items {
+            match item {
+                TextStreamItem::FrameBoundary => {
+                    let frame = next_discourse.advance_frame();
+                    let section = next_session.advance_section();
+                    events.push(TextTurnEvent::FrameBoundary { section, frame });
+                }
+                TextStreamItem::Utterance(source) => {
+                    let analysis = self
+                        .analyze_utterance_with_discourse(&source, &next_discourse)?;
+                    let canonical_surface = analysis.surface.canonical_resolved_surface.clone();
+                    let id = next_conversation
+                        .apply(
+                            source.clone(),
+                            canonical_surface.clone(),
+                            analysis.pragmatics.clone(),
+                        )
+                        .map_err(LanguageError::Conversation)?;
+                    let canonical_spoken = format!(
+                        "{} {}",
+                        canonical_surface,
+                        self.syntax.config().text.utterance_spoken.as_str()
+                    );
+                    let canonical_written = format!(
+                        "{}{}",
+                        canonical_surface,
+                        self.syntax.config().text.utterance_written.as_str()
+                    );
+                    events.push(TextTurnEvent::Utterance(TextUtteranceAnalysis {
+                        id,
+                        section: next_session.current_section(),
+                        source,
+                        canonical_surface,
+                        canonical_spoken,
+                        canonical_written,
+                        pragmatics: analysis.pragmatics,
+                    }));
+                }
+            }
+        }
+
+        *session = next_session;
+        *discourse = next_discourse;
+        *conversation = next_conversation;
+        Ok(TextTurnAnalysis {
+            key: turn.key.clone(),
+            realization: turn.realization,
+            events,
+        })
+    }
+
+    pub fn analyze_text_document(
+        &self,
+        document: &TextDocument,
+    ) -> Result<TextDocumentAnalysis, LanguageError> {
+        let mut session = TextSessionState::new();
+        let mut discourse = DiscourseState::new();
+        let mut conversation = ConversationState::new();
+        self.analyze_text_document_with_state(
+            document,
+            &mut session,
+            &mut discourse,
+            &mut conversation,
+        )
+    }
+
+    pub fn analyze_text_document_with_state(
+        &self,
+        document: &TextDocument,
+        session: &mut TextSessionState,
+        discourse: &mut DiscourseState,
+        conversation: &mut ConversationState,
+    ) -> Result<TextDocumentAnalysis, LanguageError> {
+        let mut next_session = session.clone();
+        let mut next_discourse = discourse.clone();
+        let mut next_conversation = conversation.clone();
+        let mut turns = Vec::with_capacity(document.turns.len());
+
+        for turn in &document.turns {
+            turns.push(self.apply_text_turn(
+                turn,
+                &mut next_session,
+                &mut next_discourse,
+                &mut next_conversation,
+            )?);
+        }
+
+        *session = next_session;
+        *discourse = next_discourse;
+        *conversation = next_conversation;
+        Ok(TextDocumentAnalysis { turns })
+    }
+
     pub fn validate_alias_surface(&self, surface: &str) -> Result<(), LanguageError> {
         validate_surface_token("discourse alias", surface, &self.phonology)?;
         if self.roots.roots().iter().any(|root| root == surface) {
@@ -678,6 +822,7 @@ impl LanguagePackage {
             config.discourse.frame.as_str(),
             config.quotation.open.as_str(),
             config.quotation.close.as_str(),
+            config.text.utterance_spoken.as_str(),
         ];
         if structural.contains(&surface) {
             return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
@@ -929,6 +1074,7 @@ fn validate_syntax(
         ("discourse frame marker", config.discourse.frame.as_str()),
         ("quotation open marker", config.quotation.open.as_str()),
         ("quotation close marker", config.quotation.close.as_str()),
+        ("spoken utterance boundary", config.text.utterance_spoken.as_str()),
     ];
     for (kind, marker) in markers {
         validate_surface_token(kind, marker, phonology)?;
@@ -971,6 +1117,7 @@ fn validate_literals(
         syntax.config().discourse.frame.as_str(),
         syntax.config().quotation.open.as_str(),
         syntax.config().quotation.close.as_str(),
+        syntax.config().text.utterance_spoken.as_str(),
     ];
     for surface in literals.reserved_forms() {
         validate_surface_token("structured-literal spoken form", surface, phonology)?;
@@ -1105,6 +1252,8 @@ impl fmt::Display for LanguageError {
             Self::Discourse(error) => write!(f, "discourse: {error}"),
             Self::DiscourseGenerate(error) => write!(f, "discourse generation: {error}"),
             Self::Pragmatics(error) => write!(f, "pragmatics: {error}"),
+            Self::TextStructure(error) => write!(f, "text structure: {error}"),
+            Self::Conversation(error) => write!(f, "conversation: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {

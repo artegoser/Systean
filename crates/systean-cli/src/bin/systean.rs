@@ -3,8 +3,11 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use systean_core::discourse::{ConversationState, DiscourseState, IntroductionOrigin, ReferentId};
-use systean_core::language::LanguagePackage;
+use systean_core::discourse::{
+    ConversationState, DiscourseState, IntroductionOrigin, ReferentId, TextRealization,
+    TextSessionState, TextTurn,
+};
+use systean_core::language::{LanguagePackage, TextTurnAnalysis, TextTurnEvent};
 use systean_core::semantics::{Checker, Term, canonicalize};
 use systean_core::spec::{lower_term, parse_term, parse_type};
 use systean_core::phonology::{
@@ -427,6 +430,7 @@ fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
     };
     let mut state = DiscourseState::new();
     let mut conversation = ConversationState::new();
+    let mut text_session = TextSessionState::new();
     let stdin = io::stdin();
     let interactive = stdin.is_terminal();
     if interactive {
@@ -453,7 +457,13 @@ fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        match run_discourse_line(&language, &mut state, &mut conversation, line) {
+        match run_discourse_line(
+            &language,
+            &mut state,
+            &mut conversation,
+            &mut text_session,
+            line,
+        ) {
             Ok(true) => break,
             Ok(false) => {}
             Err(error) => eprintln!("discourse error: {error}"),
@@ -466,6 +476,7 @@ fn run_discourse_line(
     language: &LanguagePackage,
     state: &mut DiscourseState,
     conversation: &mut ConversationState,
+    text_session: &mut TextSessionState,
     line: &str,
 ) -> Result<bool, String> {
     let tokens = line.split_whitespace().collect::<Vec<_>>();
@@ -479,7 +490,8 @@ fn run_discourse_line(
             return Err(format!("`{}` takes no arguments", config.discourse.frame));
         }
         let frame = state.advance_frame();
-        println!("frame: {frame}");
+        let section = text_session.advance_section();
+        println!("section: {section} frame: {frame}");
         return Ok(false);
     }
     if command == config.discourse.alias {
@@ -644,6 +656,26 @@ fn run_discourse_line(
             println!("resolved: {}:{}={}", resolved.id, resolved.ty, resolved.value);
             Ok(false)
         }
+        "turn" => {
+            if tokens.len() < 4 {
+                return Err("usage: turn spoken|written <turn-key> <text-stream>".into());
+            }
+            let realization = match tokens[1] {
+                "spoken" => TextRealization::Spoken,
+                "written" => TextRealization::Written,
+                _ => return Err("usage: turn spoken|written <turn-key> <text-stream>".into()),
+            };
+            let turn = TextTurn {
+                key: tokens[2].to_owned(),
+                realization,
+                source: tokens[3..].join(" "),
+            };
+            let analysis = language
+                .apply_text_turn(&turn, text_session, state, conversation)
+                .map_err(|error| error.to_string())?;
+            print_text_turn_analysis(&analysis);
+            Ok(false)
+        }
         "say" => {
             if tokens.len() < 2 {
                 return Err("usage: say <surface-expression>".into());
@@ -774,6 +806,35 @@ fn parse_referent_id(source: &str) -> Result<ReferentId, String> {
     Ok(ReferentId::from_raw(number))
 }
 
+fn print_text_turn_analysis(analysis: &TextTurnAnalysis) {
+    println!(
+        "turn: {} ({})",
+        analysis.key,
+        match analysis.realization {
+            TextRealization::Spoken => "spoken",
+            TextRealization::Written => "written",
+        }
+    );
+    for event in &analysis.events {
+        match event {
+            TextTurnEvent::FrameBoundary { section, frame } => {
+                println!("section: {section} frame: {frame}");
+            }
+            TextTurnEvent::Utterance(utterance) => {
+                println!(
+                    "{} section={} act={}",
+                    utterance.id,
+                    utterance.section,
+                    utterance.pragmatics.act.label()
+                );
+                println!("  spoken: {}", utterance.canonical_spoken);
+                println!("  written: {}", utterance.canonical_written);
+                println!("  semantics: {}", utterance.pragmatics.utterance);
+            }
+        }
+    }
+}
+
 fn print_discourse_analysis(analysis: &systean_core::language::DiscourseSurfaceAnalysis) {
     println!("canonical surface: {}", analysis.canonical_surface);
     println!("resolved surface: {}", analysis.canonical_resolved_surface);
@@ -841,6 +902,7 @@ fn print_discourse_help(language: &LanguagePackage) {
     println!("  intro-sem <semantic-expression>");
     println!("  analyze <surface-expression>");
     println!("  say <surface-expression>");
+    println!("  turn spoken|written <turn-key> <text-stream>");
     println!("  history");
     println!("  commitments");
     println!("  resolve <semantic-type>");

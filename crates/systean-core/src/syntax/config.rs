@@ -18,6 +18,7 @@ pub struct SyntaxConfig {
     pub grammar: GrammarConfig,
     pub discourse: DiscourseConfig,
     pub quotation: QuotationConfig,
+    pub text: TextConfig,
     pub pragmatics: PragmaticsConfig,
 }
 
@@ -128,6 +129,14 @@ pub struct DiscourseConfig {
 pub struct QuotationConfig {
     pub open: String,
     pub close: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct TextConfig {
+    pub utterance_spoken: String,
+    pub utterance_written: String,
+    #[serde(default)]
+    pub readability_punctuation: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -302,6 +311,42 @@ impl SyntaxConfig {
                 self.quotation.open
             )));
         }
+        if self.text.utterance_spoken.trim().is_empty() {
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "empty spoken utterance boundary".into(),
+            ));
+        }
+        let mut written_boundary = self.text.utterance_written.chars();
+        let Some(written_boundary_character) = written_boundary.next() else {
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "empty written utterance boundary".into(),
+            ));
+        };
+        if written_boundary.next().is_some() || written_boundary_character.is_alphanumeric() {
+            return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                "written utterance boundary `{}` must be one non-alphanumeric character",
+                self.text.utterance_written
+            )));
+        }
+        for punctuation in &self.text.readability_punctuation {
+            let mut characters = punctuation.chars();
+            let Some(character) = characters.next() else {
+                return Err(SyntaxConfigError::UnsupportedPolicy(
+                    "empty readability punctuation form".into(),
+                ));
+            };
+            if characters.next().is_some() || character.is_alphanumeric() {
+                return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                    "readability punctuation `{punctuation}` must be one non-alphanumeric character"
+                )));
+            }
+            if punctuation == &self.text.utterance_written {
+                return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                    "written utterance boundary `{}` must not also be readability-only punctuation",
+                    self.text.utterance_written
+                )));
+            }
+        }
         let mut all_markers = vec![
             self.scope.open.as_str(),
             self.scope.close.as_str(),
@@ -311,6 +356,7 @@ impl SyntaxConfig {
             self.discourse.frame.as_str(),
             self.quotation.open.as_str(),
             self.quotation.close.as_str(),
+            self.text.utterance_spoken.as_str(),
         ];
         all_markers.sort_unstable();
         if let Some(pair) = all_markers.windows(2).find(|pair| pair[0] == pair[1]) {

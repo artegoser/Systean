@@ -1,6 +1,6 @@
 [meta]
 description = "Defines normative Systean surface-syntax policies. Lexical roots and their surface realizations live only in dictionary.toml."
-version = "1.5"
+version = "1.6"
 
 [order]
 frame = "primary_predicate_rest"
@@ -52,6 +52,11 @@ frame = "fra"
 [quotation]
 open = "sit"
 close = "tis"
+
+[text]
+utterance_spoken = "du"
+utterance_written = "."
+readability_punctuation = [",", ":", ";", "?", "!"]
 
 [pragmatics]
 default_assertion_operator = "assert"
