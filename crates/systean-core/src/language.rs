@@ -14,6 +14,7 @@ use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
 };
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
+use crate::pragmatics::{PragmaticAnalysis, PragmaticError, interpret_pragmatics, validate_pragmatics};
 use crate::units::{UnitRegistry, UnitsConfig, UnitsConfigError};
 use crate::semantics::{Checker, Environment, Explainer, Term, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
@@ -370,6 +371,12 @@ pub struct DiscourseSurfaceAnalysis {
     pub canonical_semantics: String,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct CommunicativeSurfaceAnalysis {
+    pub surface: DiscourseSurfaceAnalysis,
+    pub pragmatics: PragmaticAnalysis,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LanguageError {
     Io { path: PathBuf, message: String },
@@ -383,6 +390,7 @@ pub enum LanguageError {
     Syntax(SurfaceError),
     Discourse(DiscourseResolutionError),
     DiscourseGenerate(DiscourseGenerationError),
+    Pragmatics(PragmaticError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -468,6 +476,8 @@ impl LanguagePackage {
 
         let mut semantics = semantics;
         dictionary_parsed.install_constants(&mut semantics)?;
+        validate_pragmatics(&syntax_config.pragmatics, &semantics)
+            .map_err(LanguageError::Pragmatics)?;
         let syntax = if let Some((literal_source, units_source)) = structured_sources {
             let literal_config = LiteralConfig::from_toml(literal_source)
                 .map_err(LanguageError::LiteralConfig)?;
@@ -626,6 +636,29 @@ impl LanguagePackage {
             canonical_semantics: canonicalize(&resolved.term).to_string(),
             resolved,
         })
+    }
+
+    pub fn analyze_utterance(
+        &self,
+        expression: &str,
+    ) -> Result<CommunicativeSurfaceAnalysis, LanguageError> {
+        self.analyze_utterance_with_discourse(expression, &DiscourseState::new())
+    }
+
+    pub fn analyze_utterance_with_discourse(
+        &self,
+        expression: &str,
+        discourse: &DiscourseState,
+    ) -> Result<CommunicativeSurfaceAnalysis, LanguageError> {
+        let surface = self.analyze_surface_with_discourse(expression, discourse)?;
+        let pragmatics = interpret_pragmatics(
+            &surface.resolved.term,
+            &surface.resolved.inferred_type,
+            &self.syntax.config().pragmatics,
+            &self.semantics,
+        )
+        .map_err(LanguageError::Pragmatics)?;
+        Ok(CommunicativeSurfaceAnalysis { surface, pragmatics })
     }
 
     pub fn validate_alias_surface(&self, surface: &str) -> Result<(), LanguageError> {
@@ -1071,6 +1104,7 @@ impl fmt::Display for LanguageError {
             Self::Syntax(error) => write!(f, "syntax: {error}"),
             Self::Discourse(error) => write!(f, "discourse: {error}"),
             Self::DiscourseGenerate(error) => write!(f, "discourse generation: {error}"),
+            Self::Pragmatics(error) => write!(f, "pragmatics: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {

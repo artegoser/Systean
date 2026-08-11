@@ -3,7 +3,7 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use systean_core::discourse::{DiscourseState, IntroductionOrigin, ReferentId};
+use systean_core::discourse::{ConversationState, DiscourseState, IntroductionOrigin, ReferentId};
 use systean_core::language::LanguagePackage;
 use systean_core::semantics::{Checker, Term, canonicalize};
 use systean_core::spec::{lower_term, parse_term, parse_type};
@@ -426,6 +426,7 @@ fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
         Err(code) => return code,
     };
     let mut state = DiscourseState::new();
+    let mut conversation = ConversationState::new();
     let stdin = io::stdin();
     let interactive = stdin.is_terminal();
     if interactive {
@@ -452,7 +453,7 @@ fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        match run_discourse_line(&language, &mut state, line) {
+        match run_discourse_line(&language, &mut state, &mut conversation, line) {
             Ok(true) => break,
             Ok(false) => {}
             Err(error) => eprintln!("discourse error: {error}"),
@@ -464,6 +465,7 @@ fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
 fn run_discourse_line(
     language: &LanguagePackage,
     state: &mut DiscourseState,
+    conversation: &mut ConversationState,
     line: &str,
 ) -> Result<bool, String> {
     let tokens = line.split_whitespace().collect::<Vec<_>>();
@@ -642,6 +644,44 @@ fn run_discourse_line(
             println!("resolved: {}:{}={}", resolved.id, resolved.ty, resolved.value);
             Ok(false)
         }
+        "say" => {
+            if tokens.len() < 2 {
+                return Err("usage: say <surface-expression>".into());
+            }
+            let source = tokens[1..].join(" ");
+            let analysis = language
+                .analyze_utterance_with_discourse(&source, state)
+                .map_err(|error| error.to_string())?;
+            let id = conversation
+                .apply(
+                    source,
+                    analysis.surface.canonical_resolved_surface.clone(),
+                    analysis.pragmatics.clone(),
+                )
+                .map_err(|error| error.to_string())?;
+            println!("utterance: {id}");
+            println!("act: {}", analysis.pragmatics.act.label());
+            println!("canonical utterance: {}", analysis.pragmatics.utterance);
+            Ok(false)
+        }
+        "history" => {
+            for entry in conversation.history() {
+                println!(
+                    "{} act={} surface={} semantics={}",
+                    entry.id,
+                    entry.analysis.act.label(),
+                    entry.canonical_surface,
+                    entry.analysis.utterance
+                );
+            }
+            Ok(false)
+        }
+        "commitments" => {
+            for commitment in conversation.active_commitments() {
+                println!("{} active={}", commitment.entry, commitment.content);
+            }
+            Ok(false)
+        }
         "analyze" => {
             if tokens.len() < 2 {
                 return Err("usage: analyze <surface-expression>".into());
@@ -800,6 +840,9 @@ fn print_discourse_help(language: &LanguagePackage) {
     println!("  intro <surface-expression>");
     println!("  intro-sem <semantic-expression>");
     println!("  analyze <surface-expression>");
+    println!("  say <surface-expression>");
+    println!("  history");
+    println!("  commitments");
     println!("  resolve <semantic-type>");
     println!("  bind <alias> <referent-id>");
     println!("  scope enter|leave");

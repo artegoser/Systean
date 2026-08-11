@@ -18,6 +18,7 @@ pub struct SyntaxConfig {
     pub grammar: GrammarConfig,
     pub discourse: DiscourseConfig,
     pub quotation: QuotationConfig,
+    pub pragmatics: PragmaticsConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -127,6 +128,37 @@ pub struct DiscourseConfig {
 pub struct QuotationConfig {
     pub open: String,
     pub close: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct PragmaticsConfig {
+    pub default_assertion_operator: String,
+    pub default_assertion_role: String,
+    pub question_operator: String,
+    pub question_content_role: String,
+    pub command_operator: String,
+    pub command_content_role: String,
+    pub request_operator: String,
+    pub request_content_role: String,
+    pub expressive_operator: String,
+    pub expressive_state_role: String,
+    pub focus_operator: String,
+    pub focus_target_role: String,
+    pub focus_content_role: String,
+    pub topic_operator: String,
+    pub topic_target_role: String,
+    pub topic_content_role: String,
+    pub retract_operator: String,
+    pub repair_target_role: String,
+    pub correction_operator: String,
+    pub correction_replacement_role: String,
+    pub clarification_operator: String,
+    pub clarification_content_role: String,
+    pub disjunction_operator: String,
+    pub disjunction_left_role: String,
+    pub disjunction_right_role: String,
+    pub information_family: String,
+    pub unknown_status: String,
 }
 
 /// Surface realization attached to one lexical root in `dictionary.toml`.
@@ -286,6 +318,41 @@ impl SyntaxConfig {
                 "structural marker `{}` is assigned more than once",
                 pair[0]
             )));
+        }
+        for (name, value) in [
+            ("default_assertion_operator", self.pragmatics.default_assertion_operator.as_str()),
+            ("default_assertion_role", self.pragmatics.default_assertion_role.as_str()),
+            ("question_operator", self.pragmatics.question_operator.as_str()),
+            ("question_content_role", self.pragmatics.question_content_role.as_str()),
+            ("command_operator", self.pragmatics.command_operator.as_str()),
+            ("command_content_role", self.pragmatics.command_content_role.as_str()),
+            ("request_operator", self.pragmatics.request_operator.as_str()),
+            ("request_content_role", self.pragmatics.request_content_role.as_str()),
+            ("expressive_operator", self.pragmatics.expressive_operator.as_str()),
+            ("expressive_state_role", self.pragmatics.expressive_state_role.as_str()),
+            ("focus_operator", self.pragmatics.focus_operator.as_str()),
+            ("focus_target_role", self.pragmatics.focus_target_role.as_str()),
+            ("focus_content_role", self.pragmatics.focus_content_role.as_str()),
+            ("topic_operator", self.pragmatics.topic_operator.as_str()),
+            ("topic_target_role", self.pragmatics.topic_target_role.as_str()),
+            ("topic_content_role", self.pragmatics.topic_content_role.as_str()),
+            ("retract_operator", self.pragmatics.retract_operator.as_str()),
+            ("repair_target_role", self.pragmatics.repair_target_role.as_str()),
+            ("correction_operator", self.pragmatics.correction_operator.as_str()),
+            ("correction_replacement_role", self.pragmatics.correction_replacement_role.as_str()),
+            ("clarification_operator", self.pragmatics.clarification_operator.as_str()),
+            ("clarification_content_role", self.pragmatics.clarification_content_role.as_str()),
+            ("disjunction_operator", self.pragmatics.disjunction_operator.as_str()),
+            ("disjunction_left_role", self.pragmatics.disjunction_left_role.as_str()),
+            ("disjunction_right_role", self.pragmatics.disjunction_right_role.as_str()),
+            ("information_family", self.pragmatics.information_family.as_str()),
+            ("unknown_status", self.pragmatics.unknown_status.as_str()),
+        ] {
+            if value.trim().is_empty() {
+                return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                    "empty pragmatics field `{name}`"
+                )));
+            }
         }
         Ok(())
     }

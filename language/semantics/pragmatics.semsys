@@ -1,0 +1,7 @@
+operator assert(content: Proposition) -> Utterance;
+operator express_affect(state: SubjectiveExperience) -> Utterance;
+operator focus<T>(target: $T, content: Proposition) -> Utterance;
+operator topic<T>(target: $T, content: Proposition) -> Utterance;
+operator retract(target: Number) -> Utterance;
+operator correct(target: Number, replacement: Proposition) -> Utterance;
+operator clarify(target: Number, content: Proposition) -> Utterance;

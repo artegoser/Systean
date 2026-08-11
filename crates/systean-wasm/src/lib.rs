@@ -12,6 +12,8 @@ const DICTIONARY: &str = include_str!("../../../language/dictionary.toml");
 const LITERALS: &str = include_str!("../../../language/literals.toml");
 const UNITS: &str = include_str!("../../../language/units.toml");
 const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
+const SEMANTICS_PRAGMATICS: &str = include_str!("../../../language/semantics/pragmatics.semsys");
+const SEMANTICS_SUBJECTIVE: &str = include_str!("../../../language/semantics/subjective.semsys");
 
 static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
 
@@ -25,7 +27,11 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             DICTIONARY,
             LITERALS,
             UNITS,
-            &[("language/semantics/core.semsys", SEMANTICS_CORE)],
+            &[
+                ("language/semantics/core.semsys", SEMANTICS_CORE),
+                ("language/semantics/pragmatics.semsys", SEMANTICS_PRAGMATICS),
+                ("language/semantics/subjective.semsys", SEMANTICS_SUBJECTIVE),
+            ],
         )
         .map_err(|error| error.to_string())
     }) {
@@ -171,5 +177,21 @@ pub fn analyze_surface_json(expression: &str) -> Result<String, JsValue> {
         "inferredType": analysis.inferred_type,
         "canonicalSemantics": analysis.canonical_semantics,
         "syntax": analysis.syntax.to_string(),
+    }))
+}
+
+#[wasm_bindgen]
+pub fn analyze_utterance_json(expression: &str) -> Result<String, JsValue> {
+    let analysis = language()?
+        .analyze_utterance(expression)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    json_string(json!({
+        "canonicalSurface": analysis.surface.canonical_surface,
+        "canonicalResolvedSurface": analysis.surface.canonical_resolved_surface,
+        "surfaceType": analysis.surface.resolved.inferred_type.to_string(),
+        "canonicalSemantics": analysis.surface.canonical_semantics,
+        "act": analysis.pragmatics.act.label(),
+        "canonicalUtterance": analysis.pragmatics.utterance.to_string(),
+        "utteranceType": analysis.pragmatics.inferred_type.to_string(),
     }))
 }

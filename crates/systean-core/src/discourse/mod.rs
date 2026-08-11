@@ -1,7 +1,9 @@
+mod conversation;
 mod generate;
 mod resolve;
 mod state;
 
+pub use conversation::{Commitment, ConversationError, ConversationState, HistoryEntry, UtteranceId};
 pub use generate::{DiscourseGenerationError, materialize_resolved_surface};
 pub use resolve::{
     DiscourseResolutionError, ResolvedAliasBinding, ResolvedContextBinding, ResolvedReferenceBinding,
