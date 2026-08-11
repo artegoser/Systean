@@ -160,6 +160,14 @@ pub enum SurfaceFormConfig {
         restriction_role: String,
         body_role: String,
     },
+    CountedQuantifier {
+        binder_role: String,
+        count_role: String,
+        variable_type: String,
+        restriction_operator: String,
+        restriction_role: String,
+        body_role: String,
+    },
     SpeechAct {
         role: String,
     },

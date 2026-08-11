@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Argument, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig};
+use super::{Argument, InformationKnower, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceGenerationError {
@@ -159,11 +159,33 @@ impl Generator<'_> {
             Argument::Name { marker, payload } => vec![marker.clone(), payload.clone()],
             Argument::Quote(payload) => vec![self.render_quote(payload)],
             Argument::Literal(literal) => vec![literal.canonical_surface().to_owned()],
+            Argument::Information { marker, knower } => {
+                let mut tokens = vec![marker.clone()];
+                if let Some(knower) = knower {
+                    match knower {
+                        InformationKnower::Context(surface) => tokens.push(surface.clone()),
+                        InformationKnower::Name { marker, payload } => {
+                            tokens.push(marker.clone());
+                            tokens.push(payload.clone());
+                        }
+                    }
+                }
+                tokens
+            }
             Argument::Omitted => Vec::new(),
             Argument::Quantified {
                 quantifier,
                 restriction,
             } => vec![quantifier.clone(), restriction.clone()],
+            Argument::CountedQuantified {
+                quantifier,
+                count,
+                restriction,
+            } => vec![
+                quantifier.clone(),
+                count.canonical_surface().to_owned(),
+                restriction.clone(),
+            ],
         }
     }
 }

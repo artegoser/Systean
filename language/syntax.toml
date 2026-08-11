@@ -1,6 +1,6 @@
 [meta]
 description = "Defines normative Systean surface-syntax policies. Lexical roots and their surface realizations live only in dictionary.toml."
-version = "1.3"
+version = "1.4"
 
 [order]
 frame = "primary_predicate_rest"
@@ -18,6 +18,8 @@ flatten_same_operator = true
 [logic.precedence]
 and = 20
 or = 10
+implies = 5
+counterfactual = 5
 
 [roles]
 realization = "frame_order"

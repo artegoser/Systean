@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::semantics::{Checker, Environment, Literal, Term, Type};
+use crate::semantics::{Checker, Environment, Literal, StructuredLiteral, Term, Type};
 use crate::spec::parse_type;
 
-use super::{Argument, Clause, LexemeConfig, SurfaceExpr, SurfaceLexicon};
+use super::{Argument, Clause, InformationKnower, LexemeConfig, SurfaceExpr, SurfaceLexicon};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReferenceSource {
@@ -123,6 +123,7 @@ struct Elaborator<'a> {
 struct QuantifierIntroduction {
     quantifier_surface: String,
     restriction_surface: String,
+    count: Option<Term>,
     variable: String,
     variable_type: Type,
 }
@@ -444,6 +445,122 @@ impl Elaborator<'_> {
                 self.match_expected(expected, &actual, type_bindings, role)?;
                 Ok((term, None))
             }
+            Argument::Information { marker, knower } => {
+                let LexemeConfig::Information { status, knower_type } = self.lexeme(marker)?.clone() else {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: marker.clone(),
+                        expected: "information marker",
+                    });
+                };
+                if knower_type.is_some() != knower.is_some() {
+                    return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                        "information marker `{marker}` knower shape does not match its lexical declaration"
+                    )));
+                }
+                let concrete = expected.substitute(type_bindings);
+                if contains_type_variable(&concrete) {
+                    return Err(SurfaceElaborationError::UnconstrainedReferenceType {
+                        role: format!("information {status} for {role}"),
+                        ty: concrete,
+                    });
+                }
+                let declared_knower_type = knower_type
+                    .as_deref()
+                    .map(|source| self.parse_declared_type(source))
+                    .transpose()?;
+                let canonical = match knower {
+                    None => status.clone(),
+                    Some(InformationKnower::Context(surface)) => {
+                        let LexemeConfig::Context { key, ty } = self.lexeme(surface)? else {
+                            return Err(SurfaceElaborationError::WrongLexemeKind {
+                                surface: surface.clone(),
+                                expected: "context knower",
+                            });
+                        };
+                        if let Some(expected_knower) = &declared_knower_type {
+                            let actual_knower = self.parse_declared_type(ty)?;
+                            let mut knower_bindings = BTreeMap::new();
+                            self.match_expected(
+                                expected_knower,
+                                &actual_knower,
+                                &mut knower_bindings,
+                                "information knower",
+                            )?;
+                        }
+                        format!("{status}:context:{key}")
+                    }
+                    Some(InformationKnower::Name { marker: name_marker, payload }) => {
+                        let LexemeConfig::Name { semantic, role: name_role } = self.lexeme(name_marker)? else {
+                            return Err(SurfaceElaborationError::WrongLexemeKind {
+                                surface: name_marker.clone(),
+                                expected: "proper-name knower",
+                            });
+                        };
+                        if let Some(expected_knower) = &declared_knower_type {
+                            let name_term = self.lower_name(name_marker, payload)?;
+                            let actual_knower = Checker::new(self.environment)
+                                .infer(&name_term)
+                                .map_err(|error| SurfaceElaborationError::InvalidSemanticTerm(error.to_string()))?;
+                            let mut knower_bindings = BTreeMap::new();
+                            self.match_expected(
+                                expected_knower,
+                                &actual_knower,
+                                &mut knower_bindings,
+                                &name_role,
+                            )?;
+                        }
+                        format!("{status}:{semantic}:{payload}")
+                    }
+                };
+                Ok((
+                    Term::Literal(Literal::Structured(StructuredLiteral::new(
+                        "information",
+                        canonical,
+                        concrete,
+                    ))),
+                    None,
+                ))
+            }
+            Argument::CountedQuantified { quantifier, count, restriction } => {
+                let quantifier_config = self.lexeme(quantifier)?.clone();
+                let LexemeConfig::CountedQuantifier { variable_type, count_role, semantic, .. } = quantifier_config else {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: quantifier.clone(),
+                        expected: "counted quantifier",
+                    });
+                };
+                let restriction_config = self.lexeme(restriction)?.clone();
+                let LexemeConfig::Class { .. } = restriction_config else {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: restriction.clone(),
+                        expected: "class",
+                    });
+                };
+                let variable_type = self.parse_declared_type(&variable_type)?;
+                self.match_expected(expected, &variable_type, type_bindings, role)?;
+                let signature = self.environment.operator(&semantic).ok_or_else(|| {
+                    SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+                })?;
+                let count_expected = parameter_type(signature, &semantic, &count_role)?;
+                let count_term = Term::Literal(Literal::Structured(count.semantic.clone()));
+                let count_actual = Checker::new(self.environment).infer(&count_term).map_err(|error| {
+                    SurfaceElaborationError::InvalidSemanticTerm(error.to_string())
+                })?;
+                let mut count_bindings = BTreeMap::new();
+                self.match_expected(count_expected, &count_actual, &mut count_bindings, &count_role)?;
+                let variable = format!("surface_q{}", self.quantifier_index);
+                self.quantifier_index += 1;
+                Ok((
+                    Term::Var(variable.clone()),
+                    Some(QuantifierIntroduction {
+                        quantifier_surface: quantifier.clone(),
+                        restriction_surface: restriction.clone(),
+                        count: Some(count_term),
+                        variable,
+                        variable_type,
+                    }),
+                ))
+            }
             Argument::Reference(surface) => {
                 let LexemeConfig::Reference = self.lexeme(surface)? else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
@@ -499,6 +616,7 @@ impl Elaborator<'_> {
                     Some(QuantifierIntroduction {
                         quantifier_surface: quantifier.clone(),
                         restriction_surface: restriction.clone(),
+                        count: None,
                         variable,
                         variable_type,
                     }),
@@ -601,20 +719,38 @@ impl Elaborator<'_> {
         intro: QuantifierIntroduction,
         body: Term,
     ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Quantifier {
-            semantic,
-            binder_role,
-            restriction_operator,
-            restriction_role,
-            body_role,
-            ..
-        } = self.lexeme(&intro.quantifier_surface)?
-        else {
-            return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: intro.quantifier_surface,
-                expected: "quantifier",
-            });
-        };
+        let (semantic, binder_role, count_role, restriction_operator, restriction_role, body_role) =
+            match self.lexeme(&intro.quantifier_surface)? {
+                LexemeConfig::Quantifier {
+                    semantic,
+                    binder_role,
+                    restriction_operator,
+                    restriction_role,
+                    body_role,
+                    ..
+                } => (
+                    semantic.clone(), binder_role.clone(), None,
+                    restriction_operator.clone(), restriction_role.clone(), body_role.clone(),
+                ),
+                LexemeConfig::CountedQuantifier {
+                    semantic,
+                    binder_role,
+                    count_role,
+                    restriction_operator,
+                    restriction_role,
+                    body_role,
+                    ..
+                } => (
+                    semantic.clone(), binder_role.clone(), Some(count_role.clone()),
+                    restriction_operator.clone(), restriction_role.clone(), body_role.clone(),
+                ),
+                _ => {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: intro.quantifier_surface,
+                        expected: "quantifier",
+                    });
+                }
+            };
         let LexemeConfig::Class {
             semantic: restriction_semantic,
             role: class_role,
@@ -634,10 +770,10 @@ impl Elaborator<'_> {
             )]),
         };
         let combined = Term::Call {
-            function: restriction_operator.clone(),
+            function: restriction_operator,
             arguments: BTreeMap::from([
-                (restriction_role.clone(), restriction),
-                (body_role.clone(), body),
+                (restriction_role, restriction),
+                (body_role, body),
             ]),
         };
         let binder = Term::Bind {
@@ -645,9 +781,21 @@ impl Elaborator<'_> {
             variable_type: intro.variable_type,
             body: Box::new(combined),
         };
+        let mut arguments = BTreeMap::from([(binder_role, binder)]);
+        match (count_role, intro.count) {
+            (Some(role), Some(count)) => {
+                arguments.insert(role, count);
+            }
+            (None, None) => {}
+            _ => {
+                return Err(SurfaceElaborationError::InvalidSemanticTerm(
+                    "quantifier count shape does not match lexical declaration".into(),
+                ));
+            }
+        }
         Ok(Term::Call {
-            function: semantic.clone(),
-            arguments: BTreeMap::from([(binder_role.clone(), binder)]),
+            function: semantic,
+            arguments,
         })
     }
 

@@ -67,6 +67,30 @@ impl SyntaxEngine {
                     }
                 }
                 LexemeConfig::Reference => {}
+                LexemeConfig::Information { status, knower_type } => {
+                    if status.trim().is_empty() {
+                        return Err(SurfaceError::InvalidBinding(format!(
+                            "information lexical root `{surface}` has an empty status identity"
+                        )));
+                    }
+                    if let Some(source) = knower_type {
+                        let ty = parse_type(source).map_err(|errors| {
+                            SurfaceError::InvalidBinding(format!(
+                                "information lexical root `{surface}` has invalid knower type `{source}`: {}",
+                                errors
+                                    .into_iter()
+                                    .map(|error| error.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join("; ")
+                            ))
+                        })?;
+                        if !environment.is_well_formed_type(&ty) {
+                            return Err(SurfaceError::InvalidBinding(format!(
+                                "information lexical root `{surface}` uses unknown knower type `{source}`"
+                            )));
+                        }
+                    }
+                }
                 LexemeConfig::Alias { ty, .. } => {
                     let ty = parse_type(ty).map_err(|errors| {
                         SurfaceError::InvalidBinding(format!(
@@ -164,6 +188,39 @@ impl SyntaxEngine {
                     if !environment.is_well_formed_type(&ty) {
                         return Err(SurfaceError::InvalidBinding(format!(
                             "quantifier lexical root `{surface}` uses unknown binder type `{variable_type}`"
+                        )));
+                    }
+                }
+                LexemeConfig::CountedQuantifier {
+                    semantic,
+                    binder_role,
+                    count_role,
+                    variable_type,
+                    restriction_operator,
+                    restriction_role,
+                    body_role,
+                } => {
+                    validate_operator_roles(
+                        environment,
+                        surface,
+                        semantic,
+                        [binder_role.as_str(), count_role.as_str()],
+                    )?;
+                    validate_operator_roles(
+                        environment,
+                        surface,
+                        restriction_operator,
+                        [restriction_role.as_str(), body_role.as_str()],
+                    )?;
+                    let ty = parse_type(variable_type).map_err(|errors| {
+                        SurfaceError::InvalidBinding(format!(
+                            "counted quantifier lexical root `{surface}` has invalid binder type `{variable_type}`: {}",
+                            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
+                        ))
+                    })?;
+                    if !environment.is_well_formed_type(&ty) {
+                        return Err(SurfaceError::InvalidBinding(format!(
+                            "counted quantifier lexical root `{surface}` uses unknown binder type `{variable_type}`"
                         )));
                     }
                 }

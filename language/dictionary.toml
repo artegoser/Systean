@@ -1,6 +1,6 @@
 [meta]
 description = "Defines the canonical lexical roots of Systean. Each root has one lexical identity, semantic binding, and—only when needed—one surface realization."
-version = "5.0"
+version = "11.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
@@ -286,3 +286,125 @@ syntax = { kind = "predicate", primary_role = "value", rest_roles = ["interval"]
 definition = "An explicit temporal value: an instant, interval, calendar date, or time of day."
 semantic = { kind = "operator", name = "time_value" }
 syntax = { kind = "class", role = "value" }
+
+[sta]
+definition = "Starts one explicit occurrence target; the parser does not infer whether that target exists or actually begins."
+semantic = { kind = "operator", name = "start" }
+syntax = { kind = "prefix", role = "target" }
+
+[stop]
+definition = "Ceases one explicit occurrence or activity target without implying that it can never recur."
+semantic = { kind = "operator", name = "cease" }
+syntax = { kind = "prefix", role = "target" }
+
+[dur]
+definition = "Continues one explicit occurrence or activity target."
+semantic = { kind = "operator", name = "continue" }
+syntax = { kind = "prefix", role = "target" }
+
+[fin]
+definition = "Finishes one explicit occurrence target; completion is distinct from generic cessation."
+semantic = { kind = "operator", name = "finish" }
+syntax = { kind = "prefix", role = "target" }
+
+[rup]
+definition = "Interrupts one explicit occurrence target without asserting completion."
+semantic = { kind = "operator", name = "interrupt" }
+syntax = { kind = "prefix", role = "target" }
+
+[reg]
+definition = "Constructs a habitual or recurrent activity from one explicit occurrence target."
+semantic = { kind = "operator", name = "habitual" }
+syntax = { kind = "prefix", role = "activity" }
+
+[rep]
+definition = "Constructs an explicitly counted repeated activity from one explicit occurrence target."
+semantic = { kind = "operator", name = "repeat" }
+syntax = { kind = "predicate", primary_role = "target", rest_roles = ["count"] }
+
+[unk]
+definition = "A typed value explicitly unknown to the following stated or context-bound knower."
+semantic = { kind = "information", status = "unknown", knower_type = "Entity" }
+
+[vak]
+definition = "A typed value deliberately left unspecified by the utterance."
+semantic = { kind = "information", status = "unspecified" }
+
+[hid]
+definition = "A typed value intentionally withheld rather than merely unknown or unspecified."
+semantic = { kind = "information", status = "withheld" }
+
+[rov]
+definition = "Exactly the stated number of members of the explicit class satisfy the quantified body."
+semantic = { kind = "operator", name = "exactly" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+
+[mini]
+definition = "At least the stated number of members of the explicit class satisfy the quantified body."
+semantic = { kind = "operator", name = "at_least" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+
+[maks]
+definition = "At most the stated number of members of the explicit class satisfy the quantified body."
+semantic = { kind = "operator", name = "at_most" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+
+[set]
+definition = "An unordered collection identity constructed from two explicit entity members; larger sets are nested compositionally."
+semantic = { kind = "operator", name = "set_pair" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
+
+[list]
+definition = "An ordered collection identity constructed from two explicit entity members; larger lists are nested compositionally."
+semantic = { kind = "operator", name = "list_pair" }
+syntax = { kind = "predicate", primary_role = "first", rest_roles = ["second"] }
+
+[grup]
+definition = "A collective group entity constructed from two explicit entity members."
+semantic = { kind = "operator", name = "group_pair" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
+
+[kol]
+definition = "Marks propositional content for collective interpretation without changing its semantic roles."
+semantic = { kind = "operator", name = "collective" }
+syntax = { kind = "prefix", role = "content" }
+
+[dis]
+definition = "Marks propositional content for distributive interpretation without changing its semantic roles."
+semantic = { kind = "operator", name = "distributive" }
+syntax = { kind = "prefix", role = "content" }
+
+[aso]
+definition = "States an explicitly underspecified association between two entities without guessing a more specific relation."
+semantic = { kind = "operator", name = "association" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
+
+[imp]
+definition = "Material/logical implication between explicit propositional condition and consequence."
+semantic = { kind = "operator", name = "implies" }
+syntax = { kind = "infix", left_role = "condition", right_role = "consequence" }
+
+[hip]
+definition = "Counterfactual causal relation between an explicit antecedent and consequence; distinct from material implication."
+semantic = { kind = "operator", name = "counterfactual" }
+syntax = { kind = "infix", left_role = "condition", right_role = "consequence" }
+
+[tip]
+definition = "Typical or normal-case claim for an explicit domain, explicit measure, and explicit numeric standard."
+semantic = { kind = "operator", name = "typical" }
+syntax = { kind = "predicate", primary_role = "domain", rest_roles = ["measure", "standard"] }
+
+[stat]
+definition = "Statistical claim for an explicit domain and measure with an explicit numeric proportion/value."
+semantic = { kind = "operator", name = "statistical" }
+syntax = { kind = "predicate", primary_role = "domain", rest_roles = ["measure", "value"] }
+
+[prob]
+definition = "Explicit probability assigned to an explicit proposition."
+semantic = { kind = "operator", name = "probability" }
+syntax = { kind = "predicate", primary_role = "claim", rest_roles = ["value"] }
+
+[frek]
+definition = "Explicit frequency claim about an activity under an explicit measure and numeric value."
+semantic = { kind = "operator", name = "frequency" }
+syntax = { kind = "predicate", primary_role = "activity", rest_roles = ["measure", "value"] }

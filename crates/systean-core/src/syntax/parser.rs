@@ -4,8 +4,8 @@ use std::fmt;
 use crate::literals::LiteralEngine;
 
 use super::{
-    Argument, ArgumentOmission, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SurfaceLexicon,
-    SyntaxConfig,
+    Argument, ArgumentOmission, Clause, FrameOrder, InformationKnower, LexemeConfig, SurfaceExpr,
+    SurfaceLexicon, SyntaxConfig,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -272,11 +272,16 @@ impl ParserState<'_> {
             Some(LexemeConfig::Reference) if !self.argument_starts_clause() => Err(vec![self.error(
                 format!("reference `{token}` requires a typed argument slot"),
             )]),
+            Some(LexemeConfig::Information { .. }) if !self.argument_starts_clause() => Err(vec![self.error(
+                format!("information marker `{token}` requires a typed argument slot"),
+            )]),
             Some(LexemeConfig::Atom { .. })
             | Some(LexemeConfig::Context { .. })
             | Some(LexemeConfig::Alias { .. })
             | Some(LexemeConfig::Reference)
+            | Some(LexemeConfig::Information { .. })
             | Some(LexemeConfig::Quantifier { .. })
+            | Some(LexemeConfig::CountedQuantifier { .. })
             | Some(LexemeConfig::Predicate { .. })
             | Some(LexemeConfig::Class { .. })
             | Some(LexemeConfig::Name { .. }) => self.parse_clause(),
@@ -324,6 +329,15 @@ impl ParserState<'_> {
             | LexemeConfig::Context { .. }
             | LexemeConfig::Alias { .. }
             | LexemeConfig::Reference => Some(start + 1),
+            LexemeConfig::Information { knower_type: None, .. } => Some(start + 1),
+            LexemeConfig::Information { knower_type: Some(_), .. } => {
+                let next = self.tokens.get(start + 1)?;
+                match self.lexicon.get(next)? {
+                    LexemeConfig::Context { .. } => Some(start + 2),
+                    LexemeConfig::Name { .. } => self.tokens.get(start + 2).map(|_| start + 3),
+                    _ => None,
+                }
+            }
             LexemeConfig::Name { .. } => self
                 .tokens
                 .get(start + 1)
@@ -333,6 +347,13 @@ impl ParserState<'_> {
                 let restriction = self.tokens.get(start + 1)?;
                 matches!(self.lexicon.get(restriction), Some(LexemeConfig::Class { .. }))
                     .then_some(start + 2)
+            }
+            LexemeConfig::CountedQuantifier { .. } => {
+                let count_len = self.literal_len_at(start + 1)?;
+                let restriction_index = start + 1 + count_len;
+                let restriction = self.tokens.get(restriction_index)?;
+                matches!(self.lexicon.get(restriction), Some(LexemeConfig::Class { .. }))
+                    .then_some(restriction_index + 1)
             }
             _ => None,
         }
@@ -496,6 +517,58 @@ impl ParserState<'_> {
                     payload,
                 })
             }
+            Some(LexemeConfig::Information { knower_type, .. }) => {
+                let requires_knower = knower_type.is_some();
+                self.index += 1;
+                let knower = if requires_knower {
+                    let Some(knower_surface) = self.peek().cloned() else {
+                        return Err(vec![self.error(format!("information marker `{token}` requires an explicit knower"))]);
+                    };
+                    match self.lexicon.get(&knower_surface) {
+                        Some(LexemeConfig::Context { .. }) => {
+                            self.index += 1;
+                            Some(InformationKnower::Context(knower_surface))
+                        }
+                        Some(LexemeConfig::Name { .. }) => {
+                            self.index += 1;
+                            let Some(payload) = self.peek().cloned() else {
+                                return Err(vec![self.error(format!("proper-name knower `{knower_surface}` requires a payload"))]);
+                            };
+                            self.index += 1;
+                            Some(InformationKnower::Name { marker: knower_surface, payload })
+                        }
+                        _ => return Err(vec![self.error(format!(
+                            "information marker `{token}` requires a context value or proper name as knower"
+                        ))]),
+                    }
+                } else {
+                    None
+                };
+                Ok(Argument::Information { marker: token, knower })
+            }
+            Some(LexemeConfig::CountedQuantifier { .. }) => {
+                self.index += 1;
+                let Some(count) = self.literal_at(self.index)? else {
+                    return Err(vec![self.error(format!("counted quantifier `{token}` requires an explicit numeric count"))]);
+                };
+                self.index += count.consumed;
+                let Some(restriction) = self.peek().cloned() else {
+                    return Err(vec![self.error(format!("counted quantifier `{token}` requires a class restriction"))]);
+                };
+                match self.lexicon.get(&restriction) {
+                    Some(LexemeConfig::Class { .. }) => {
+                        self.index += 1;
+                        Ok(Argument::CountedQuantified {
+                            quantifier: token,
+                            count: count.literal,
+                            restriction,
+                        })
+                    }
+                    _ => Err(vec![self.error(format!(
+                        "counted quantifier `{token}` must be followed by a class expression, found `{restriction}`"
+                    ))]),
+                }
+            }
             Some(LexemeConfig::Quantifier { .. }) => {
                 self.index += 1;
                 let Some(restriction) = self.peek().cloned() else {
@@ -534,7 +607,9 @@ impl ParserState<'_> {
                     | Some(LexemeConfig::Context { .. })
                     | Some(LexemeConfig::Alias { .. })
                     | Some(LexemeConfig::Reference)
+                    | Some(LexemeConfig::Information { .. })
                     | Some(LexemeConfig::Quantifier { .. })
+                    | Some(LexemeConfig::CountedQuantifier { .. })
                     | Some(LexemeConfig::Name { .. })
             )
     }
@@ -676,6 +751,7 @@ fn lexeme_kind(lexeme: &LexemeConfig) -> &'static str {
     match lexeme {
         LexemeConfig::Atom { .. } => "atom",
         LexemeConfig::Reference => "reference",
+        LexemeConfig::Information { .. } => "information",
         LexemeConfig::Alias { .. } => "alias",
         LexemeConfig::Context { .. } => "context",
         LexemeConfig::Class { .. } => "class",
@@ -683,6 +759,7 @@ fn lexeme_kind(lexeme: &LexemeConfig) -> &'static str {
         LexemeConfig::Prefix { .. } => "prefix",
         LexemeConfig::Infix { .. } => "infix",
         LexemeConfig::Quantifier { .. } => "quantifier",
+        LexemeConfig::CountedQuantifier { .. } => "counted_quantifier",
         LexemeConfig::SpeechAct { .. } => "speech_act",
         LexemeConfig::Name { .. } => "name",
     }

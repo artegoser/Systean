@@ -36,6 +36,11 @@ pub enum LexicalSemantic {
         name: String,
     },
     Reference,
+    Information {
+        status: String,
+        #[serde(default)]
+        knower_type: Option<String>,
+    },
     Context {
         key: String,
         #[serde(rename = "type")]
@@ -211,6 +216,23 @@ fn validate_lexical_binding(
                 )));
             }
         }
+        LexicalSemantic::Information { status, knower_type } => {
+            if status.trim().is_empty() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary information root `{root}` has an empty status identity"
+                )));
+            }
+            if knower_type.as_ref().is_some_and(|ty| ty.trim().is_empty()) {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary information root `{root}` has an empty knower type"
+                )));
+            }
+            if syntax.is_some() {
+                return Err(LanguageError::Dictionary(format!(
+                    "dictionary information root `{root}` has intrinsic typed-slot syntax and must not declare `syntax`"
+                )));
+            }
+        }
         LexicalSemantic::Context { key, ty } => {
             if key.trim().is_empty() {
                 return Err(LanguageError::Dictionary(format!(
@@ -238,6 +260,10 @@ fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
             semantic: name.clone().unwrap_or_else(|| entry.root.clone()),
         },
         (LexicalSemantic::Reference, None) => LexemeConfig::Reference,
+        (LexicalSemantic::Information { status, knower_type }, None) => LexemeConfig::Information {
+            status: status.clone(),
+            knower_type: knower_type.clone(),
+        },
         (LexicalSemantic::Context { key, ty }, None) => LexemeConfig::Context {
             key: key.clone(),
             ty: ty.clone(),
@@ -276,6 +302,22 @@ fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
             } => LexemeConfig::Quantifier {
                 semantic: name.clone(),
                 binder_role: binder_role.clone(),
+                variable_type: variable_type.clone(),
+                restriction_operator: restriction_operator.clone(),
+                restriction_role: restriction_role.clone(),
+                body_role: body_role.clone(),
+            },
+            SurfaceFormConfig::CountedQuantifier {
+                binder_role,
+                count_role,
+                variable_type,
+                restriction_operator,
+                restriction_role,
+                body_role,
+            } => LexemeConfig::CountedQuantifier {
+                semantic: name.clone(),
+                binder_role: binder_role.clone(),
+                count_role: count_role.clone(),
                 variable_type: variable_type.clone(),
                 restriction_operator: restriction_operator.clone(),
                 restriction_role: restriction_role.clone(),
@@ -743,6 +785,10 @@ impl LanguagePackage {
     ) -> Result<(), LanguageError> {
         match argument {
             crate::syntax::Argument::Name { payload, .. } => self.validate_name_payload(payload),
+            crate::syntax::Argument::Information {
+                knower: Some(crate::syntax::InformationKnower::Name { payload, .. }),
+                ..
+            } => self.validate_name_payload(payload),
             _ => Ok(()),
         }
     }
@@ -926,6 +972,24 @@ fn validate_literals(
                 "structured-literal type `{ty}` is not declared by the semantic package"
             ))));
         }
+    }
+    let number_type = parse_type(&config.number.semantic_type).map_err(|errors| {
+        LanguageError::Syntax(SurfaceError::InvalidBinding(
+            errors
+                .into_iter()
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+                .join("; "),
+        ))
+    })?;
+    let approximate_number_type = Type::Generic {
+        name: "Approximate".into(),
+        arguments: vec![number_type],
+    };
+    if !semantics.is_well_formed_type(&approximate_number_type) {
+        return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+            "structured-literal type `{approximate_number_type}` is not declared by the semantic package"
+        ))));
     }
     for dimension in &literals.units().config().dimensions {
         let ty = parse_type(&dimension.semantic_type).map_err(|errors| LanguageError::Syntax(SurfaceError::InvalidBinding(

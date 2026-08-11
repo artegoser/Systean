@@ -6,6 +6,10 @@ pub enum LexemeConfig {
         semantic: String,
     },
     Reference,
+    Information {
+        status: String,
+        knower_type: Option<String>,
+    },
     Alias {
         name: String,
         ty: String,
@@ -35,6 +39,15 @@ pub enum LexemeConfig {
     Quantifier {
         semantic: String,
         binder_role: String,
+        variable_type: String,
+        restriction_operator: String,
+        restriction_role: String,
+        body_role: String,
+    },
+    CountedQuantifier {
+        semantic: String,
+        binder_role: String,
+        count_role: String,
         variable_type: String,
         restriction_operator: String,
         restriction_role: String,

@@ -7,7 +7,7 @@ mod lexicon;
 mod lower;
 mod parser;
 
-pub use ast::{Argument, Clause, SurfaceExpr};
+pub use ast::{Argument, Clause, InformationKnower, SurfaceExpr};
 pub use config::{
     ArgumentOmission, DiscourseConfig, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig, QuotationConfig,
     QuantifierScopePolicy, RoleRealization, SurfaceFormConfig, SyntaxConfig, SyntaxConfigError,

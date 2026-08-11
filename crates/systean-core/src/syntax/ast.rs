@@ -48,11 +48,26 @@ pub enum Argument {
     },
     Quote(String),
     Literal(SurfaceLiteral),
+    Information {
+        marker: String,
+        knower: Option<InformationKnower>,
+    },
     Omitted,
     Quantified {
         quantifier: String,
         restriction: String,
     },
+    CountedQuantified {
+        quantifier: String,
+        count: SurfaceLiteral,
+        restriction: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InformationKnower {
+    Context(String),
+    Name { marker: String, payload: String },
 }
 
 impl fmt::Display for SurfaceExpr {

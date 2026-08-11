@@ -46,6 +46,7 @@ pub struct LiteralEngine {
     scope_open: String,
     scope_close: String,
     number_type: Type,
+    approximate_number_type: Type,
     digit_type: Type,
     digit_sequence_type: Type,
     date_type: Type,
@@ -82,6 +83,10 @@ impl LiteralEngine {
         scope_close: impl Into<String>,
     ) -> Result<Self, LiteralError> {
         let number_type = parse_config_type(&config.number.semantic_type)?;
+        let approximate_number_type = Type::Generic {
+            name: "Approximate".into(),
+            arguments: vec![number_type.clone()],
+        };
         let digit_type = parse_config_type(&config.number.digit_type)?;
         let digit_sequence_type = parse_config_type(&config.number.digit_sequence_type)?;
         let date_type = parse_config_type(&config.calendar.date_type)?;
@@ -105,6 +110,7 @@ impl LiteralEngine {
             scope_open: scope_open.into(),
             scope_close: scope_close.into(),
             number_type,
+            approximate_number_type,
             digit_type,
             digit_sequence_type,
             date_type,
@@ -240,6 +246,10 @@ impl LiteralEngine {
             return self.parse_digit_sequence(tokens, start).map(Some);
         }
 
+        if let Some(approximate) = self.parse_approximate_number(tokens, start)? {
+            return Ok(Some(approximate));
+        }
+
         if let Ok(value) = ExactNumber::parse_written(&tokens[start], self.config.number.max_explicit_exponent) {
             return self.number_match(value, 1, LiteralRealization::Written).map(Some);
         }
@@ -258,7 +268,7 @@ impl LiteralEngine {
 
     pub fn render_written(&self, literal: &StructuredLiteral) -> Result<String, LiteralError> {
         match literal.family.as_str() {
-            "number" => Ok(literal.canonical.clone()),
+            "number" | "approximate_number" => Ok(literal.canonical.clone()),
             "digit_sequence" => Ok(format!("{} {}", self.config.number.digit_sequence_marker, literal.canonical)),
             "unit" => self.units.unit_by_id(&literal.canonical)
                 .map(|unit| unit.symbol.clone())
@@ -275,6 +285,7 @@ impl LiteralEngine {
                 let value = ExactNumber::parse_written(&literal.canonical, self.config.number.max_explicit_exponent).map_err(LiteralError)?;
                 Ok(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?.join(" "))
             }
+            "approximate_number" => self.render_approximate_number_spoken(&literal.canonical),
             "digit_sequence" => {
                 let mut tokens = vec![self.config.number.digit_sequence_marker.clone()];
                 for digit in literal.canonical.chars() {
@@ -302,6 +313,119 @@ impl LiteralEngine {
             "duration" => self.render_duration_spoken(&literal.canonical),
             family => Err(LiteralError(format!("no structured-literal spoken renderer for family `{family}`"))),
         }
+    }
+
+    fn parse_approximate_number(&self, tokens: &[String], start: usize) -> Result<Option<LiteralMatch>, LiteralError> {
+        let token = &tokens[start];
+        if let Some(value_source) = token.strip_prefix('~') {
+            if value_source.is_empty() {
+                return Ok(None);
+            }
+            let value = ExactNumber::parse_written(value_source, self.config.number.max_explicit_exponent)
+                .map_err(LiteralError)?;
+            return self.approximate_number_match(value, None, 1, LiteralRealization::Written).map(Some);
+        }
+        if let Some((value_source, tolerance_source)) = token.split_once('±') {
+            let value = ExactNumber::parse_written(value_source, self.config.number.max_explicit_exponent)
+                .map_err(LiteralError)?;
+            let tolerance = ExactNumber::parse_written(tolerance_source, self.config.number.max_explicit_exponent)
+                .map_err(LiteralError)?;
+            return self.approximate_number_match(value, Some(tolerance), 1, LiteralRealization::Written).map(Some);
+        }
+        if token != &self.config.number.approximation {
+            return Ok(None);
+        }
+        if tokens.get(start + 1).is_some_and(|value| value == &self.scope_open) {
+            let (value_tokens, after_value) = take_scope_group(tokens, start + 1, &self.scope_open, &self.scope_close)?
+                .ok_or_else(|| LiteralError("approximate number requires a scoped value".into()))?;
+            let value = parse_spoken_number(&value_tokens, 0, &self.config.number, &self.scope_open, &self.scope_close)
+                .map_err(LiteralError)?
+                .ok_or_else(|| LiteralError("approximate number requires a numeric value".into()))?;
+            if value.consumed != value_tokens.len() {
+                return Err(LiteralError("approximate number value scope contains trailing tokens".into()));
+            }
+            let (tolerance_tokens, after_tolerance) = take_scope_group(tokens, after_value, &self.scope_open, &self.scope_close)?
+                .ok_or_else(|| LiteralError("scoped approximate number requires an explicit tolerance scope".into()))?;
+            let tolerance = parse_spoken_number(&tolerance_tokens, 0, &self.config.number, &self.scope_open, &self.scope_close)
+                .map_err(LiteralError)?
+                .ok_or_else(|| LiteralError("approximate number tolerance must be numeric".into()))?;
+            if tolerance.consumed != tolerance_tokens.len() {
+                return Err(LiteralError("approximate number tolerance scope contains trailing tokens".into()));
+            }
+            return self.approximate_number_match(
+                value.value,
+                Some(tolerance.value),
+                after_tolerance - start,
+                LiteralRealization::Spoken,
+            ).map(Some);
+        }
+        let Some(value) = parse_spoken_number(
+            tokens,
+            start + 1,
+            &self.config.number,
+            &self.scope_open,
+            &self.scope_close,
+        ).map_err(LiteralError)? else {
+            return Err(LiteralError(format!("`{}` requires a numeric value", self.config.number.approximation)));
+        };
+        self.approximate_number_match(
+            value.value,
+            None,
+            value.consumed + 1,
+            LiteralRealization::Spoken,
+        ).map(Some)
+    }
+
+    fn approximate_number_match(
+        &self,
+        value: ExactNumber,
+        tolerance: Option<ExactNumber>,
+        consumed: usize,
+        realization: LiteralRealization,
+    ) -> Result<LiteralMatch, LiteralError> {
+        if tolerance.as_ref().is_some_and(|value| value.0.is_negative()) {
+            return Err(LiteralError("approximation tolerance cannot be negative".into()));
+        }
+        let canonical_written = match &tolerance {
+            Some(tolerance) => format!("{}±{}", value.canonical_written(), tolerance.canonical_written()),
+            None => format!("~{}", value.canonical_written()),
+        };
+        let canonical_spoken = match &tolerance {
+            Some(tolerance) => {
+                let mut out = vec![self.config.number.approximation.clone(), self.scope_open.clone()];
+                out.extend(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.push(self.scope_close.clone());
+                out.push(self.scope_open.clone());
+                out.extend(canonical_spoken_number(tolerance, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.push(self.scope_close.clone());
+                out.join(" ")
+            }
+            None => {
+                let mut out = vec![self.config.number.approximation.clone()];
+                out.extend(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.join(" ")
+            }
+        };
+        Ok(LiteralMatch {
+            literal: SurfaceLiteral {
+                semantic: StructuredLiteral::new(
+                    "approximate_number",
+                    canonical_written.clone(),
+                    self.approximate_number_type.clone(),
+                ),
+                canonical_written,
+                canonical_spoken,
+                realization,
+            },
+            consumed,
+        })
+    }
+
+    fn render_approximate_number_spoken(&self, canonical: &str) -> Result<String, LiteralError> {
+        let tokens = vec![canonical.to_lowercase()];
+        self.parse_approximate_number(&tokens, 0)?
+            .map(|matched| matched.literal.canonical_spoken)
+            .ok_or_else(|| LiteralError(format!("invalid canonical approximate number `{canonical}`")))
     }
 
     fn number_match(&self, value: ExactNumber, consumed: usize, realization: LiteralRealization) -> Result<LiteralMatch, LiteralError> {
