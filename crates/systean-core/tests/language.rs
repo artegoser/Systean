@@ -35,7 +35,7 @@ fn canonical_language_package_loads_as_one_validated_unit() {
         language.phonology().alphabet.pronounce("Systean").unwrap(),
         "sjstean"
     );
-    assert_eq!(language.roots().roots().len(), 53);
+    assert_eq!(language.roots().roots().len(), 58);
     for root in [
         "sol", "ref", "mi", "tu", "na", "ke", "ne", "va", "zo", "ra", "mu", "da", "me",
         "per", "vid", "mov", "viv", "gov", "skrib",
@@ -157,6 +157,36 @@ fn language_package_can_be_built_from_embedded_sources() {
     );
     assert_eq!(language.generate_word("sol").unwrap(), "sol");
     assert_eq!(language.analyze_surface("sol").unwrap().inferred_type, "Entity");
+}
+
+#[test]
+fn language_package_can_be_built_from_embedded_full_sources() {
+    let repo = repository();
+    let alphabet = fs::read_to_string(repo.join("language/alphabet.toml")).unwrap();
+    let phonology = fs::read_to_string(repo.join("language/phonology.toml")).unwrap();
+    let morphology = fs::read_to_string(repo.join("language/morphology.toml")).unwrap();
+    let syntax = fs::read_to_string(repo.join("language/syntax.toml")).unwrap();
+    let dictionary = fs::read_to_string(repo.join("language/dictionary.toml")).unwrap();
+    let literals = fs::read_to_string(repo.join("language/literals.toml")).unwrap();
+    let units = fs::read_to_string(repo.join("language/units.toml")).unwrap();
+    let semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let language = LanguagePackage::from_sources_full(
+        &alphabet,
+        &phonology,
+        &morphology,
+        &syntax,
+        &dictionary,
+        &literals,
+        &units,
+        &[("language/semantics/core.semsys", &semantics)],
+    )
+    .unwrap();
+
+    assert!(language.literals().is_some());
+    assert_eq!(
+        language.literals().unwrap().parse_complete("mega uno pent").unwrap().canonical_written,
+        "1000005"
+    );
 }
 
 #[test]
