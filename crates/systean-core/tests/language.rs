@@ -35,18 +35,20 @@ fn canonical_language_package_loads_as_one_validated_unit() {
         language.phonology().alphabet.pronounce("Systean").unwrap(),
         "sjstean"
     );
-    assert_eq!(
-        language.roots().roots(),
-        &["da", "ke", "me", "mi", "mu", "ne", "ra", "ref", "sol", "tu", "va", "zo"]
-            .into_iter()
-            .map(str::to_owned)
-            .collect::<Vec<_>>()
-    );
+    assert_eq!(language.roots().roots().len(), 53);
+    for root in [
+        "sol", "ref", "mi", "tu", "na", "ke", "ne", "va", "zo", "ra", "mu", "da", "me",
+        "per", "vid", "mov", "viv", "gov", "skrib",
+    ] {
+        assert!(language.roots().roots().iter().any(|known| known == root));
+    }
     assert_eq!(language.generate_word("sol").unwrap(), "sol");
     assert!(language.semantics().operator("cease").is_some());
     assert_eq!(language.semantics().constant_type("sol"), Some(&Type::named("Entity")));
     assert_eq!(language.syntax().config().scope.open, "ki");
     assert_eq!(language.syntax().config().scope.close, "ku");
+    assert_eq!(language.syntax().config().quotation.open, "sit");
+    assert_eq!(language.syntax().config().quotation.close, "tis");
     assert_eq!(language.syntax().config().discourse.alias, "ali");
     assert_eq!(language.syntax().config().discourse.definition, "def");
     assert_eq!(language.syntax().config().discourse.relative, "rel");
@@ -57,7 +59,7 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     );
     assert_eq!(language.syntax().lexicon().len(), language.roots().roots().len());
     for surface in [
-        "sol", "ref", "mi", "tu", "ne", "va", "zo", "ra", "mu", "ke", "da", "me",
+        "sol", "ref", "mi", "tu", "na", "ne", "va", "zo", "ra", "mu", "ke", "da", "me",
     ] {
         assert!(language.syntax().lexicon().contains_key(surface));
     }
@@ -113,6 +115,10 @@ alias = "ali"
 definition = "def"
 relative = "rel"
 frame = "fra"
+
+[quotation]
+open = "sit"
+close = "tis"
 
 [lexemes.ne]
 kind = "prefix"
@@ -232,6 +238,20 @@ semantic = { kind = "constant", type = "Entity" }
 
     let error = package_from_dictionary(dictionary).unwrap_err();
     assert!(error.to_string().contains("discourse frame marker `fra` collides"));
+}
+
+#[test]
+fn language_package_reserves_quotation_markers_from_lexical_roots() {
+    let dictionary = r#"
+[sit]
+definition = "must collide with the reserved quotation opener"
+semantic = { kind = "constant", type = "Entity" }
+"#;
+
+    let error = package_from_dictionary(dictionary).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("quotation open marker `sit` collides"));
 }
 
 #[test]
