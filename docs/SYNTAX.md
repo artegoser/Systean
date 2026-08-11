@@ -303,3 +303,82 @@ Remaining layers include:
 5. repair/correction and complete text/turn boundaries.
 
 The exact future particles/roots remain manual language-authoring decisions. None of these layers permits heuristic parsing while unimplemented.
+
+## Phase 3 discourse control layer
+
+The surface parser remains responsible for ordinary expressions. Multi-utterance control forms are handled by the discourse layer above it, using markers declared in `language/syntax.toml`:
+
+```toml
+[discourse]
+alias = "ali"
+definition = "def"
+relative = "rel"
+frame = "fra"
+```
+
+They are structural forms, not global dictionary roots.
+
+### Exact aliases
+
+`ali` binds a local alias to one semantic value that is already represented by exactly one accessible discourse referent:
+
+```text
+ali A VALUE
+```
+
+The target is matched by exact canonical semantic value inside the current ordinary-reference frame. Zero matching referents fails. Multiple matching referents fails. After binding, `A` is exact and does not participate in 0/1/many shorthand search.
+
+Alias spellings are validated as root-like spoken tokens against the fixed alphabet, existing lexical roots, reserved structural markers, and exact root-pronunciation collisions. An alias is not inserted into `dictionary.toml` or the global semantic environment.
+
+Aliases are typed. They may refer to `Entity`, `Proposition`, `Event`, or any other declared semantic value. The current alias table is compiled into a temporary surface lexicon for each discourse-aware parse, so an alias can occupy any slot compatible with its declared semantic type.
+
+Nested lexical scopes may shadow an outer alias with the same spelling. Leaving the inner scope deterministically restores the outer binding. A local binding never escapes the scope in which it was declared.
+
+### Local definitions
+
+`def` introduces a new local semantic value and binds an alias to it in the current lexical scope:
+
+```text
+def A VALUE
+```
+
+Unlike `ali`, `def` does not require `VALUE` to have been introduced previously as an ordinary shorthand candidate.
+
+### Relative/local binding
+
+`rel` creates a temporary nested lexical binding for one body:
+
+```text
+rel A ki TARGET ku ki BODY ku
+```
+
+`TARGET` is evaluated first. A fresh lexical scope is then entered, `A` is bound to that semantic value, and `BODY` is evaluated inside that scope. The scope is always left after the body completes or fails, so the temporary alias cannot leak into following discourse.
+
+### Discourse-frame boundary
+
+`fra` advances the ordinary-reference frame:
+
+```text
+fra
+```
+
+After the boundary, ordinary `ref` resolution and omitted arguments see only referents introduced in the new frame. Older referents remain stored because an exact alias may still point to them until the alias's lexical scope ends. This separates short-term shorthand lifetime from explicit alias lifetime without time, recency, sentence-count, or salience heuristics.
+
+### Canonical resolved surface
+
+Discourse-aware analysis now exposes two canonical surfaces:
+
+- `canonical_surface`: normalization of the submitted surface structure;
+- `canonical_resolved_surface`: a safe explicit realization after discourse resolution.
+
+A successfully omitted argument is materialized as the canonical explicit `ref` root in the resolved surface. An explicit exact alias remains that alias. If a reference cannot be realized unambiguously from the current discourse state, generation fails rather than emitting a guessed shorthand.
+
+### Discourse playground
+
+The CLI exposes the same state machine through:
+
+```text
+systean discourse
+```
+
+It is both interactive and pipe/script friendly. Useful commands include `context`, `intro`, `intro-sem`, `analyze`, `resolve`, `bind`, `scope enter`, `scope leave`, `state`, plus the configured `ali`, `def`, `rel`, and `fra` forms. Analysis output includes resolved context values, aliases, shorthand-reference targets, canonical semantic IR, and canonical resolved surface.

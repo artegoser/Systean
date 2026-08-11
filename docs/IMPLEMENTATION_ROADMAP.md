@@ -347,14 +347,14 @@ Implementation:
 
 Required validation:
 
-- [ ] Unique compatible referent resolves
-- [ ] Zero candidates fails as unresolved
-- [ ] Multiple candidates fail as ambiguous
-- [ ] Wrong-type candidates are excluded structurally
-- [ ] Resolution result is independent of candidate insertion order
-- [ ] Omitted argument uses the same resolver as an explicit shorthand reference
+- [x] Unique compatible referent resolves
+- [x] Zero candidates fails as unresolved
+- [x] Multiple candidates fail as ambiguous
+- [x] Wrong-type candidates are excluded structurally
+- [x] Resolution result is independent of candidate insertion order
+- [x] Omitted argument uses the same resolver as an explicit shorthand reference
 
-Status: implementation and regression tests are present in the repository. The validation boxes remain open until the Phase 2 test suite is executed successfully in a Rust toolchain environment.
+Status: complete. The dedicated Phase 2 discourse suite passed 11/11, and the full workspace regression suite, Svelte check, WASM build, and production site build also completed successfully on the author toolchain.
 
 Completion result: multi-utterance state exists and no reference is resolved heuristically.
 
@@ -366,25 +366,48 @@ Goal: make long discourse manageable without ambiguous pronoun heuristics.
 
 Implementation:
 
-- [ ] Add selected `ali` explicit local alias binding
-- [ ] Add selected local-definition/binding constructions `def` and `rel`
-- [ ] Add alias lexical scope/lifetime
-- [ ] Allow aliases for non-Entity semantic values
-- [ ] Add selected `fra` discourse-frame/section boundary
-- [ ] Retire ordinary shorthand candidates deterministically at boundaries
-- [ ] Permit alias lifetime to outlive ordinary shorthand scope when declared
-- [ ] Enable required-argument omission only through unique reference resolution
-- [ ] Add canonical generator rules for explicit vs. shorthand references
+- [x] Add selected `ali` explicit local alias binding
+- [x] Add selected local-definition/binding constructions `def` and `rel`
+- [x] Add alias lexical scope/lifetime with deterministic inner-scope shadowing
+- [x] Allow aliases for non-Entity semantic values
+- [x] Add selected `fra` discourse-frame/section boundary
+- [x] Retire ordinary shorthand candidates deterministically at boundaries
+- [x] Permit alias lifetime to outlive ordinary shorthand frame boundaries until lexical scope exit
+- [x] Enable required-argument omission only through unique reference resolution
+- [x] Add canonical resolved-surface generation: successful omission materializes as the canonical explicit `ref`; exact aliases remain exact aliases
+- [x] Add config-driven discourse markers to `syntax.toml` rather than hardcoding Systean forms in Rust
+- [x] Add an interactive/scriptable `systean discourse` playground for contexts, introductions, reference resolution, aliases, definitions, relative bindings, scopes, frames, and surface analysis
+
+Normative Phase 3 control forms:
+
+```text
+ali A VALUE                       bind A to one already-accessible discourse value
+def A VALUE                       introduce VALUE as a new local definition bound to A
+rel A ki TARGET ku ki BODY ku     evaluate BODY with A temporarily bound to TARGET in a nested lexical scope
+fra                               start a new ordinary-reference frame
+```
+
+Alias spellings are local root-like spoken forms, not dictionary roots. The language package validates them against the fixed alphabet, lexical roots, structural markers, and exact pronunciation collisions before binding. `fra` changes ordinary shorthand accessibility only; an exact alias may continue to reference an older referent until that alias's lexical scope ends.
 
 Required validation:
 
 - [ ] Alias resolves exactly regardless of other compatible referents
 - [ ] Alias cannot escape its lexical scope
-- [ ] Boundary removes only candidates declared inaccessible
+- [ ] Inner alias binding shadows an outer alias deterministically and the outer binding reappears after scope exit
+- [ ] Non-Entity aliases type-check in typed operator slots
+- [ ] Boundary retires ordinary shorthand while preserving an in-scope exact alias
 - [ ] Omission becomes invalid as soon as a second compatible candidate exists
-- [ ] Generator never emits an ambiguous shorthand
+- [ ] `ali` fails when its target is not one existing accessible discourse value
+- [ ] `def` introduces one local value and exact alias
+- [ ] Private `def` bindings do not become ordinary shorthand candidates
+- [ ] `rel` never exports its temporary alias
+- [ ] Alias surfaces cannot collide with lexical or structural forms
+- [ ] Canonical resolved generation materializes safe shorthand deterministically
+- [ ] CLI playground integration tests cover successful and intentionally failing resolution paths
 
-Completion result: safe cross-sentence reference and omission are usable.
+Status: implementation and dedicated Phase 3/core + CLI integration tests are present. Validation remains open until the new test suites execute on the author Rust toolchain.
+
+Completion result: safe cross-sentence reference, exact local naming, deterministic boundaries, and omission are usable.
 
 ---
 
@@ -429,9 +452,9 @@ Language authoring:
 
 Tooling:
 
-- [ ] Add a discourse playground accepting several utterances
-- [ ] Show resolved references and ambiguity candidates
-- [ ] Show canonical semantic IR and regenerated surface form
+- [x] Add a discourse playground accepting several utterances
+- [x] Show resolved references and ambiguity candidates
+- [x] Show canonical semantic IR and regenerated/resolved surface form
 
 Required validation:
 
