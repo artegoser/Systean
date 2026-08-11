@@ -14,7 +14,10 @@ fn language() -> LanguagePackage {
 
 fn named(language: &LanguagePackage, payload: &str) -> Term {
     language
-        .analyze_surface(&format!("na {payload}"))
+        .analyze_surface_with_discourse(
+            &format!("na {payload}"),
+            &DiscourseState::new(),
+        )
         .unwrap()
         .resolved
         .term
