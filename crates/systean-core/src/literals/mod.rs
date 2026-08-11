@@ -178,7 +178,7 @@ impl LiteralEngine {
         let source = self
             .parse_written_quantity(&source_tokens, 0)?
             .ok_or_else(|| LiteralError(format!("invalid canonical quantity `{}`", literal.canonical)))?;
-        let quantity = self.quantity_value_from_canonical(&source.literal.canonical)?;
+        let quantity = self.quantity_value_from_canonical(&source.literal.semantic.canonical)?;
         let converted = self.units.convert(&quantity, target_unit).map_err(LiteralError)?;
         self.quantity_match(converted, 0, LiteralRealization::Written)
             .map(|matched| matched.literal)

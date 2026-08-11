@@ -45,6 +45,12 @@ impl StructuredLiteral {
     }
 }
 
+impl fmt::Display for StructuredLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}<{:?}>", self.family, self.canonical)
+    }
+}
+
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
