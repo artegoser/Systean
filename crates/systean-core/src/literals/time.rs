@@ -280,8 +280,13 @@ fn parse_written_instant(token: &str) -> Result<Option<TemporalLiteralValue>, St
     };
     let date = &token[..t_index];
     let rest = &token[t_index + 1..];
+    // `t` is also a perfectly ordinary letter in Systean roots (for example
+    // `pent`, `rat`, and `keta`).  An arbitrary token containing `t` must not
+    // become an instant candidate merely because the written ISO form uses
+    // `T` as its separator.  Only commit to instant parsing after the prefix
+    // is itself a syntactically valid written calendar date.
     let Some((year, month, day)) = parse_date(date) else {
-        return Err("invalid instant date".into());
+        return Ok(None);
     };
     validate_date(year, month, day)?;
     let (time_text, zone_text) = split_time_zone(rest)

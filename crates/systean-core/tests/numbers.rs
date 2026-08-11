@@ -145,6 +145,21 @@ fn canonical_spoken_numbers_parse_completely_and_regenerate_identically() {
 }
 
 #[test]
+fn ordinary_number_words_containing_t_are_not_misclassified_as_written_instants() {
+    let language = language();
+    let literals = language.literals().unwrap();
+
+    for source in [
+        "pent",
+        "rat ki uno ku ki tri ku",
+        "keta keta keta giga dek uno",
+    ] {
+        let literal = literals.parse_complete(source).unwrap();
+        assert_eq!(literal.semantic.ty, Type::named("Number"), "source {source}");
+    }
+}
+
+#[test]
 fn approximation_is_not_part_of_exact_number_codec() {
     let language = language();
     let error = language
