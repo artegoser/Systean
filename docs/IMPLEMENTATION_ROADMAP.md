@@ -766,11 +766,11 @@ Implementation:
 
 Required validation:
 
-- [ ] Boundary meaning is recoverable in speech and writing
-- [ ] Reference lifetime changes only at declared boundaries
-- [ ] Typography alone cannot alter semantic structure
+- [x] Boundary meaning is recoverable in speech and writing
+- [x] Reference lifetime changes only at declared boundaries
+- [x] Typography alone cannot alter semantic structure
 
-Status: **implemented; awaiting author-toolchain validation**. Dedicated Phase 15 core tests and CLI integration coverage are present. See [`PHASE_15_TEXT_STRUCTURE.md`](PHASE_15_TEXT_STRUCTURE.md).
+Status: **validated**. Dedicated Phase 15 core tests and CLI integration coverage are present and the phase is green on the author toolchain. See [`PHASE_15_TEXT_STRUCTURE.md`](PHASE_15_TEXT_STRUCTURE.md).
 
 Completion result: full multi-paragraph/multi-turn discourse is normative.
 
@@ -782,18 +782,18 @@ Goal: make "unambiguity" a package compilation invariant rather than a design as
 
 Implementation:
 
-- [ ] Centralize package-level version/provenance manifest
-- [ ] Compile every module into one immutable `LanguagePackage`
-- [ ] Add cross-layer ownership validation
-- [ ] Add reserved-token collision validation
-- [ ] Add structured-literal/root collision validation
-- [ ] Add deterministic grammar-overlap checks
-- [ ] Add AST → surface → AST property suite
-- [ ] Add semantic → surface → semantic suite for generatable domains
-- [ ] Add spoken-form ambiguity analysis
-- [ ] Add bounded exhaustive short-expression corpus
-- [ ] Add adversarial ambiguity corpus
-- [ ] Add revision compatibility diff checker
+- [x] Centralize package-level version/provenance manifest
+- [x] Compile every module into one immutable `LanguagePackage`
+- [x] Add cross-layer ownership validation
+- [x] Add reserved-token collision validation
+- [x] Add structured-literal/root collision validation
+- [x] Add deterministic grammar-overlap checks
+- [x] Add AST → surface → AST property suite
+- [x] Add semantic → surface → semantic suite for generatable domains
+- [x] Add spoken-form ambiguity analysis
+- [x] Add bounded exhaustive short-expression corpus
+- [x] Add adversarial ambiguity corpus
+- [x] Add revision compatibility diff checker
 
 Required validation:
 
@@ -801,6 +801,8 @@ Required validation:
 - [ ] Every generated canonical form reparses to the same canonical structure
 - [ ] Every compatible version preserves parse/meaning of the compatibility corpus
 - [ ] Package compilation fails on normative collisions
+
+Status: **implemented; awaiting author-toolchain validation**. The whole-language compiler, frozen compatibility/adversarial corpora, generated round-trip suite, spoken ambiguity pass, bounded exhaustive corpus, and dedicated Phase 16 regressions are present. See [`PHASE_16_COMPILER_AMBIGUITY.md`](PHASE_16_COMPILER_AMBIGUITY.md).
 
 Completion result: the language package self-validates its central guarantee.
 

@@ -20,13 +20,17 @@ The design is specified in:
 
 ```text
 language/                     canonical Systean language package
+├── package.toml              package version, provenance and validation policy
 ├── alphabet.toml
 ├── phonology.toml
 ├── morphology.toml
 ├── syntax.toml
 ├── dictionary.toml
+├── literals.toml
+├── units.toml
 ├── semantics/
-│   └── core.semsys
+│   └── *.semsys
+├── corpus/                   frozen compatibility and adversarial inputs
 └── legacy/                   superseded prototype configs
 
 crates/
@@ -64,7 +68,7 @@ The workspace currently contains:
 - reversible bare-root morphology with automatic root boundaries;
 - config-driven recursive surface syntax, scope, precedence and semantic lowering;
 - manual root validation/auditing and spoken segmentation checks;
-- `LanguagePackage`, which validates phonology, dictionary/root inventory and semantic specifications as one unit.
+- `WholeLanguageCompiler` and immutable `LanguagePackage`, which validate module versions, provenance, cross-layer ownership, generated surface/semantic round trips, spoken ambiguity, short-expression exhaustiveness and frozen compatibility/adversarial corpora as one versioned package.
 
 Run the complete native test suite:
 
@@ -77,6 +81,8 @@ Validate the canonical package:
 ```bash
 cargo run --bin systean -- check
 ```
+
+Loading a versioned package compiles `language/package.toml` together with every normative module. Normative collisions or frozen-corpus drift are package-load failures rather than parser tie-breaks.
 
 All CLI commands use `./language` by default. Another package can be selected globally:
 
