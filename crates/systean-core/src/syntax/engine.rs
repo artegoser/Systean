@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
-use crate::semantics::{Environment, canonicalize};
+use crate::semantics::{Environment, LiteralKind, canonicalize};
 use crate::spec::parse_type;
 
 use super::{
@@ -159,6 +159,28 @@ impl SyntaxEngine {
                 }
                 LexemeConfig::SpeechAct { semantic, role } => {
                     validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
+                }
+                LexemeConfig::Name { semantic, role } => {
+                    validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
+                    let signature = environment
+                        .operator(semantic)
+                        .expect("operator existence validated above");
+                    let parameter = signature
+                        .parameters
+                        .iter()
+                        .find(|parameter| parameter.name == *role)
+                        .expect("name role existence validated above");
+                    let text = environment.literal_type(LiteralKind::String).ok_or_else(|| {
+                        SurfaceError::InvalidBinding(format!(
+                            "name lexical root `{surface}` requires a declared string literal type"
+                        ))
+                    })?;
+                    if !environment.is_assignable(text, &parameter.ty) {
+                        return Err(SurfaceError::InvalidBinding(format!(
+                            "name lexical root `{surface}` role `{role}` must accept the string literal type `{text}`, but `{semantic}` requires `{}`",
+                            parameter.ty
+                        )));
+                    }
                 }
             }
         }

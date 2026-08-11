@@ -55,6 +55,8 @@ export interface SyntaxPolicy {
 	freeOrder: boolean;
 	scopeOpen: string;
 	scopeClose: string;
+	quoteOpen: string;
+	quoteClose: string;
 	explicitScope: string;
 	quantifierScope: string;
 	precedence: Record<string, number>;

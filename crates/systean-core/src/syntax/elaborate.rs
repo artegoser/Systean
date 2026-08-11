@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::semantics::{Checker, Environment, Term, Type};
+use crate::semantics::{Checker, Environment, Literal, Term, Type};
 use crate::spec::parse_type;
 
 use super::{Argument, Clause, LexemeConfig, SurfaceExpr, SurfaceLexicon};
@@ -139,6 +139,8 @@ impl Elaborator<'_> {
             SurfaceExpr::Atom(surface) => self.lower_atom(surface),
             SurfaceExpr::Context(surface) => self.lower_standalone_context(surface),
             SurfaceExpr::Alias(surface) => self.lower_standalone_alias(surface),
+            SurfaceExpr::Name { marker, payload } => self.lower_name(marker, payload),
+            SurfaceExpr::Quote(payload) => Ok(self.lower_quote(payload)),
             SurfaceExpr::Clause(clause) => self.lower_clause(clause),
             SurfaceExpr::Prefix { operator, operand } => {
                 let operand = self.lower_expr(operand)?;
@@ -173,6 +175,32 @@ impl Elaborator<'_> {
             });
         };
         Ok(Term::Const(semantic.clone()))
+    }
+
+    fn lower_name(
+        &self,
+        marker: &str,
+        payload: &str,
+    ) -> Result<Term, SurfaceElaborationError> {
+        let LexemeConfig::Name { semantic, role } = self.lexeme(marker)? else {
+            return Err(SurfaceElaborationError::WrongLexemeKind {
+                surface: marker.to_owned(),
+                expected: "name",
+            });
+        };
+        let mut arguments = BTreeMap::new();
+        arguments.insert(
+            role.clone(),
+            Term::Literal(Literal::String(payload.to_owned())),
+        );
+        Ok(Term::Call {
+            function: semantic.clone(),
+            arguments,
+        })
+    }
+
+    fn lower_quote(&self, payload: &str) -> Term {
+        Term::Literal(Literal::String(payload.to_owned()))
     }
 
     fn lower_standalone_context(
@@ -221,16 +249,21 @@ impl Elaborator<'_> {
 
     fn lower_clause(&mut self, clause: &Clause) -> Result<Term, SurfaceElaborationError> {
         let predicate = self.lexeme(&clause.predicate)?.clone();
-        let LexemeConfig::Predicate {
-            semantic,
-            primary_role,
-            rest_roles,
-        } = predicate
-        else {
-            return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: clause.predicate.clone(),
-                expected: "predicate",
-            });
+        let (semantic, primary_role, rest_roles) = match predicate {
+            LexemeConfig::Predicate {
+                semantic,
+                primary_role,
+                rest_roles,
+            } => (semantic, primary_role, rest_roles),
+            LexemeConfig::Class { semantic, role } => {
+                (semantic, Some(role), Vec::new())
+            }
+            _ => {
+                return Err(SurfaceElaborationError::WrongLexemeKind {
+                    surface: clause.predicate.clone(),
+                    expected: "predicate or class",
+                });
+            }
         };
         let signature = self
             .environment
@@ -380,6 +413,27 @@ impl Elaborator<'_> {
                     expected_type: expected.clone(),
                 });
                 Ok((Term::Var(placeholder), None))
+            }
+
+            Argument::Name { marker, payload } => {
+                let term = self.lower_name(marker, payload)?;
+                let actual = Checker::new(self.environment)
+                    .infer(&term)
+                    .map_err(|error| {
+                        SurfaceElaborationError::InvalidSemanticTerm(error.to_string())
+                    })?;
+                self.match_expected(expected, &actual, type_bindings, role)?;
+                Ok((term, None))
+            }
+            Argument::Quote(payload) => {
+                let term = self.lower_quote(payload);
+                let actual = Checker::new(self.environment)
+                    .infer(&term)
+                    .map_err(|error| {
+                        SurfaceElaborationError::InvalidSemanticTerm(error.to_string())
+                    })?;
+                self.match_expected(expected, &actual, type_bindings, role)?;
+                Ok((term, None))
             }
             Argument::Reference(surface) => {
                 let LexemeConfig::Reference = self.lexeme(surface)? else {

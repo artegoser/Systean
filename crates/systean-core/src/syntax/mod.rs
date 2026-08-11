@@ -9,7 +9,7 @@ mod parser;
 
 pub use ast::{Argument, Clause, SurfaceExpr};
 pub use config::{
-    ArgumentOmission, DiscourseConfig, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig,
+    ArgumentOmission, DiscourseConfig, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig, QuotationConfig,
     QuantifierScopePolicy, RoleRealization, SurfaceFormConfig, SyntaxConfig, SyntaxConfigError,
 };
 pub use elaborate::{

@@ -44,6 +44,10 @@ pub enum LexemeConfig {
         semantic: String,
         role: String,
     },
+    Name {
+        semantic: String,
+        role: String,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

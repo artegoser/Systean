@@ -17,6 +17,7 @@ pub struct SyntaxConfig {
     pub focus: FocusConfig,
     pub grammar: GrammarConfig,
     pub discourse: DiscourseConfig,
+    pub quotation: QuotationConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -122,6 +123,12 @@ pub struct DiscourseConfig {
     pub frame: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct QuotationConfig {
+    pub open: String,
+    pub close: String,
+}
+
 /// Surface realization attached to one lexical root in `dictionary.toml`.
 ///
 /// Semantic identity is deliberately not repeated here. Constant roots need no
@@ -154,6 +161,9 @@ pub enum SurfaceFormConfig {
         body_role: String,
     },
     SpeechAct {
+        role: String,
+    },
+    Name {
         role: String,
     },
 }
@@ -241,6 +251,17 @@ impl SyntaxConfig {
                 )));
             }
         }
+        if self.quotation.open.trim().is_empty() || self.quotation.close.trim().is_empty() {
+            return Err(SyntaxConfigError::UnsupportedPolicy(
+                "empty quotation boundary marker".into(),
+            ));
+        }
+        if self.quotation.open == self.quotation.close {
+            return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                "quotation open/close marker `{}` must be distinct",
+                self.quotation.open
+            )));
+        }
         let mut all_markers = vec![
             self.scope.open.as_str(),
             self.scope.close.as_str(),
@@ -248,6 +269,8 @@ impl SyntaxConfig {
             self.discourse.definition.as_str(),
             self.discourse.relative.as_str(),
             self.discourse.frame.as_str(),
+            self.quotation.open.as_str(),
+            self.quotation.close.as_str(),
         ];
         all_markers.sort_unstable();
         if let Some(pair) = all_markers.windows(2).find(|pair| pair[0] == pair[1]) {

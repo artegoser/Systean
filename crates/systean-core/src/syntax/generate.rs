@@ -32,6 +32,8 @@ impl Generator<'_> {
         let own = self.precedence(expression)?;
         let mut tokens = match expression {
             SurfaceExpr::Atom(surface) | SurfaceExpr::Context(surface) | SurfaceExpr::Alias(surface) => vec![surface.clone()],
+            SurfaceExpr::Name { marker, payload } => vec![marker.clone(), payload.clone()],
+            SurfaceExpr::Quote(payload) => vec![self.render_quote(payload)],
             SurfaceExpr::Clause(clause) => {
                 let mut tokens = Vec::new();
                 match self.config.order.frame {
@@ -134,6 +136,17 @@ impl Generator<'_> {
         }
     }
 
+    fn render_quote(&self, payload: &str) -> String {
+        if payload.is_empty() {
+            format!("{} {}", self.config.quotation.open, self.config.quotation.close)
+        } else {
+            format!(
+                "{} {} {}",
+                self.config.quotation.open, payload, self.config.quotation.close
+            )
+        }
+    }
+
     fn render_argument(&self, argument: &Argument) -> Vec<String> {
         match argument {
             Argument::Atom(surface)
@@ -142,6 +155,8 @@ impl Generator<'_> {
             | Argument::Alias(surface) => {
                 vec![surface.clone()]
             }
+            Argument::Name { marker, payload } => vec![marker.clone(), payload.clone()],
+            Argument::Quote(payload) => vec![self.render_quote(payload)],
             Argument::Omitted => Vec::new(),
             Argument::Quantified {
                 quantifier,

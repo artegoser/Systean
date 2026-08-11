@@ -1,4 +1,2 @@
-operator person(entity: Entity) -> Proposition;
 operator dog(entity: Entity) -> Proposition;
-operator see(observer: Entity, observed: Entity) -> Proposition;
 operator sleep(sleeper: Entity) -> Proposition;

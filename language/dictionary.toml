@@ -1,6 +1,6 @@
 [meta]
 description = "Defines the canonical lexical roots of Systean. Each root has one lexical identity, semantic binding, and—only when needed—one surface realization."
-version = "3.0"
+version = "4.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
@@ -17,6 +17,11 @@ semantic = { kind = "context", key = "speaker", type = "Entity" }
 [tu]
 definition = "The current discourse addressee supplied by the explicit runtime context."
 semantic = { kind = "context", key = "addressee", type = "Entity" }
+
+[na]
+definition = "Marks the following canonical Systean name payload as one proper-name-denoting entity; no source-language pronunciation is inferred."
+semantic = { kind = "operator", name = "proper_name" }
+syntax = { kind = "name", role = "payload" }
 
 [ke]
 definition = "Marks an utterance as a truth question about its propositional content."
@@ -57,3 +62,203 @@ syntax = { kind = "speech_act", role = "content" }
 definition = "Marks propositional content as a request speech act."
 semantic = { kind = "operator", name = "request" }
 syntax = { kind = "speech_act", role = "content" }
+
+[per]
+definition = "A human person; as a class predicate, the value is human."
+semantic = { kind = "operator", name = "person" }
+syntax = { kind = "class", role = "entity" }
+
+[anim]
+definition = "An animal; as a class predicate, the value is an animal."
+semantic = { kind = "operator", name = "animal" }
+syntax = { kind = "class", role = "entity" }
+
+[lok]
+definition = "A spatial location; as a class predicate, the value functions as a location."
+semantic = { kind = "operator", name = "location" }
+syntax = { kind = "class", role = "entity" }
+
+[obj]
+definition = "A physical object; as a class predicate, the value is materially instantiated."
+semantic = { kind = "operator", name = "physical_object" }
+syntax = { kind = "class", role = "entity" }
+
+[vid]
+definition = "Visual perception in which an observer visually perceives one observed entity."
+semantic = { kind = "operator", name = "see" }
+syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
+
+[aud]
+definition = "Auditory perception in which an observer hears one entity or sound-source entity."
+semantic = { kind = "operator", name = "hear" }
+syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["heard"] }
+
+[mov]
+definition = "Physical movement of one entity, without encoding a destination."
+semantic = { kind = "operator", name = "move" }
+syntax = { kind = "predicate", primary_role = "mover", rest_roles = [] }
+
+[ven]
+definition = "Arrival of a moving entity at an explicitly stated target."
+semantic = { kind = "operator", name = "arrive" }
+syntax = { kind = "predicate", primary_role = "mover", rest_roles = ["target"] }
+
+[vad]
+definition = "Directed movement of an entity toward an explicitly stated destination."
+semantic = { kind = "operator", name = "go_toward" }
+syntax = { kind = "predicate", primary_role = "mover", rest_roles = ["destination"] }
+
+[don]
+definition = "Intentional transfer of one item from an explicit giver to an explicit recipient."
+semantic = { kind = "operator", name = "give" }
+syntax = { kind = "predicate", primary_role = "giver", rest_roles = ["item", "recipient"] }
+
+[ten]
+definition = "Physical holding relation between a holder and the held entity."
+semantic = { kind = "operator", name = "hold" }
+syntax = { kind = "predicate", primary_role = "holder", rest_roles = ["held"] }
+
+[hab]
+definition = "Possession relation between an explicit possessor and possessed entity."
+semantic = { kind = "operator", name = "possess" }
+syntax = { kind = "predicate", primary_role = "possessor", rest_roles = ["possessed"] }
+
+[fak]
+definition = "Intentional creation in which an explicit creator brings an explicit product into existence."
+semantic = { kind = "operator", name = "create" }
+syntax = { kind = "predicate", primary_role = "creator", rest_roles = ["product"] }
+
+[viv]
+definition = "The explicit entity is alive."
+semantic = { kind = "operator", name = "alive" }
+syntax = { kind = "class", role = "entity" }
+
+[mor]
+definition = "The explicit entity dies; this root states the death relation without inferring time or aspect."
+semantic = { kind = "operator", name = "die" }
+syntax = { kind = "predicate", primary_role = "entity", rest_roles = [] }
+
+[nov]
+definition = "The explicit value is new relative to an explicitly supplied comparison standard."
+semantic = { kind = "operator", name = "new_relative" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["standard"] }
+
+[vet]
+definition = "The explicit value is old relative to an explicitly supplied comparison standard."
+semantic = { kind = "operator", name = "old_relative" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["standard"] }
+
+[bon]
+definition = "Positive evaluation of a value by an explicitly supplied criterion."
+semantic = { kind = "operator", name = "positive_by" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["criterion"] }
+
+[mal]
+definition = "Negative evaluation of a value by an explicitly supplied criterion."
+semantic = { kind = "operator", name = "negative_by" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["criterion"] }
+
+[ver]
+definition = "Explicitly presents propositional content as true without adding world-state inference to parsing."
+semantic = { kind = "operator", name = "truth" }
+syntax = { kind = "prefix", role = "value" }
+
+[fal]
+definition = "Explicitly presents propositional content as false; it is a distinct lexical identity from logical negation."
+semantic = { kind = "operator", name = "falsity" }
+syntax = { kind = "prefix", role = "value" }
+
+[sim]
+definition = "Similarity between two explicit values along one explicitly supplied comparison dimension."
+semantic = { kind = "operator", name = "similar_by" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
+
+[dif]
+definition = "Difference between two explicit values along one explicitly supplied comparison dimension."
+semantic = { kind = "operator", name = "different_by" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
+
+[par]
+definition = "Equality between two explicit values along one explicitly supplied comparison dimension."
+semantic = { kind = "operator", name = "equal_by" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
+
+[mag]
+definition = "The left value is greater than the right value along one explicitly supplied comparison dimension."
+semantic = { kind = "operator", name = "greater_by" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
+
+[min]
+definition = "The left value is less than the right value along one explicitly supplied comparison dimension."
+semantic = { kind = "operator", name = "less_by" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
+
+[in]
+definition = "Spatial relation in which one value is inside an explicit container."
+semantic = { kind = "operator", name = "inside" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["container"] }
+
+[sur]
+definition = "Spatial relation in which one value is above an explicit reference entity."
+semantic = { kind = "operator", name = "above" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference"] }
+
+[sub]
+definition = "Spatial relation in which one value is below an explicit reference entity."
+semantic = { kind = "operator", name = "below" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference"] }
+
+[prok]
+definition = "Spatial nearness relative to both an explicit reference entity and an explicit distance standard."
+semantic = { kind = "operator", name = "near_by" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference", "standard"] }
+
+[dist]
+definition = "Spatial farness relative to both an explicit reference entity and an explicit distance standard."
+semantic = { kind = "operator", name = "far_by" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference", "standard"] }
+
+[zna]
+definition = "Knowledge relation between an explicit knower and explicit propositional content."
+semantic = { kind = "operator", name = "know" }
+syntax = { kind = "predicate", primary_role = "knower", rest_roles = ["content"] }
+
+[bel]
+definition = "Belief relation between an explicit believer and explicit propositional content."
+semantic = { kind = "operator", name = "believe" }
+syntax = { kind = "predicate", primary_role = "believer", rest_roles = ["content"] }
+
+[mem]
+definition = "Remembering relation between an explicit rememberer and explicit propositional content."
+semantic = { kind = "operator", name = "remember" }
+syntax = { kind = "predicate", primary_role = "rememberer", rest_roles = ["content"] }
+
+[dum]
+definition = "Thinking or considering relation between an explicit thinker and explicit propositional content."
+semantic = { kind = "operator", name = "think" }
+syntax = { kind = "predicate", primary_role = "thinker", rest_roles = ["content"] }
+
+[nom]
+definition = "A textual value functioning as a name; this lexical concept is distinct from the proper-name marker `na`."
+semantic = { kind = "operator", name = "name_text" }
+syntax = { kind = "class", role = "value" }
+
+[tekst]
+definition = "A textual value."
+semantic = { kind = "operator", name = "text_value" }
+syntax = { kind = "class", role = "value" }
+
+[ling]
+definition = "A language as an explicit entity."
+semantic = { kind = "operator", name = "language_entity" }
+syntax = { kind = "class", role = "entity" }
+
+[gov]
+definition = "Speech or utterance by an explicit speaker of explicit textual content."
+semantic = { kind = "operator", name = "speak" }
+syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"] }
+
+[skrib]
+definition = "Writing or symbolic encoding by an explicit writer of explicit textual content."
+semantic = { kind = "operator", name = "write" }
+syntax = { kind = "predicate", primary_role = "writer", rest_roles = ["content"] }

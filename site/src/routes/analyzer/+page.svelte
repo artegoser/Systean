@@ -115,6 +115,7 @@
 			<div class="mt-3 grid gap-1 font-mono text-sm">
 				<div>frame: {syntaxPolicy.frameOrder}</div>
 				<div>scope: {syntaxPolicy.scopeOpen} ... {syntaxPolicy.scopeClose}</div>
+				<div>quote: {syntaxPolicy.quoteOpen} ... {syntaxPolicy.quoteClose}</div>
 				<div>scope policy: {syntaxPolicy.explicitScope}</div>
 				<div>quantifier scope: {syntaxPolicy.quantifierScope}</div>
 				<div>precedence: {Object.entries(syntaxPolicy.precedence).sort(([, left], [, right]) => right - left).map(([operator, precedence]) => `${operator.toUpperCase()}=${precedence}`).join(' > ')}</div>

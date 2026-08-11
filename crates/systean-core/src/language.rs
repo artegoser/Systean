@@ -283,6 +283,10 @@ fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
                 semantic: name.clone(),
                 role: role.clone(),
             },
+            SurfaceFormConfig::Name { role } => LexemeConfig::Name {
+                semantic: name.clone(),
+                role: role.clone(),
+            },
         },
         _ => unreachable!("dictionary lexical bindings are validated during parsing"),
     }
@@ -449,8 +453,24 @@ impl LanguagePackage {
 
     pub fn analyze_surface(&self, expression: &str) -> Result<SurfaceAnalysis, LanguageError> {
         self.syntax
-            .analyze(expression, &self.semantics)
-            .map_err(LanguageError::Syntax)
+            .validate_environment(&self.semantics)
+            .map_err(LanguageError::Syntax)?;
+        let syntax = self.syntax.parse(expression).map_err(LanguageError::Syntax)?;
+        self.validate_surface_payloads(&syntax)?;
+        let canonical_surface = self
+            .syntax
+            .linearize(&syntax)
+            .map_err(LanguageError::Syntax)?;
+        let lowered = self
+            .syntax
+            .lower(&syntax, &self.semantics)
+            .map_err(LanguageError::Syntax)?;
+        Ok(SurfaceAnalysis {
+            syntax,
+            canonical_surface,
+            inferred_type: lowered.inferred_type.to_string(),
+            canonical_semantics: canonicalize(&lowered.term).to_string(),
+        })
     }
 
     pub fn analyze_surface_with_discourse(
@@ -464,6 +484,7 @@ impl LanguagePackage {
         let lexicon = self.discourse_lexicon(discourse)?;
         let syntax = parse_surface(expression, self.syntax.config(), &lexicon)
             .map_err(|errors| LanguageError::Syntax(SurfaceError::Parse(errors)))?;
+        self.validate_surface_payloads(&syntax)?;
         let canonical_surface = linearize_surface(&syntax, self.syntax.config(), &lexicon)
             .map_err(|error| LanguageError::Syntax(SurfaceError::Generate(error)))?;
         let typed = elaborate_surface(&syntax, &lexicon, &self.semantics)
@@ -521,6 +542,8 @@ impl LanguagePackage {
             config.discourse.definition.as_str(),
             config.discourse.relative.as_str(),
             config.discourse.frame.as_str(),
+            config.quotation.open.as_str(),
+            config.quotation.close.as_str(),
         ];
         if structural.contains(&surface) {
             return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
@@ -627,6 +650,54 @@ impl LanguagePackage {
             .map_err(|message| LanguageError::Syntax(SurfaceError::InvalidBinding(message)))
     }
 
+    fn validate_surface_payloads(&self, expression: &SurfaceExpr) -> Result<(), LanguageError> {
+        match expression {
+            SurfaceExpr::Name { payload, .. } => self.validate_name_payload(payload),
+            SurfaceExpr::Quote(_)
+            | SurfaceExpr::Atom(_)
+            | SurfaceExpr::Context(_)
+            | SurfaceExpr::Alias(_) => Ok(()),
+            SurfaceExpr::Clause(clause) => {
+                if let Some(primary) = &clause.primary {
+                    self.validate_argument_payload(primary)?;
+                }
+                for argument in &clause.rest {
+                    self.validate_argument_payload(argument)?;
+                }
+                Ok(())
+            }
+            SurfaceExpr::Prefix { operand, .. } => self.validate_surface_payloads(operand),
+            SurfaceExpr::SpeechAct { content, .. } => self.validate_surface_payloads(content),
+            SurfaceExpr::Infix { operands, .. } => {
+                for operand in operands {
+                    self.validate_surface_payloads(operand)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn validate_argument_payload(
+        &self,
+        argument: &crate::syntax::Argument,
+    ) -> Result<(), LanguageError> {
+        match argument {
+            crate::syntax::Argument::Name { payload, .. } => self.validate_name_payload(payload),
+            _ => Ok(()),
+        }
+    }
+
+    fn validate_name_payload(&self, payload: &str) -> Result<(), LanguageError> {
+        self.phonology
+            .analyze_root(payload)
+            .map(|_| ())
+            .map_err(|error| {
+                LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                    "proper-name payload `{payload}` is not a canonical Systean spoken form: {error}"
+                )))
+            })
+    }
+
     pub fn explain(&self, expression: &str) -> Result<SemanticAnalysis, LanguageError> {
         let parsed = parse_term(expression).map_err(|errors| {
             LanguageError::SemanticExpression(
@@ -717,6 +788,8 @@ fn validate_syntax(
         ("discourse definition marker", config.discourse.definition.as_str()),
         ("discourse relative marker", config.discourse.relative.as_str()),
         ("discourse frame marker", config.discourse.frame.as_str()),
+        ("quotation open marker", config.quotation.open.as_str()),
+        ("quotation close marker", config.quotation.close.as_str()),
     ];
     for (kind, marker) in markers {
         validate_surface_token(kind, marker, phonology)?;

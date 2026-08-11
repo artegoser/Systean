@@ -1,6 +1,5 @@
 operator smoke(agent: Entity, object: Entity) -> Process;
 operator smoke_activity(agent: Entity, object_kind: Entity) -> Activity;
-operator person(entity: Entity) -> Proposition;
 operator arrived(entity: Entity) -> Proposition;
 const john: Entity;
 const cigarette_x: Entity;

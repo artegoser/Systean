@@ -147,6 +147,8 @@ pub fn syntax_policy_json() -> Result<String, JsValue> {
         "freeOrder": config.order.free_order,
         "scopeOpen": &config.scope.open,
         "scopeClose": &config.scope.close,
+        "quoteOpen": &config.quotation.open,
+        "quoteClose": &config.quotation.close,
         "explicitScope": format!("{:?}", config.scope.explicit),
         "quantifierScope": format!("{:?}", config.scope.quantifier_order),
         "precedence": &config.logic.precedence,

@@ -45,7 +45,11 @@ fn rewrite_expr(
     reference_index: &mut usize,
 ) -> Result<SurfaceExpr, DiscourseGenerationError> {
     Ok(match expression {
-        SurfaceExpr::Atom(_) | SurfaceExpr::Context(_) | SurfaceExpr::Alias(_) => expression.clone(),
+        SurfaceExpr::Atom(_)
+        | SurfaceExpr::Context(_)
+        | SurfaceExpr::Alias(_)
+        | SurfaceExpr::Name { .. }
+        | SurfaceExpr::Quote(_) => expression.clone(),
         SurfaceExpr::Clause(clause) => SurfaceExpr::Clause(Clause {
             primary: clause
                 .primary
