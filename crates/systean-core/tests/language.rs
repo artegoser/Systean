@@ -58,6 +58,8 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert_eq!(language.syntax().config().scope.close, "ku");
     assert_eq!(language.syntax().config().quotation.open, "sit");
     assert_eq!(language.syntax().config().quotation.close, "tis");
+    assert_eq!(language.syntax().config().text.utterance_spoken, "du");
+    assert_eq!(language.syntax().config().text.utterance_written, ".");
     assert_eq!(language.syntax().config().discourse.alias, "ali");
     assert_eq!(language.syntax().config().discourse.definition, "def");
     assert_eq!(language.syntax().config().discourse.relative, "rel");
@@ -135,6 +137,11 @@ frame = "fra"
 [quotation]
 open = "sit"
 close = "tis"
+
+[text]
+utterance_spoken = "du"
+utterance_written = "."
+readability_punctuation = [",", ":", ";", "?", "!"]
 
 [pragmatics]
 default_assertion_operator = "assert"
@@ -313,6 +320,18 @@ semantic = { kind = "constant", type = "Entity" }
 
     let error = package_from_dictionary(dictionary).unwrap_err();
     assert!(error.to_string().contains("scope marker `ki` collides"));
+}
+
+#[test]
+fn language_package_reserves_spoken_utterance_boundary_from_lexical_roots() {
+    let dictionary = r#"
+[du]
+definition = "must collide with the reserved spoken utterance boundary"
+semantic = { kind = "constant", type = "Entity" }
+"#;
+
+    let error = package_from_dictionary(dictionary).unwrap_err();
+    assert!(error.to_string().contains("spoken utterance boundary `du` collides"));
 }
 
 #[test]
