@@ -13,6 +13,7 @@ The design is specified in:
 - [`docs/SYNTAX.md`](docs/SYNTAX.md)
 - [`docs/ENGINE_ARCHITECTURE.md`](docs/ENGINE_ARCHITECTURE.md)
 - [`docs/FINAL_ARCHITECTURE.md`](docs/FINAL_ARCHITECTURE.md)
+- [`docs/SEMANTIC_DSL_ARCHITECTURE.md`](docs/SEMANTIC_DSL_ARCHITECTURE.md)
 - [`docs/SUBJECTIVE_STATES.md`](docs/SUBJECTIVE_STATES.md)
 - [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md)
 
@@ -171,4 +172,14 @@ Current engine-backed pages:
 
 ## Design status
 
-Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`. Phase 18 is the Systean 1.0 language freeze. Vocabulary remains manually authored.
+Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`.
+
+Before the 1.0 freeze, the accepted roadmap now includes a deliberate architecture cleanup:
+
+- Phase 18 — typed semantic identity and DSL core migration;
+- Phase 19 — declarative surface grammar and discourse effects;
+- Phase 20 — complete English reference documentation and deterministic controlled-English rendering;
+- Phase 21 — user-facing learning site and interactive contextual analyzer;
+- Phase 22 — Systean 1.0 language freeze.
+
+The target model is specified in `docs/SEMANTIC_DSL_ARCHITECTURE.md`. The existing `dictionary.toml`/string-semantic structure remains the current Phase 17 implementation baseline, not the intended permanent 1.0 ownership model. Vocabulary remains manually authored.

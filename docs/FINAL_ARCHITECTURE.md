@@ -6,6 +6,8 @@ Implementation status: only some layers are executable today. This document free
 
 This document complements the focused specifications in `PHONOLOGY.md`, `MORPHOLOGY.md`, `SEMANTICS.md`, and `SYNTAX.md`. When implementation work reaches a layer described here, its focused specification may add detail but must preserve the invariants and ownership boundaries defined below unless the language design is deliberately revised.
 
+The pre-1.0 semantic/package architecture has been deliberately revised after Phase 17. [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md) is normative for semantic identity, the `.semsys` DSL, compiled IDs, declarative surface realization, typed structured values, English documentation separation, and compatibility fingerprinting. Where an older paragraph in this document would conflict with that focused revision, the focused revision wins.
+
 ---
 
 ## 1. End-state goal
@@ -89,60 +91,53 @@ The generator must never use a shorthand reference whose interpretation would be
 
 Each fact must have one authoritative home. Derived indexes may exist in memory but must never require a second manually synchronized declaration.
 
-### 3.1 Lexical roots
+### 3.1 Lexical and semantic declarations
 
-`language/dictionary.toml` is the single source of truth for manually authored lexical roots.
+Ordinary Systean words are authored once in typed `.semsys` declarations. The final architecture does not use `dictionary.toml` plus a duplicated semantic operator signature as two authoritative declarations.
 
-A lexical entry owns:
+A lexical declaration owns:
 
-- root spelling;
-- one human-readable lexical definition;
-- one formal semantic identity or semantic binding;
-- surface behavior only when that behavior is intrinsic to the lexical item.
+- the Systean root/surface identity;
+- one typed semantic declaration: primitive, defined, or intrinsic-backed;
+- its parameter/result types;
+- non-default surface behavior only when genuinely needed.
 
-A lexical entry does not duplicate:
+The Systean root is not mapped through an English semantic identifier. Human labels/explanations are separate documentation metadata.
 
-- semantic operator signatures declared in `.semsys`;
-- global precedence declared by syntax policy;
-- phoneme mappings declared by the alphabet/phonology layer;
-- root lists in another syntax-specific table.
+### 3.2 Semantic model
 
-The engine compiles the dictionary into derived lexical indexes used by morphology, syntax, semantics, diagnostics, and the website.
+`.semsys` modules own:
 
-### 3.2 Semantic declarations
+- semantic types and subtype/generic relationships;
+- primitive symbols;
+- algebraic data constructors;
+- formal definitions;
+- intrinsic capability declarations;
+- contexts, dimensions, and units;
+- declarative semantic/effect rules;
+- lexical declarations that bind Systean roots to those structures.
 
-`language/semantics/*.semsys` is the source of truth for:
+Rust implements the generic typed calculus, compiler, intrinsic ABI, effect runtime, and validation machinery. It does not own the Systean word inventory or interpret English/source names as semantic behavior.
 
-- semantic types;
-- subtype relations;
-- generic types;
-- operator signatures;
-- named semantic roles;
-- semantic definitions that are genuinely language semantics rather than lexical spelling.
+### 3.3 Surface realization
 
-Rust implements the generic calculus and checker, not the Systean operator inventory.
+Typed `form` declarations and a small set of genuine structural policies own Systean surface realization. Parser and canonical linearizer are derived from the same compiled surface rule.
 
-### 3.3 Structural syntax
+The architecture does not maintain a duplicate syntax-specific root inventory and does not require one Rust enum variant per Systean construction.
 
-`language/syntax.toml` owns structural policies such as:
+### 3.4 Human documentation and English rendering
 
-- canonical frame order;
-- scope markers;
-- precedence;
-- grouping policy;
-- argument realization policy;
-- whether reordering is permitted;
-- structural defaults that are not lexical identities.
+English documentation is a separate package layer. Every public 1.0 word must have an English short gloss and detailed explanation, but those strings do not participate in semantic identity.
 
-It must not contain a duplicate root inventory.
+Controlled English rendering consumes canonical semantics. It is not word-for-word gloss substitution.
 
-### 3.4 Phonology and morphology
+### 3.5 Phonology and morphology
 
 `alphabet.toml`, `phonology.toml`, and `morphology.toml` own only their respective mechanisms. The current phoneme/alphabet inventory is fixed. Morphology v1 remains `WORD = ROOT` unless a concrete future local derivation justifies an extension.
 
-### 3.5 Package identity and versioning
+### 3.6 Package identity and versioning
 
-The final package should have one package-level manifest/version source rather than independent authoritative language-version numbers scattered across modules. Module-local schema versions may exist for file-format compatibility, but they are not separate language versions.
+The package has one package-level version source and separate semantic, surface, and documentation fingerprints. Module-local schema versions may exist for file-format compatibility, but they are not separate language versions.
 
 ---
 
@@ -175,15 +170,29 @@ Every transformation records enough provenance for the analyzer to explain where
 
 An ordinary root has one normative lexical identity. Context does not choose between unrelated senses.
 
-The dictionary may bind a root to:
+An ordinary lexical declaration is a typed function/value declaration, for example conceptually:
 
-- a typed semantic constant;
-- a semantic operator;
-- a declared construction whose semantic target is explicit.
+```text
+word sol : Entity;
+word per($entity: Entity) -> Prop;
+word vid($observer: Entity, $observed: Entity) -> Prop;
+```
+
+The compiled semantic identity is a package-owned symbol ID, not the English strings `person`, `see`, `observer`, or similar labels.
 
 Traditional POS tags are not required to determine meaning.
 
-### 5.2 Manual vocabulary authoring
+### 5.2 Primitive, defined, intrinsic-backed
+
+A lexical declaration is exactly one of:
+
+- primitive semantic identity;
+- formally defined composition over other typed terms;
+- binding to a declared generic runtime intrinsic.
+
+Adding an ordinary primitive or defined word must not require editing Rust.
+
+### 5.3 Manual vocabulary authoring
 
 Roots are authored manually by the language author. Tooling may:
 
@@ -191,12 +200,18 @@ Roots are authored manually by the language author. Tooling may:
 - detect exact collisions;
 - warn about near collisions;
 - report reserved-token conflicts;
-- show semantic binding conflicts;
+- show semantic binding/type conflicts;
 - compare a proposed root against the existing inventory.
 
 Tooling must not allocate or invent roots automatically.
 
-### 5.3 No productive vague derivation
+### 5.4 Human explanations are not identity
+
+English glosses, explanations, examples, and search metadata are documentation. They may change without changing semantic identity.
+
+Every public 1.0 word must eventually have complete English documentation under the Phase 20 contract.
+
+### 5.5 No productive vague derivation
 
 There is no generic `ROOT -> related_to(ROOT)` derivation. If a relation means `made_of`, `caused_by`, `similar_in_color_to`, `located_at`, or another specific concept, that relation is expressed explicitly.
 
@@ -217,6 +232,8 @@ The current syntax decisions remain normative:
 - questions, commands, and requests use explicit constructions;
 - focus does not reorder core arguments;
 - traditional noun/verb/adjective classes are not the grammar's primary categories.
+
+The default realization of an ordinary typed word is derived from its arity and the canonical frame policy. Non-default realization is declared with typed bidirectional `form` rules. Quantifiers and other higher-order constructions should be expressed through typed function-valued arguments when possible instead of receiving dedicated parser branches. Parser implementation order never resolves an ambiguity; complete typed overlap remains an error.
 
 The canonical core lexical forms currently fixed are:
 
@@ -771,60 +788,77 @@ A deterministic parser that merely picks the first branch is not sufficient evid
 
 Systean language versions are independent of engine crate versions.
 
-The final package has a canonical language version and content hash/provenance identity.
+The final package exposes at least three compatibility domains:
+
+```text
+semantic_fingerprint
+surface_fingerprint
+documentation_fingerprint
+```
+
+Semantic fingerprints exclude comments, English glosses/explanations, source formatting, and alpha-equivalent local binder names. They include signatures, definitions, type/data structure, intrinsic bindings, and semantic/discourse behavior.
+
+Surface fingerprints include roots, forms, precedence/grouping, structured notation, and canonical spoken/written realization.
+
+Documentation fingerprints include English glosses, explanations, examples, and other learning/reference metadata.
 
 ### Compatible revision
 
 A compatible revision may:
 
-- add new roots without changing existing root meanings;
-- add new operators/constructions that do not change parses of previously valid forms;
-- add new structured-literal domains without reinterpreting old forms;
-- improve diagnostics/tooling without changing language meaning.
+- add new roots without changing existing root meanings or old parses;
+- add new operators/constructions that do not change previously valid analyses;
+- add structured-value domains without reinterpreting old forms;
+- improve diagnostics/tooling;
+- improve English documentation without changing semantic/surface identity.
 
 ### Breaking revision
 
-A breaking revision is required to:
+A breaking semantic/surface revision is required to:
 
 - change an existing root's normative meaning;
 - remove a previously valid root/construction;
 - change the parse or scope of an existing valid surface expression;
 - change canonical pronunciation/spelling of existing forms;
-- change reference resolution of an existing valid discourse under the same explicit context.
+- change reference resolution or discourse effect of an existing valid discourse under the same explicit context.
 
 Deprecation metadata may discourage generation of an old form, but compatible revisions do not silently change its meaning.
 
 ---
 
-## 30. Analyzer and tooling
+## 30. Analyzer, English reference, and learning tooling
 
-The final analyzer exposes the same engine pipeline used by CLI/WASM, not a parallel implementation.
+The analyzer exposes the same engine pipeline used by CLI/WASM, not a parallel implementation.
 
-For a word it can show:
+For a word, user-level tooling can show:
 
 - lexical root;
-- definition;
-- morphology;
-- pronunciation;
-- syllables/stress;
-- semantic binding;
-- provenance.
+- pronunciation, syllables, and stress;
+- English short gloss;
+- detailed English explanation;
+- primitive/defined/intrinsic-backed status;
+- human-readable typed signature and argument explanations;
+- declared surface realizations/construction patterns;
+- examples and controlled English rendering;
+- advanced provenance/spec links when requested.
 
-For an utterance/discourse it can show:
+For an utterance/discourse, user-level tooling can show:
 
-- tokenization;
-- surface AST;
+- deterministic controlled English rendering;
+- interactive token-level semantic contribution;
+- argument/dependency relationships;
 - grouping/scope;
-- semantic roles;
-- expected and resolved reference types;
+- expected and resolved reference/context/alias relationships;
 - candidate referents on ambiguity errors;
-- semantic term;
-- canonicalized term;
-- discourse-state changes;
+- discourse effects/history links;
 - canonical regenerated form;
-- provenance for every contribution.
+- optional advanced AST/semantic IR/provenance.
 
-Diagnostics should distinguish the layer that failed: lexical, phonological, morphological, syntactic, reference/discourse, semantic type, or package validation.
+Raw JSON, numeric IDs, serialized Rust enums, and provenance blobs are developer diagnostics, not the default learning interface.
+
+The workbench/API must expose enough structured dependency/scope/reference/rendering-provenance data that the Svelte site never reconstructs semantics from token strings or formatted IR.
+
+Diagnostics should distinguish the layer that failed while presenting a human explanation first.
 
 ---
 
@@ -849,50 +883,70 @@ The target Rust architecture is conceptually:
 
 ```text
 systean-core/
-  package/       load, compile, version, provenance
-  lexicon/       dictionary schema + compiled lexical index
+  package/       load, module graph, IDs, version, fingerprints, provenance
+  dsl/           `.semsys` parser + source AST
+  symbols/       interning/resolution for symbols/types/constructors/units/etc.
   phonology/     spelling/pronunciation/syllables/stress
   morphology/    word analysis/generation
-  literals/      structured literal codecs
-  syntax/        surface AST, parser, linearizer
-  elaboration/   expected roles/types, unresolved slots
-  discourse/     referents, aliases, boundaries, resolution
-  semantics/     term IR, types, checking, canonicalization
-  compiler/      cross-layer validation and ambiguity checks
-  analysis/      explainable end-to-end analysis models
+  semantics/     typed term/data IR, elaboration, checking, canonicalization
+  surface/       typed bidirectional rules, parser, linearizer, scope structures
+  codecs/        structured written/spoken notation <-> typed values
+  discourse/     referents, aliases, boundaries, typed resolution, generic effects
+  compiler/      cross-layer validation, ambiguity checks, compatibility/fingerprints
+  english/       deterministic controlled-English renderer + alignment provenance
+  documentation/ compiled English reference/search metadata
+  workbench/     explainable end-to-end user/developer reports
 ```
 
 Exact Rust file names may differ. The architectural ownership must not.
 
-`cli` and `wasm` remain thin consumers of `systean-core`. The Svelte site remains a UI consumer and never reimplements language semantics.
+`cli` and `wasm` remain thin consumers of `systean-core`. The Svelte site remains a UI consumer and never reimplements language semantics or English rendering.
 
 ---
 
 ## 33. Target language-package boundaries
 
-The exact file split may evolve, but the final package must preserve single ownership. A plausible end state is:
+The exact file split may evolve, but the final package must preserve single ownership and the Phase 18–21 separation.
+
+A plausible end state is:
 
 ```text
 language/
-  package.toml          package identity/version/module manifest
-  alphabet.toml         fixed orthography ↔ phoneme inventory
-  phonology.toml        phonological policies
-  morphology.toml       word-formation policy
-  syntax.toml           structural surface policy
-  dictionary.toml       all manually authored lexical roots
-  discourse.toml        discourse/reference policy, no runtime referents
-  literals.toml         structured literal/quotation/name policies
-  units.toml            declared unit identities/conversions
+  package.toml
+  alphabet.toml
+  phonology.toml
+  morphology.toml
+
   semantics/
     core.semsys
-    time.semsys
+    logic.semsys
     discourse.semsys
-    quantity.semsys
+    values.semsys
+    quantities.semsys
+    time.semsys
     pragmatics.semsys
+
+  lexicon/
+    core.semsys
+    subjective.semsys
     ...
+
+  surface/
+    core.semsys
+    literals.semsys
+    ...
+
+  docs/
+    en.sydoc
+
+  corpus/
+    compatibility.tsv
+    adversarial.tsv
 ```
 
-This is an ownership model, not a requirement to create empty files early. A module is introduced only when the corresponding implementation exists.
+Data-only alphabet/phonology/morphology configuration may remain TOML. Semantic declarations, lexical function signatures, algebraic structured values, dimensions/units, and nontrivial surface/effect behavior must not be encoded as nested TOML objects that merely serialize engine enums.
+
+The Phase 17 files `dictionary.toml`, semantic parts of `syntax.toml`, `literals.toml`, and string-identified `units.toml` are migration sources, not the desired permanent ownership model.
 
 ---
 

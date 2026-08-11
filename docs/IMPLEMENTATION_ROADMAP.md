@@ -1,7 +1,7 @@
 # Systean Implementation Roadmap to 1.0
 
 Status: **authoritative implementation roadmap**
-Architecture source: [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md)
+Architecture sources: [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md) and the accepted pre-1.0 revision [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
 
 This roadmap deliberately separates architecture from implementation. The architecture may be documented before code exists; however, a phase is not considered implemented until its executable invariants and regression/property tests pass.
 
@@ -841,25 +841,252 @@ Completion result: language authoring and debugging no longer require reading ra
 
 ---
 
-## Phase 18 — Systean 1.0 language freeze
+## Phase 18 — Typed semantic identity and DSL core migration
 
-Goal: publish a stable first usable standard rather than an endlessly moving prototype.
+Goal: replace stringly semantic identity and duplicate lexical/operator ownership before freezing 1.0.
+
+Detailed plan: [`PHASE_18_SEMANTIC_DSL_CORE.md`](PHASE_18_SEMANTIC_DSL_CORE.md)
+Architecture: [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
+
+Semantic identity and DSL:
+
+- [ ] Extend/rework `.semsys` around typed `word`, `primitive`, `def`, `intrinsic`, `data`, `context`, `dimension`, and `unit` declarations
+- [ ] Compile source names to stable package IDs (`SymbolId`, `TypeId`, `ConstructorId`, `ContextSlotId`, `DimensionId`, `UnitId`, ...)
+- [ ] Remove runtime semantic dependence on English/source identifiers
+- [ ] Make binder/parameter source names non-semantic and alpha-normalized
+- [ ] Preserve source spans/names only for diagnostics, documentation, workbench display, and migration diffs
+
+Lexical ownership:
+
+- [ ] Migrate ordinary roots from `dictionary.toml` + duplicated `.semsys` operator signature to one typed DSL declaration
+- [ ] Make the Systean declaration own semantic identity directly instead of `root -> English identifier -> opaque symbol`
+- [ ] Derive ordinary default surface frames from typed arity where possible
+- [ ] Ensure adding an ordinary primitive word requires one declaration and no Rust change
+
+Typed values:
+
+- [ ] Replace `StructuredLiteral { family: String, canonical: String }` with typed algebraic/scalar terms
+- [ ] Remove `unknown:context:speaker` and other string-encoded semantic mini-languages
+- [ ] Represent unknown/unspecified/withheld information structurally
+- [ ] Migrate numbers, quantities, dates, times, durations, and intervals to typed canonical values
+- [ ] Replace string-identified unit/dimension semantics with compiled IDs
+- [ ] Remove engine special cases keyed by names such as `"time"` or `"second"`
+
+Compatibility:
+
+- [ ] Introduce separate semantic and surface fingerprints
+- [ ] Ensure source formatting, comments, and binder renames do not change semantic fingerprint
+- [ ] Ensure semantic signature/definition changes do change semantic fingerprint
+- [ ] Ensure surface spelling/form changes do change surface fingerprint
+- [ ] Preserve Phase 17 behavior through the frozen compatibility corpus unless a change is deliberately approved
+
+Required validation:
+
+- [ ] Canonical semantic IR contains no human semantic identity strings
+- [ ] Ordinary lexical growth needs no Rust code
+- [ ] Structured values never require a later layer to parse their canonical string representation
+- [ ] Unit/dimension behavior contains no English-name special cases
+- [ ] Alpha-equivalent DSL declarations produce equal canonical semantics/fingerprint
+- [ ] Existing behavioral, compatibility, ambiguity, native, and WASM suites remain green
+
+Completion result: the core has one typed semantic identity model and no longer uses English/source strings as hidden semantics.
+
+---
+
+## Phase 19 — Declarative surface grammar and discourse effects
+
+Goal: complete the package architecture so ordinary syntax and Systean-specific discourse/pragmatic behavior are declarative over the Phase 18 typed IR.
+
+Detailed plan: [`PHASE_19_DECLARATIVE_LANGUAGE_PACKAGE.md`](PHASE_19_DECLARATIVE_LANGUAGE_PACKAGE.md)
+
+Surface grammar:
+
+- [ ] Implement typed `form` declarations compiled to both parser and canonical linearizer
+- [ ] Replace growing `Class/Predicate/Prefix/Infix/Quantifier/SpeechAct/...` special-case inventories with generic typed surface rules where possible
+- [ ] Express ordinary unary/binary/n-ary frames through the default word frame
+- [ ] Express `ne`, `va`, `zo` through declarative forms and semantic composition
+- [ ] Express `ra`/`mu` through higher-order typed predicate arguments where possible
+- [ ] Migrate counted quantifiers, aspect, focus/topic, speech acts, and related constructions to generic forms when representable
+- [ ] Keep genuinely structural boundaries/markers explicit rather than forcing them into a lexical abstraction
+
+Elaboration/reference:
+
+- [ ] Allow predicate/function values as first-class typed arguments for higher-order constructions
+- [ ] Use expected type to reject impossible analyses without ranking multiple valid analyses
+- [ ] Compile context roots through `ContextSlotId`
+- [ ] Compile `ref<T>` and safe omission to one generic typed resolver request with distinct provenance
+- [ ] Preserve exact alias semantics and 0/1/many reference resolution
+
+Discourse effects:
+
+- [ ] Define a small stable generic effect instruction set
+- [ ] Declare question/assertion/request/command/focus/topic/repair behavior through typed package effects
+- [ ] Remove Systean-specific communicative-act behavior keyed by source strings/enums from Rust
+- [ ] Keep every effect visible in workbench provenance
+
+Schema cleanup:
+
+- [ ] Remove unsupported/fake configuration alternatives that validators currently reject
+- [ ] Remove old semantic root/form inventories from TOML after migration
+- [ ] Ensure no active language rule depends on `language/legacy/`
+
+Required validation:
+
+- [ ] Parser and generator derive from the same rule and round-trip canonically
+- [ ] `ra per viv` and the full quantifier corpus preserve intended meaning without a quantifier-specific parse shortcut
+- [ ] Existing precedence/grouping/reference/repair behavior remains deterministic
+- [ ] New language-specific constructions using existing semantic/effect primitives require no Rust changes
+- [ ] Whole-language compiler still rejects every complete typed ambiguity rather than ranking candidates
+- [ ] Native/WASM/site engine contract remains one implementation
+
+Completion result: Rust is a generic typed language engine; Systean-specific language growth is predominantly `.semsys` package authoring.
+
+---
+
+## Phase 20 — English reference documentation and controlled rendering
+
+Goal: make every public word understandable in English and make every supported canonical Systean expression renderable into one deterministic bridge language.
+
+Detailed plan: [`PHASE_20_ENGLISH_REFERENCE.md`](PHASE_20_ENGLISH_REFERENCE.md)
+
+English is fixed as the Systean 1.0 bridge language. English documentation/rendering is **not** semantic identity and does not participate in normative parsing.
+
+Per-word documentation:
+
+- [ ] Every public root has a short English `gloss`
+- [ ] Every public root has a detailed English `explain` entry
+- [ ] Documentation displays the compiled semantic signature rather than duplicating it manually
+- [ ] Every public root has at least one canonical executable example
+- [ ] Operators/constructions have examples that make scope/argument behavior visible where relevant
+- [ ] Explanations state important non-implications/contrasts when a short English gloss would otherwise be misleading
+- [ ] Documentation indicates primitive / defined / intrinsic-backed status
+
+Documentation compiler:
+
+- [ ] Store human documentation separately from normative semantic declarations, provisionally under `language/docs/en.sydoc`
+- [ ] Resolve documentation entries to compiled symbols
+- [ ] Fail release validation when any public 1.0 root lacks required English documentation
+- [ ] Parse/test documentation examples through the real engine
+- [ ] Give documentation an independent fingerprint
+- [ ] Ensure documentation-only edits do not change semantic/surface fingerprints
+
+Controlled English rendering:
+
+- [ ] Render from canonical typed semantics, never by concatenating word glosses
+- [ ] Cover ordinary predicates/relations, logical operators, quantifiers, generic/statistical claims, structured values, information status, context/reference, speech acts, and repair
+- [ ] Preserve scope explicitly even when the most idiomatic English wording would hide it
+- [ ] Preserve unknown/unspecified/withheld information without inventing content
+- [ ] Expose rendering provenance/alignment data where feasible for the analyzer
+- [ ] Keep optional future idiomatic/natural paraphrasing non-normative and outside 1.0 acceptance
+
+Required validation:
+
+- [ ] 100% public vocabulary documentation coverage
+- [ ] All documentation examples parse and preserve intended canonical semantics
+- [ ] Controlled English golden corpus covers every major semantic subsystem
+- [ ] Rendering is deterministic and cannot alter Systean parse/meaning
+- [ ] English wording changes affect only documentation/rendering compatibility, not semantic identity
+
+Completion result: English is a complete learning/reference bridge for Systean 1.0 without becoming part of Systean semantics.
+
+---
+
+## Phase 21 — User-facing learning site and interactive analyzer
+
+Goal: turn the Phase 17 developer-oriented workbench UI into a site for actual Systean users and learners.
+
+Detailed plan: [`PHASE_21_LEARNING_SITE.md`](PHASE_21_LEARNING_SITE.md)
+
+Dictionary:
+
+- [ ] Replace flat/raw semantic-object presentation with structured user-facing word pages
+- [ ] Search by Systean root, English gloss, English explanation, tags, and examples
+- [ ] Add filters for primitive/defined/intrinsic-backed declaration, result type, arity, argument types, semantic/documentation domain, structural category, and stability where available
+- [ ] Keep filters URL-addressable and mobile/keyboard usable
+- [ ] Show root, pronunciation/stress, gloss, human-readable signature, explanation, examples, and all declared surface realizations
+- [ ] Treat “all forms” as all real surface/construction realizations; do not invent inflection tables for bare-root morphology
+
+Analyzer primary UX:
+
+- [ ] Put deterministic English rendering near the top of every successful analysis
+- [ ] Replace raw JSON/serialized AST as the default view with an interactive annotated Systean expression
+- [ ] On hover/focus, show each token's short meaning, contextual meaning, semantic contribution, argument/role, scope, resolution, and discourse effect where applicable
+- [ ] Highlight the other words/phrases influenced by the hovered token
+- [ ] Highlight participant-to-relation links for predicates
+- [ ] Highlight restriction/body and scope for quantifiers
+- [ ] Highlight the exact proposition affected by negation/scope operators
+- [ ] Highlight resolved referent/context/alias targets for reference words and omissions
+- [ ] Highlight repair/history targets for correction/retraction/clarification
+- [ ] Make all hover information available through keyboard focus/tap
+
+Click-through learning:
+
+- [ ] Clicking a token pins its contextual explanation
+- [ ] Open the full dictionary/detail view without losing the analyzed expression
+- [ ] Show all declared forms, examples, pronunciation, detailed English explanation, typed signature, and formal-spec links
+- [ ] Preserve the distinction between “what this word means generally” and “what it contributes here”
+
+English alignment:
+
+- [ ] Use Phase 20 rendering provenance to connect Systean tokens/constructions with English spans where possible
+- [ ] Support many-to-one/one-to-many/discontinuous alignment rather than pretending every Systean word maps to one English word
+
+Diagnostics and raw technical views:
+
+- [ ] Explain errors in plain English with highlighted source spans and candidates/expectations
+- [ ] Remove raw JSON from normal user flows
+- [ ] Keep raw IR/AST/provenance/JSON only in an explicit advanced/developer inspector
+- [ ] Do not reconstruct semantics in Svelte; all relationships/scopes/resolution data come from Rust/WASM workbench annotations
+
+Learning content:
+
+- [ ] Add a guided learning path with executable examples
+- [ ] Cross-link lessons, dictionary entries, and analyzer examples
+- [ ] Fail documentation/site checks when teaching examples stop parsing or silently change intended meaning
+
+Required validation:
+
+- [ ] Representative corpus exposes context-sensitive hover/focus data for every token
+- [ ] Visual dependency/scope/reference links match canonical engine structures
+- [ ] English rendering exactly matches Phase 20 deterministic renderer output
+- [ ] Every public root has a complete word page
+- [ ] Dictionary search/filter behavior is backed by compiled indexes
+- [ ] No raw JSON is necessary to understand a valid or invalid expression
+- [ ] `pnpm check`, production build, browser/native corpus parity, and interaction accessibility tests pass
+
+Completion result: a learner can search words, understand complete expressions, inspect every token's contextual contribution, follow scope/reference relationships, and read deterministic English without understanding compiler internals.
+
+---
+
+## Phase 22 — Systean 1.0 language freeze
+
+Goal: publish a stable first usable standard after the semantic/DSL, documentation, and learning-surface architecture is no longer provisional.
 
 Language content:
 
 - [ ] Core conversational vocabulary is manually authored, including the frozen subjective-state inventory in [`SUBJECTIVE_STATES.md`](SUBJECTIVE_STATES.md)
-- [ ] Every root has one stable definition and semantic binding
+- [ ] Every root has one stable formal declaration
+- [ ] Every public root has complete Phase 20 English documentation
 - [ ] Core names/reference/numeric/time/pragmatic surface forms are fixed
 - [ ] Core unit inventory is fixed or explicitly versioned
 - [ ] Standard examples cover ordinary conversation and technical expressions
 
-Specification:
+Architecture/specification:
 
+- [ ] No ordinary lexical/operator addition requires duplicate semantic declarations
+- [ ] Canonical IR and runtime behavior contain no human semantic identity strings
+- [ ] No active rule depends on obsolete `dictionary.toml`/semantic-form TOML ownership or `language/legacy/`
 - [ ] All normative docs agree with executable package behavior
-- [ ] No active rule depends on `language/legacy/`
-- [ ] Package versioning policy is executable
-- [ ] Compatibility corpus is frozen
-- [ ] Canonical grammar/lexicon reference can be generated from the package
+- [ ] Semantic/surface/documentation compatibility policy is executable
+- [ ] Compatibility corpus is frozen for 1.0
+- [ ] Canonical grammar/lexicon/reference documentation can be generated from the package
+
+Documentation/site:
+
+- [ ] English reference coverage is complete
+- [ ] Controlled English rendering corpus is frozen
+- [ ] User-facing dictionary/analyzer is complete and does not require raw engine JSON
+- [ ] Learning guide examples are executable/frozen
 
 Validation:
 
@@ -867,8 +1094,11 @@ Validation:
 - [ ] WASM/browser suite passes
 - [ ] Whole-language compiler passes
 - [ ] Core discourse corpus round-trips
+- [ ] Controlled English renderer golden corpus passes
 - [ ] Spoken/written collision audit passes
 - [ ] Adversarial ambiguity suite passes
+- [ ] Documentation coverage/build checks pass
+- [ ] Learning-site accessibility/integration checks pass
 
 Release result: **Systean 1.0**.
 
@@ -876,9 +1106,9 @@ Release result: **Systean 1.0**.
 
 ## Milestones
 
-### Architecture Complete
+### Architecture Complete (original baseline)
 
-Reached now when `FINAL_ARCHITECTURE.md` and this roadmap are accepted. No claim that all layers are executable.
+Reached by Phase 1 for the original implementation line. Phase 17 exposed architectural debt at the lexicon/semantics/surface boundary, so the accepted pre-1.0 revision in `SEMANTIC_DSL_ARCHITECTURE.md` deliberately supersedes those ownership assumptions before 1.0.
 
 ### Playable Systean
 
@@ -888,9 +1118,21 @@ Reached after Phases 2–5. At this point real short conversations should be pos
 
 Reached after Phases 6–15 with enough manually authored vocabulary to exercise them.
 
+### Clean semantic architecture
+
+Reached after Phases 18–19. At this point ordinary lexical and construction growth no longer depends on duplicate declarations, semantic strings, or Systean-specific Rust branches.
+
+### Documented Systean
+
+Reached after Phase 20. Every public word has complete English reference material and canonical semantics can be rendered deterministically into controlled English.
+
+### Learnable Systean
+
+Reached after Phase 21. The public site explains words and complete expressions contextually without exposing engine JSON as the learning interface.
+
 ### Systean 1.0
 
-Reached after Phases 16–18.
+Reached after Phase 22.
 
 ---
 
@@ -898,12 +1140,14 @@ Reached after Phases 16–18.
 
 Do not add a new surface feature merely because a natural language has one. For each feature, first identify:
 
-1. the exact semantic structure;
-2. the ownership/source-of-truth file;
+1. the exact semantic structure and whether it is primitive, defined, or intrinsic-backed;
+2. the single ownership/source-of-truth declaration;
 3. the deterministic parse rule;
 4. the deterministic generation rule;
 5. the spoken realization;
 6. the ambiguity failure behavior;
-7. the regression/property test that proves the intended invariant.
+7. the controlled-English rendering behavior for public language content;
+8. the user-facing explanation/provenance needed by documentation/analyzer tooling;
+9. the regression/property test that proves the intended invariant.
 
 Architecture can be documented without tests. Implementation cannot be considered complete without them.

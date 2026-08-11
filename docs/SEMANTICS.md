@@ -1,5 +1,7 @@
 # Systean Semantic Architecture
 
+> **Pre-1.0 architecture note:** This document also describes the current Phase 17 implementation where applicable. The accepted target ownership/IR/DSL model is [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md); Phases 18–19 migrate away from duplicated/stringly semantic ownership without changing already accepted language behavior unless explicitly revised.
+
 Status: **normative semantic design baseline**  
 Purpose: define what Systean means by "meaning", what the parser/semantic elaborator is responsible for, and the generic semantic machinery on which the future surface language should be built.
 

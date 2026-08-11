@@ -86,3 +86,12 @@ cargo test --workspace
 cargo run --bin systean -- check
 cd site && pnpm check && pnpm build
 ```
+## Post-Phase-17 role
+
+Phase 17 is an engine/workbench instrumentation baseline, not the final public learning UX. The pre-1.0 roadmap deliberately separates later concerns:
+
+- Phases 18–19 replace stringly/duplicated semantic and surface ownership;
+- Phase 20 adds complete English documentation and deterministic controlled-English rendering;
+- Phase 21 replaces raw workbench-oriented website presentation with the user-facing dictionary/analyzer learning experience.
+
+Phase 17 reports and raw JSON remain useful developer interfaces, but they are not the intended default presentation for language learners.

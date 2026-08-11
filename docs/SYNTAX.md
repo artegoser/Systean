@@ -1,5 +1,7 @@
 # Systean Surface Syntax and Scope
 
+> **Pre-1.0 architecture note:** This document also describes the current Phase 17 implementation where applicable. The accepted target ownership/IR/DSL model is [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md); Phases 18–19 migrate away from duplicated/stringly semantic ownership without changing already accepted language behavior unless explicitly revised.
+
 Status: **structural v1 + typed discourse, proper names, opaque quotation, and playable core vocabulary implemented**
 
 This document defines the current normative structural rules for Systean surface syntax. Structural policy lives in `language/syntax.toml`; lexical roots, semantic identities, and root-specific surface realizations live once in `language/dictionary.toml`. The generic parser/generator/lowering engine lives in `systean-core::syntax`.
