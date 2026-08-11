@@ -78,6 +78,12 @@ impl<'env> Checker<'env> {
                     Literal::Integer(_) => LiteralKind::Integer,
                     Literal::Boolean(_) => LiteralKind::Boolean,
                     Literal::String(_) => LiteralKind::String,
+                    Literal::Structured(value) => {
+                        if self.environment.is_well_formed_type(&value.ty) {
+                            return Ok(value.ty.clone());
+                        }
+                        return Err(CheckError::UnknownBinderType(value.ty.clone()));
+                    }
                 };
                 self.environment
                     .literal_type(kind)

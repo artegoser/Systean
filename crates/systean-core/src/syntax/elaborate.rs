@@ -141,6 +141,7 @@ impl Elaborator<'_> {
             SurfaceExpr::Alias(surface) => self.lower_standalone_alias(surface),
             SurfaceExpr::Name { marker, payload } => self.lower_name(marker, payload),
             SurfaceExpr::Quote(payload) => Ok(self.lower_quote(payload)),
+            SurfaceExpr::Literal(literal) => Ok(Term::Literal(Literal::Structured(literal.semantic.clone()))),
             SurfaceExpr::Clause(clause) => self.lower_clause(clause),
             SurfaceExpr::Prefix { operator, operand } => {
                 let operand = self.lower_expr(operand)?;
@@ -432,6 +433,14 @@ impl Elaborator<'_> {
                     .map_err(|error| {
                         SurfaceElaborationError::InvalidSemanticTerm(error.to_string())
                     })?;
+                self.match_expected(expected, &actual, type_bindings, role)?;
+                Ok((term, None))
+            }
+            Argument::Literal(literal) => {
+                let term = Term::Literal(Literal::Structured(literal.semantic.clone()));
+                let actual = Checker::new(self.environment)
+                    .infer(&term)
+                    .map_err(|error| SurfaceElaborationError::InvalidSemanticTerm(error.to_string()))?;
                 self.match_expected(expected, &actual, type_bindings, role)?;
                 Ok((term, None))
             }

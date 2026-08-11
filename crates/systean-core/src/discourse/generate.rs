@@ -49,7 +49,8 @@ fn rewrite_expr(
         | SurfaceExpr::Context(_)
         | SurfaceExpr::Alias(_)
         | SurfaceExpr::Name { .. }
-        | SurfaceExpr::Quote(_) => expression.clone(),
+        | SurfaceExpr::Quote(_)
+        | SurfaceExpr::Literal(_) => expression.clone(),
         SurfaceExpr::Clause(clause) => SurfaceExpr::Clause(Clause {
             primary: clause
                 .primary

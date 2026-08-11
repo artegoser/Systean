@@ -1,6 +1,6 @@
 [meta]
 description = "Defines the canonical lexical roots of Systean. Each root has one lexical identity, semantic binding, and—only when needed—one surface realization."
-version = "4.0"
+version = "5.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
@@ -262,3 +262,27 @@ syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"
 definition = "Writing or symbolic encoding by an explicit writer of explicit textual content."
 semantic = { kind = "operator", name = "write" }
 syntax = { kind = "predicate", primary_role = "writer", rest_roles = ["content"] }
+
+[nau]
+definition = "The current instant supplied by the explicit runtime context; no clock value is guessed from text."
+semantic = { kind = "context", key = "now", type = "Instant" }
+
+[ante]
+definition = "Temporal relation stating that the left temporal value is before the right temporal value."
+semantic = { kind = "operator", name = "before" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
+
+[aft]
+definition = "Temporal relation stating that the left temporal value is after the right temporal value."
+semantic = { kind = "operator", name = "after" }
+syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
+
+[pot]
+definition = "Temporal relation stating that an explicit temporal value occurs during an explicit interval."
+semantic = { kind = "operator", name = "during" }
+syntax = { kind = "predicate", primary_role = "value", rest_roles = ["interval"] }
+
+[temp]
+definition = "An explicit temporal value: an instant, interval, calendar date, or time of day."
+semantic = { kind = "operator", name = "time_value" }
+syntax = { kind = "class", role = "value" }

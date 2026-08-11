@@ -9,16 +9,18 @@ use crate::discourse::{
     DiscourseGenerationError, DiscourseResolutionError, DiscourseState, ReferentId,
     ResolvedSurfaceAst, materialize_resolved_surface, resolve_surface,
 };
+use crate::literals::{LiteralConfig, LiteralConfigError, LiteralEngine, LiteralError};
 use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
 };
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
+use crate::units::{UnitRegistry, UnitsConfig, UnitsConfigError};
 use crate::semantics::{Checker, Environment, Explainer, Term, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
 use crate::syntax::{
     LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceExpr, SurfaceFormConfig, SurfaceLexicon,
     SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst, elaborate_surface,
-    linearize_surface, parse_surface,
+    linearize_surface, parse_surface_with_literals,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -332,6 +334,9 @@ pub enum LanguageError {
     Phonology(ConfigError),
     MorphologyConfig(MorphologyConfigError),
     Morphology(MorphologyError),
+    LiteralConfig(LiteralConfigError),
+    UnitsConfig(UnitsConfigError),
+    Literal(LiteralError),
     SyntaxConfig(SyntaxConfigError),
     Syntax(SurfaceError),
     Discourse(DiscourseResolutionError),
@@ -350,8 +355,13 @@ impl LanguagePackage {
         let morphology = read(path.join("morphology.toml"))?;
         let syntax = read(path.join("syntax.toml"))?;
         let dictionary = read(path.join("dictionary.toml"))?;
+        let literals = read(path.join("literals.toml"))?;
+        let units = read(path.join("units.toml"))?;
         let semantics = compile_path(path.join("semantics")).map_err(LanguageError::Semantics)?;
-        Self::from_parts(&alphabet, &phonology, &morphology, &syntax, &dictionary, semantics)
+        Self::from_parts(
+            &alphabet, &phonology, &morphology, &syntax, &dictionary,
+            Some((&literals, &units)), semantics
+        )
     }
 
     pub fn from_sources(
@@ -368,7 +378,29 @@ impl LanguagePackage {
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
         .map_err(LanguageError::Semantics)?;
-        Self::from_parts(alphabet, phonology, morphology, syntax, dictionary, semantics)
+        Self::from_parts(alphabet, phonology, morphology, syntax, dictionary, None, semantics)
+    }
+
+    pub fn from_sources_full(
+        alphabet: &str,
+        phonology: &str,
+        morphology: &str,
+        syntax: &str,
+        dictionary: &str,
+        literals: &str,
+        units: &str,
+        semantic_sources: &[(&str, &str)],
+    ) -> Result<Self, LanguageError> {
+        let semantics = compile_sources(
+            semantic_sources
+                .iter()
+                .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+        )
+        .map_err(LanguageError::Semantics)?;
+        Self::from_parts(
+            alphabet, phonology, morphology, syntax, dictionary,
+            Some((literals, units)), semantics
+        )
     }
 
     fn from_parts(
@@ -377,6 +409,7 @@ impl LanguagePackage {
         morphology: &str,
         syntax: &str,
         dictionary: &str,
+        structured_sources: Option<(&str, &str)>,
         semantics: Environment,
     ) -> Result<Self, LanguageError> {
         let phonology = PhonologyConfig::from_toml(alphabet, phonology)
@@ -393,8 +426,28 @@ impl LanguagePackage {
 
         let mut semantics = semantics;
         dictionary_parsed.install_constants(&mut semantics)?;
-        let syntax = SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon());
+        let syntax = if let Some((literal_source, units_source)) = structured_sources {
+            let literal_config = LiteralConfig::from_toml(literal_source)
+                .map_err(LanguageError::LiteralConfig)?;
+            let units_config = UnitsConfig::from_toml(units_source)
+                .map_err(LanguageError::UnitsConfig)?;
+            let units = UnitRegistry::new(units_config).map_err(LanguageError::UnitsConfig)?;
+            let literal_engine = LiteralEngine::new(
+                literal_config,
+                units,
+                syntax_config.scope.open.clone(),
+                syntax_config.scope.close.clone(),
+            ).map_err(LanguageError::Literal)?;
+            SyntaxEngine::new_with_literals(
+                syntax_config,
+                dictionary_parsed.surface_lexicon(),
+                literal_engine,
+            )
+        } else {
+            SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon())
+        };
         validate_syntax(&syntax, &phonology, &roots, &semantics)?;
+        validate_literals(&syntax, &phonology, &roots, &semantics)?;
 
         Ok(Self {
             phonology,
@@ -416,6 +469,10 @@ impl LanguagePackage {
 
     pub fn syntax(&self) -> &SyntaxEngine {
         &self.syntax
+    }
+
+    pub fn literals(&self) -> Option<&LiteralEngine> {
+        self.syntax.literals()
     }
 
     pub fn dictionary(&self) -> &Dictionary {
@@ -482,7 +539,9 @@ impl LanguagePackage {
             .validate_environment(&self.semantics)
             .map_err(LanguageError::Syntax)?;
         let lexicon = self.discourse_lexicon(discourse)?;
-        let syntax = parse_surface(expression, self.syntax.config(), &lexicon)
+        let syntax = parse_surface_with_literals(
+            expression, self.syntax.config(), &lexicon, self.syntax.literals()
+        )
             .map_err(|errors| LanguageError::Syntax(SurfaceError::Parse(errors)))?;
         self.validate_surface_payloads(&syntax)?;
         let canonical_surface = linearize_surface(&syntax, self.syntax.config(), &lexicon)
@@ -654,6 +713,7 @@ impl LanguagePackage {
         match expression {
             SurfaceExpr::Name { payload, .. } => self.validate_name_payload(payload),
             SurfaceExpr::Quote(_)
+            | SurfaceExpr::Literal(_)
             | SurfaceExpr::Atom(_)
             | SurfaceExpr::Context(_)
             | SurfaceExpr::Alias(_) => Ok(()),
@@ -816,6 +876,98 @@ fn validate_syntax(
     Ok(())
 }
 
+fn validate_literals(
+    syntax: &SyntaxEngine,
+    phonology: &PhonologyConfig,
+    roots: &RootInventory,
+    semantics: &Environment,
+) -> Result<(), LanguageError> {
+    let Some(literals) = syntax.literals() else { return Ok(()) };
+    let structural = [
+        syntax.config().scope.open.as_str(),
+        syntax.config().scope.close.as_str(),
+        syntax.config().discourse.alias.as_str(),
+        syntax.config().discourse.definition.as_str(),
+        syntax.config().discourse.relative.as_str(),
+        syntax.config().discourse.frame.as_str(),
+        syntax.config().quotation.open.as_str(),
+        syntax.config().quotation.close.as_str(),
+    ];
+    for surface in literals.reserved_forms() {
+        validate_surface_token("structured-literal spoken form", surface, phonology)?;
+        if roots.roots().iter().any(|root| root == surface) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "structured-literal spoken form `{surface}` collides with lexical root `{surface}`"
+            ))));
+        }
+        if structural.contains(&surface) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "structured-literal spoken form `{surface}` collides with structural marker `{surface}`"
+            ))));
+        }
+    }
+    let config = literals.config();
+    for ty in [
+        &config.number.semantic_type,
+        &config.number.digit_type,
+        &config.number.digit_sequence_type,
+        &config.calendar.date_type,
+        &config.calendar.time_of_day_type,
+        &config.calendar.instant_type,
+        &config.calendar.interval_type,
+        &config.calendar.duration_type,
+        &config.calendar.timezone_type,
+    ] {
+        let parsed = parse_type(ty).map_err(|errors| LanguageError::Syntax(SurfaceError::InvalidBinding(
+            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
+        )))?;
+        if !semantics.is_well_formed_type(&parsed) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "structured-literal type `{ty}` is not declared by the semantic package"
+            ))));
+        }
+    }
+    for dimension in &literals.units().config().dimensions {
+        let ty = parse_type(&dimension.semantic_type).map_err(|errors| LanguageError::Syntax(SurfaceError::InvalidBinding(
+            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
+        )))?;
+        if !semantics.is_well_formed_type(&ty) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "unit dimension `{}` uses undeclared semantic type `{}`",
+                dimension.id, dimension.semantic_type
+            ))));
+        }
+    }
+    for unit in &literals.units().config().units {
+        for ty in [
+            literals.units().unit_type(unit),
+            literals.units().quantity_type(unit, false),
+            literals.units().quantity_type(unit, true),
+        ] {
+            if !semantics.is_well_formed_type(&ty) {
+                return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                    "unit `{}` produces undeclared semantic type `{ty}`",
+                    unit.id
+                ))));
+            }
+        }
+        let symbol = unit.symbol.to_lowercase();
+        if roots.roots().iter().any(|root| root == &symbol) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "written unit symbol `{}` collides with lexical root `{}`",
+                unit.symbol, symbol
+            ))));
+        }
+        if structural.contains(&symbol.as_str()) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "written unit symbol `{}` collides with structural marker `{}`",
+                unit.symbol, symbol
+            ))));
+        }
+    }
+    Ok(())
+}
+
 fn validate_surface_token(
     kind: &str,
     surface: &str,
@@ -848,6 +1000,9 @@ impl fmt::Display for LanguageError {
             Self::Phonology(error) => write!(f, "phonology: {error}"),
             Self::MorphologyConfig(error) => write!(f, "morphology config: {error}"),
             Self::Morphology(error) => write!(f, "morphology: {error}"),
+            Self::LiteralConfig(error) => write!(f, "literals config: {error}"),
+            Self::UnitsConfig(error) => write!(f, "units config: {error}"),
+            Self::Literal(error) => write!(f, "structured literal: {error}"),
             Self::SyntaxConfig(error) => write!(f, "syntax config: {error}"),
             Self::Syntax(error) => write!(f, "syntax: {error}"),
             Self::Discourse(error) => write!(f, "discourse: {error}"),

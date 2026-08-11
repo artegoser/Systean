@@ -29,6 +29,20 @@ pub enum Literal {
     Integer(i64),
     Boolean(bool),
     String(String),
+    Structured(StructuredLiteral),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StructuredLiteral {
+    pub family: String,
+    pub canonical: String,
+    pub ty: Type,
+}
+
+impl StructuredLiteral {
+    pub fn new(family: impl Into<String>, canonical: impl Into<String>, ty: Type) -> Self {
+        Self { family: family.into(), canonical: canonical.into(), ty }
+    }
 }
 
 impl fmt::Display for Literal {
@@ -37,6 +51,7 @@ impl fmt::Display for Literal {
             Self::Integer(value) => write!(f, "{value}"),
             Self::Boolean(value) => write!(f, "{value}"),
             Self::String(value) => write!(f, "{value:?}"),
+            Self::Structured(value) => write!(f, "{}<{:?}>", value.family, value.canonical),
         }
     }
 }

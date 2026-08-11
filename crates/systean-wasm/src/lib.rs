@@ -9,18 +9,22 @@ const PHONOLOGY: &str = include_str!("../../../language/phonology.toml");
 const MORPHOLOGY: &str = include_str!("../../../language/morphology.toml");
 const SYNTAX: &str = include_str!("../../../language/syntax.toml");
 const DICTIONARY: &str = include_str!("../../../language/dictionary.toml");
+const LITERALS: &str = include_str!("../../../language/literals.toml");
+const UNITS: &str = include_str!("../../../language/units.toml");
 const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
 
 static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
 
 fn language() -> Result<&'static LanguagePackage, JsValue> {
     match LANGUAGE.get_or_init(|| {
-        LanguagePackage::from_sources(
+        LanguagePackage::from_sources_full(
             ALPHABET,
             PHONOLOGY,
             MORPHOLOGY,
             SYNTAX,
             DICTIONARY,
+            LITERALS,
+            UNITS,
             &[("language/semantics/core.semsys", SEMANTICS_CORE)],
         )
         .map_err(|error| error.to_string())

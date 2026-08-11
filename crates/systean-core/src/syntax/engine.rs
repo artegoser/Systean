@@ -1,19 +1,21 @@
 use std::collections::BTreeSet;
 use std::fmt;
 
+use crate::literals::LiteralEngine;
 use crate::semantics::{Environment, LiteralKind, canonicalize};
 use crate::spec::parse_type;
 
 use super::{
     LexemeConfig, LoweredSurface, SurfaceElaborationError, SurfaceExpr, SurfaceGenerationError,
     SurfaceLexicon, SurfaceLowerError, SurfaceParseError, SyntaxConfig, TypedSurfaceAst,
-    elaborate_surface, linearize_surface, lower_surface, parse_surface,
+    elaborate_surface, linearize_surface, lower_surface, parse_surface_with_literals,
 };
 
 #[derive(Clone, Debug)]
 pub struct SyntaxEngine {
     config: SyntaxConfig,
     lexicon: SurfaceLexicon,
+    literals: Option<LiteralEngine>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,7 +37,15 @@ pub enum SurfaceError {
 
 impl SyntaxEngine {
     pub fn new(config: SyntaxConfig, lexicon: SurfaceLexicon) -> Self {
-        Self { config, lexicon }
+        Self { config, lexicon, literals: None }
+    }
+
+    pub fn new_with_literals(config: SyntaxConfig, lexicon: SurfaceLexicon, literals: LiteralEngine) -> Self {
+        Self { config, lexicon, literals: Some(literals) }
+    }
+
+    pub fn literals(&self) -> Option<&LiteralEngine> {
+        self.literals.as_ref()
     }
 
     pub fn config(&self) -> &SyntaxConfig {
@@ -188,7 +198,7 @@ impl SyntaxEngine {
     }
 
     pub fn parse(&self, source: &str) -> Result<SurfaceExpr, SurfaceError> {
-        parse_surface(source, &self.config, &self.lexicon).map_err(SurfaceError::Parse)
+        parse_surface_with_literals(source, &self.config, &self.lexicon, self.literals.as_ref()).map_err(SurfaceError::Parse)
     }
 
     pub fn linearize(&self, syntax: &SurfaceExpr) -> Result<String, SurfaceError> {

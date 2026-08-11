@@ -1,0 +1,57 @@
+[meta]
+description = "Defines Systean structured-literal surface forms for exact numbers, digit sequences, and temporal/calendar values."
+version = "1.0"
+
+[number]
+semantic_type = "Number"
+digit_type = "Digit"
+digit_sequence_type = "DigitSequence"
+digit_sequence_marker = "dig"
+minus = "minus"
+plus = "plus"
+decimal = "dot"
+rational = "rat"
+exponent = "eks"
+approximation = "apro"
+ordinal = "ord"
+max_explicit_exponent = 100000
+max_inline_fraction_digits = 9
+max_inline_leading_fraction_zeros = 2
+
+[number.digits]
+nul = 0
+uno = 1
+dva = 2
+tri = 3
+kvar = 4
+pent = 5
+siks = 6
+sev = 7
+okt = 8
+nin = 9
+
+[number.coefficient_magnitudes]
+dek = 1
+hek = 2
+
+[number.outer_magnitudes]
+kilo = 3
+mega = 6
+giga = 9
+tera = 12
+peta = 15
+eksa = 18
+zeta = 21
+yota = 24
+rona = 27
+keta = 30
+
+[calendar]
+date_type = "CalendarDate"
+time_of_day_type = "TimeOfDay"
+instant_type = "Instant"
+interval_type = "Interval"
+duration_type = "Duration"
+timezone_type = "TimeZone"
+date_marker = "dat"
+timezone_marker = "zon"

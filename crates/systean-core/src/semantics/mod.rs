@@ -13,5 +13,5 @@ pub use explain::{Explainer, Explanation, ExplanationEdge};
 pub use normalize::canonicalize;
 pub use origin::Origin;
 pub use signature::{Parameter, Signature};
-pub use term::{Literal, Term};
+pub use term::{Literal, StructuredLiteral, Term};
 pub use types::{FunctionParameter, Type};

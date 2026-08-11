@@ -17,7 +17,15 @@ impl<'env> Explainer<'env> {
         match term {
             Term::Const(name) => Ok(Explanation { label: format!("const {name}"), ty, origin: self.environment.constant_origin(name).cloned(), children: vec![] }),
             Term::Var(name) => Ok(Explanation { label: format!("var {name}"), ty, origin: None, children: vec![] }),
-            Term::Literal(literal) => Ok(Explanation { label: format!("literal {literal}"), ty, origin: self.environment.literal_origin(literal_kind(literal)).cloned(), children: vec![] }),
+            Term::Literal(literal) => Ok(Explanation {
+                label: format!("literal {literal}"),
+                ty,
+                origin: match literal {
+                    Literal::Structured(_) => None,
+                    _ => self.environment.literal_origin(literal_kind(literal)).cloned(),
+                },
+                children: vec![],
+            }),
             Term::Call { function, arguments } => {
                 let mut children=Vec::new();
                 for (role, argument) in arguments { children.push(ExplanationEdge { relation: role.clone(), node: self.explain_with_scope(argument, variables)? }); }
@@ -53,5 +61,10 @@ impl Explanation {
         Ok(())
     }
 }
-fn literal_kind(literal:&Literal)->LiteralKind { match literal { Literal::Integer(_)=>LiteralKind::Integer, Literal::Boolean(_)=>LiteralKind::Boolean, Literal::String(_)=>LiteralKind::String } }
+fn literal_kind(literal:&Literal)->LiteralKind { match literal {
+    Literal::Integer(_)=>LiteralKind::Integer,
+    Literal::Boolean(_)=>LiteralKind::Boolean,
+    Literal::String(_)=>LiteralKind::String,
+    Literal::Structured(_) => LiteralKind::String,
+} }
 fn type_origin(environment:&Environment, ty:&Type)->Option<Origin> { match ty { Type::Named(name)|Type::Generic{name,..}=>environment.type_origin(name).cloned(), _=>None } }

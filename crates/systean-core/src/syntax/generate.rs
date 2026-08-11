@@ -34,6 +34,7 @@ impl Generator<'_> {
             SurfaceExpr::Atom(surface) | SurfaceExpr::Context(surface) | SurfaceExpr::Alias(surface) => vec![surface.clone()],
             SurfaceExpr::Name { marker, payload } => vec![marker.clone(), payload.clone()],
             SurfaceExpr::Quote(payload) => vec![self.render_quote(payload)],
+            SurfaceExpr::Literal(literal) => vec![literal.canonical_surface().to_owned()],
             SurfaceExpr::Clause(clause) => {
                 let mut tokens = Vec::new();
                 match self.config.order.frame {
@@ -157,6 +158,7 @@ impl Generator<'_> {
             }
             Argument::Name { marker, payload } => vec![marker.clone(), payload.clone()],
             Argument::Quote(payload) => vec![self.render_quote(payload)],
+            Argument::Literal(literal) => vec![literal.canonical_surface().to_owned()],
             Argument::Omitted => Vec::new(),
             Argument::Quantified {
                 quantifier,

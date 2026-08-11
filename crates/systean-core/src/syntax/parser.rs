@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
+use crate::literals::LiteralEngine;
+
 use super::{
     Argument, ArgumentOmission, Clause, FrameOrder, LexemeConfig, SurfaceExpr, SurfaceLexicon,
     SyntaxConfig,
@@ -31,6 +33,15 @@ pub fn parse_surface(
     config: &SyntaxConfig,
     lexicon: &SurfaceLexicon,
 ) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
+    parse_surface_with_literals(source, config, lexicon, None)
+}
+
+pub fn parse_surface_with_literals(
+    source: &str,
+    config: &SyntaxConfig,
+    lexicon: &SurfaceLexicon,
+    literals: Option<&LiteralEngine>,
+) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
     let tokenized = tokenize_with_quotes(source, &config.quotation.open, &config.quotation.close)?;
     if tokenized.tokens.is_empty() {
         return Err(vec![SurfaceParseError {
@@ -44,6 +55,7 @@ pub fn parse_surface(
         index: 0,
         config,
         lexicon,
+        literals,
     };
     let expression = parser.parse_expression(0)?;
     if parser.index != parser.tokens.len() {
@@ -108,10 +120,10 @@ fn tokenize_with_quotes(
                 message: format!("unexpected quotation close marker `{quote_close}`"),
             }]);
         }
-        if !is_identifier(token) {
+        if token.is_empty() {
             return Err(vec![SurfaceParseError {
                 token: output.tokens.len(),
-                message: format!("invalid surface token `{token}`"),
+                message: "empty surface token".into(),
             }]);
         }
         output.tokens.push(token.to_lowercase());
@@ -153,6 +165,7 @@ struct ParserState<'a> {
     index: usize,
     config: &'a SyntaxConfig,
     lexicon: &'a SurfaceLexicon,
+    literals: Option<&'a LiteralEngine>,
 }
 
 impl ParserState<'_> {
@@ -191,6 +204,13 @@ impl ParserState<'_> {
             }
             self.index += 1;
             return Ok(SurfaceExpr::Quote(payload));
+        }
+        if let Some(literal) = self.literal_at(self.index)? {
+            if self.argument_starts_clause() {
+                return self.parse_clause();
+            }
+            self.index += literal.consumed;
+            return Ok(SurfaceExpr::Literal(literal.literal));
         }
         if token == self.config.scope.open {
             self.index += 1;
@@ -295,6 +315,9 @@ impl ParserState<'_> {
         let token = self.tokens.get(start)?;
         if self.quote_payload(token).is_some() {
             return Some(start + 1);
+        }
+        if let Some(consumed) = self.literal_len_at(start) {
+            return Some(start + consumed);
         }
         match self.lexicon.get(token)? {
             LexemeConfig::Atom { .. }
@@ -434,6 +457,10 @@ impl ParserState<'_> {
             self.index += 1;
             return Ok(Argument::Quote(payload));
         }
+        if let Some(literal) = self.literal_at(self.index)? {
+            self.index += literal.consumed;
+            return Ok(Argument::Literal(literal.literal));
+        }
         match self.lexicon.get(&token) {
             Some(LexemeConfig::Atom { .. }) => {
                 self.index += 1;
@@ -498,18 +525,30 @@ impl ParserState<'_> {
     }
 
     fn can_parse_argument_here(&self) -> bool {
-        self.peek().is_some_and(|token| {
-            self.quote_payload(token).is_some()
-                || matches!(
-                    self.lexicon.get(token),
-                    Some(LexemeConfig::Atom { .. })
-                        | Some(LexemeConfig::Context { .. })
-                        | Some(LexemeConfig::Alias { .. })
-                        | Some(LexemeConfig::Reference)
-                        | Some(LexemeConfig::Quantifier { .. })
-                        | Some(LexemeConfig::Name { .. })
-                )
-        })
+        let Some(token) = self.peek() else { return false };
+        self.quote_payload(token).is_some()
+            || self.literal_len_at(self.index).is_some()
+            || matches!(
+                self.lexicon.get(token),
+                Some(LexemeConfig::Atom { .. })
+                    | Some(LexemeConfig::Context { .. })
+                    | Some(LexemeConfig::Alias { .. })
+                    | Some(LexemeConfig::Reference)
+                    | Some(LexemeConfig::Quantifier { .. })
+                    | Some(LexemeConfig::Name { .. })
+            )
+    }
+
+    fn literal_at(&self, start: usize) -> Result<Option<crate::literals::LiteralMatch>, Vec<SurfaceParseError>> {
+        let Some(engine) = self.literals else { return Ok(None) };
+        engine.parse_at(&self.tokens, start)
+            .map_err(|error| vec![SurfaceParseError { token: start, message: error.to_string() }])
+    }
+
+    fn literal_len_at(&self, start: usize) -> Option<usize> {
+        self.literals
+            .and_then(|engine| engine.parse_at(&self.tokens, start).ok().flatten())
+            .map(|matched| matched.consumed)
     }
 
     fn argument_can_be_omitted_here(&self) -> bool {

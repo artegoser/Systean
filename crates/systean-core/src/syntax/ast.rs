@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::literals::SurfaceLiteral;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceExpr {
     Atom(String),
@@ -10,6 +12,7 @@ pub enum SurfaceExpr {
         payload: String,
     },
     Quote(String),
+    Literal(SurfaceLiteral),
     Clause(Clause),
     Prefix {
         operator: String,
@@ -44,6 +47,7 @@ pub enum Argument {
         payload: String,
     },
     Quote(String),
+    Literal(SurfaceLiteral),
     Omitted,
     Quantified {
         quantifier: String,
@@ -59,6 +63,7 @@ impl fmt::Display for SurfaceExpr {
             }
             Self::Name { marker, payload } => write!(f, "{marker}<{payload}>"),
             Self::Quote(payload) => write!(f, "quote({payload:?})"),
+            Self::Literal(literal) => write!(f, "literal({})", literal.semantic),
             Self::Clause(clause) => write!(f, "{clause:?}"),
             Self::Prefix { operator, operand } => write!(f, "{operator}({operand})"),
             Self::Infix { operator, operands } => {

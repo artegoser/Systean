@@ -30,6 +30,7 @@ fn main() -> ExitCode {
         "phonology" => phonology(&language_path, args),
         "morphology" => morphology(&language_path, args),
         "syntax" => syntax(&language_path, args),
+        "literals" => literals(&language_path, args),
         "discourse" => discourse(&language_path, args),
         "roots" => roots(&language_path, args),
         _ => {
@@ -351,6 +352,70 @@ fn syntax(language_path: &Path, mut args: Vec<String>) -> ExitCode {
 }
 
 
+fn literals(language_path: &Path, mut args: Vec<String>) -> ExitCode {
+    if args.is_empty() {
+        usage();
+        return ExitCode::from(2);
+    }
+    let command = args.remove(0);
+    let language = match load_language(language_path) {
+        Ok(language) => language,
+        Err(code) => return code,
+    };
+    let Some(engine) = language.literals() else {
+        eprintln!("literal error: language package has no structured-literal codecs");
+        return ExitCode::FAILURE;
+    };
+    match command.as_str() {
+        "analyze" => {
+            let source = args.join(" ");
+            if source.is_empty() {
+                usage();
+                return ExitCode::from(2);
+            }
+            match engine.parse_complete(&source) {
+                Ok(literal) => {
+                    println!("family: {}", literal.semantic.family);
+                    println!("type: {}", literal.semantic.ty);
+                    println!("canonical written: {}", literal.canonical_written);
+                    println!("canonical spoken: {}", literal.canonical_spoken);
+                    ExitCode::SUCCESS
+                }
+                Err(error) => fail("literal", error),
+            }
+        }
+        "convert" => {
+            let Some(separator) = args.iter().position(|arg| arg == "--to") else {
+                usage();
+                return ExitCode::from(2);
+            };
+            if separator == 0 || separator + 2 != args.len() {
+                usage();
+                return ExitCode::from(2);
+            }
+            let source = args[..separator].join(" ");
+            let target = &args[separator + 1];
+            let literal = match engine.parse_complete(&source) {
+                Ok(value) => value,
+                Err(error) => return fail("literal", error),
+            };
+            match engine.convert_quantity_literal(&literal.semantic, target) {
+                Ok(converted) => {
+                    println!("type: {}", converted.semantic.ty);
+                    println!("canonical written: {}", converted.canonical_written);
+                    println!("canonical spoken: {}", converted.canonical_spoken);
+                    ExitCode::SUCCESS
+                }
+                Err(error) => fail("literal", error),
+            }
+        }
+        _ => {
+            usage();
+            ExitCode::from(2)
+        }
+    }
+}
+
 fn discourse(language_path: &Path, args: Vec<String>) -> ExitCode {
     if !args.is_empty() {
         usage();
@@ -485,6 +550,25 @@ fn run_discourse_line(
                 .set_context_value(key, term.clone(), language.semantics())
                 .map_err(|error| error.to_string())?;
             println!("context {key}: {}", canonicalize(&term));
+            Ok(false)
+        }
+        "context-surface" => {
+            if tokens.len() < 3 {
+                return Err("usage: context-surface <key> <surface-expression>".into());
+            }
+            let key = tokens[1];
+            let source = tokens[2..].join(" ");
+            let analysis = language
+                .analyze_surface(&source)
+                .map_err(|error| error.to_string())?;
+            let lowered = language
+                .syntax()
+                .lower(&analysis.syntax, language.semantics())
+                .map_err(|error| error.to_string())?;
+            state
+                .set_context_value(key, lowered.term.clone(), language.semantics())
+                .map_err(|error| error.to_string())?;
+            println!("context {key}: {}", canonicalize(&lowered.term));
             Ok(false)
         }
         "intro" => {
@@ -712,6 +796,7 @@ fn print_discourse_help(language: &LanguagePackage) {
     let config = language.syntax().config();
     println!("commands:");
     println!("  context <key> <semantic-expression>");
+    println!("  context-surface <key> <surface-expression>");
     println!("  intro <surface-expression>");
     println!("  intro-sem <semantic-expression>");
     println!("  analyze <surface-expression>");
@@ -870,6 +955,6 @@ fn fail(label: &str, error: impl std::fmt::Display) -> ExitCode {
 
 fn usage() {
     eprintln!(
-        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>"
+        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] literals analyze <structured-literal>\n  systean [--language <path>] literals convert <quantity> --to <unit-id>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>"
     );
 }
