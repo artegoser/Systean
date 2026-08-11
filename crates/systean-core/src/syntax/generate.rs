@@ -31,7 +31,7 @@ impl Generator<'_> {
     ) -> Result<Vec<String>, SurfaceGenerationError> {
         let own = self.precedence(expression)?;
         let mut tokens = match expression {
-            SurfaceExpr::Atom(surface) | SurfaceExpr::Context(surface) => vec![surface.clone()],
+            SurfaceExpr::Atom(surface) | SurfaceExpr::Context(surface) | SurfaceExpr::Alias(surface) => vec![surface.clone()],
             SurfaceExpr::Clause(clause) => {
                 let mut tokens = Vec::new();
                 match self.config.order.frame {
@@ -136,7 +136,10 @@ impl Generator<'_> {
 
     fn render_argument(&self, argument: &Argument) -> Vec<String> {
         match argument {
-            Argument::Atom(surface) | Argument::Context(surface) | Argument::Reference(surface) => {
+            Argument::Atom(surface)
+            | Argument::Context(surface)
+            | Argument::Reference(surface)
+            | Argument::Alias(surface) => {
                 vec![surface.clone()]
             }
             Argument::Omitted => Vec::new(),

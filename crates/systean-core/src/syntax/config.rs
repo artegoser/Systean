@@ -16,6 +16,7 @@ pub struct SyntaxConfig {
     pub commands: ExplicitOperatorConfig,
     pub focus: FocusConfig,
     pub grammar: GrammarConfig,
+    pub discourse: DiscourseConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -111,6 +112,14 @@ pub struct FocusConfig {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct GrammarConfig {
     pub traditional_pos: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub struct DiscourseConfig {
+    pub alias: String,
+    pub definition: String,
+    pub relative: String,
+    pub frame: String,
 }
 
 /// Surface realization attached to one lexical root in `dictionary.toml`.
@@ -218,6 +227,34 @@ impl SyntaxConfig {
             return Err(SyntaxConfigError::EqualScopeMarkers(
                 self.scope.open.clone(),
             ));
+        }
+        let discourse_markers = [
+            ("alias", self.discourse.alias.as_str()),
+            ("definition", self.discourse.definition.as_str()),
+            ("relative", self.discourse.relative.as_str()),
+            ("frame", self.discourse.frame.as_str()),
+        ];
+        for (name, marker) in discourse_markers {
+            if marker.trim().is_empty() {
+                return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                    "empty discourse {name} marker"
+                )));
+            }
+        }
+        let mut all_markers = vec![
+            self.scope.open.as_str(),
+            self.scope.close.as_str(),
+            self.discourse.alias.as_str(),
+            self.discourse.definition.as_str(),
+            self.discourse.relative.as_str(),
+            self.discourse.frame.as_str(),
+        ];
+        all_markers.sort_unstable();
+        if let Some(pair) = all_markers.windows(2).find(|pair| pair[0] == pair[1]) {
+            return Err(SyntaxConfigError::UnsupportedPolicy(format!(
+                "structural marker `{}` is assigned more than once",
+                pair[0]
+            )));
         }
         Ok(())
     }

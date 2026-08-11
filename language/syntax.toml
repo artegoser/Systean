@@ -1,6 +1,6 @@
 [meta]
 description = "Defines normative Systean surface-syntax policies. Lexical roots and their surface realizations live only in dictionary.toml."
-version = "1.1"
+version = "1.2"
 
 [order]
 frame = "primary_predicate_rest"
@@ -36,3 +36,9 @@ reorders = false
 
 [grammar]
 traditional_pos = false
+
+[discourse]
+alias = "ali"
+definition = "def"
+relative = "rel"
+frame = "fra"

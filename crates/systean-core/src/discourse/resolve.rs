@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use crate::semantics::{Checker, Environment, Term, Type};
-use crate::syntax::{ContextSlot, ReferenceSlot, SurfaceExpr, TypedSurfaceAst};
+use crate::syntax::{AliasSlot, ContextSlot, ReferenceSlot, SurfaceExpr, TypedSurfaceAst};
 
 use super::{ContextValue, DiscourseError, DiscourseState, ResolvedReference};
 
@@ -19,12 +19,19 @@ pub struct ResolvedContextBinding {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolvedAliasBinding {
+    pub slot: AliasSlot,
+    pub referent: ResolvedReference,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedSurfaceAst {
     pub surface: SurfaceExpr,
     pub term: Term,
     pub inferred_type: Type,
     pub references: Vec<ResolvedReferenceBinding>,
     pub contexts: Vec<ResolvedContextBinding>,
+    pub aliases: Vec<ResolvedAliasBinding>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,6 +63,23 @@ pub fn resolve_surface(
         });
     }
 
+    let mut aliases = Vec::with_capacity(typed.aliases.len());
+    for slot in &typed.aliases {
+        let referent = discourse
+            .resolve_alias(
+                &slot.alias,
+                &slot.declared_type,
+                &slot.expected_type,
+                environment,
+            )
+            .map_err(DiscourseResolutionError::Discourse)?;
+        replacements.insert(slot.placeholder.clone(), referent.value.clone());
+        aliases.push(ResolvedAliasBinding {
+            slot: slot.clone(),
+            referent,
+        });
+    }
+
     let mut references = Vec::with_capacity(typed.references.len());
     for slot in &typed.references {
         let referent = discourse
@@ -78,6 +102,7 @@ pub fn resolve_surface(
         inferred_type,
         references,
         contexts,
+        aliases,
     })
 }
 

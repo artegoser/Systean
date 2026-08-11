@@ -6,17 +6,19 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::discourse::{
-    DiscourseResolutionError, DiscourseState, ResolvedSurfaceAst, resolve_surface,
+    DiscourseGenerationError, DiscourseResolutionError, DiscourseState, ReferentId,
+    ResolvedSurfaceAst, materialize_resolved_surface, resolve_surface,
 };
 use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
 };
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
-use crate::semantics::{Checker, Environment, Explainer, Type, canonicalize};
+use crate::semantics::{Checker, Environment, Explainer, Term, Type, canonicalize};
 use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
 use crate::syntax::{
     LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceExpr, SurfaceFormConfig, SurfaceLexicon,
-    SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst,
+    SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst, elaborate_surface,
+    linearize_surface, parse_surface,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -315,6 +317,7 @@ pub struct DiscourseSurfaceAnalysis {
     pub typed: TypedSurfaceAst,
     pub resolved: ResolvedSurfaceAst,
     pub canonical_surface: String,
+    pub canonical_resolved_surface: String,
     pub inferred_type: String,
     pub canonical_semantics: String,
 }
@@ -328,6 +331,7 @@ pub enum LanguageError {
     SyntaxConfig(SyntaxConfigError),
     Syntax(SurfaceError),
     Discourse(DiscourseResolutionError),
+    DiscourseGenerate(DiscourseGenerationError),
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
@@ -457,28 +461,170 @@ impl LanguagePackage {
         self.syntax
             .validate_environment(&self.semantics)
             .map_err(LanguageError::Syntax)?;
-        let syntax = self
-            .syntax
-            .parse(expression)
-            .map_err(LanguageError::Syntax)?;
-        let canonical_surface = self
-            .syntax
-            .linearize(&syntax)
-            .map_err(LanguageError::Syntax)?;
-        let typed = self
-            .syntax
-            .elaborate(&syntax, &self.semantics)
-            .map_err(LanguageError::Syntax)?;
+        let lexicon = self.discourse_lexicon(discourse)?;
+        let syntax = parse_surface(expression, self.syntax.config(), &lexicon)
+            .map_err(|errors| LanguageError::Syntax(SurfaceError::Parse(errors)))?;
+        let canonical_surface = linearize_surface(&syntax, self.syntax.config(), &lexicon)
+            .map_err(|error| LanguageError::Syntax(SurfaceError::Generate(error)))?;
+        let typed = elaborate_surface(&syntax, &lexicon, &self.semantics)
+            .map_err(|error| LanguageError::Syntax(SurfaceError::Elaborate(error)))?;
         let resolved = resolve_surface(&typed, discourse, &self.semantics)
             .map_err(LanguageError::Discourse)?;
+        let reference_surface = self
+            .syntax
+            .lexicon()
+            .iter()
+            .filter_map(|(surface, lexeme)| {
+                matches!(lexeme, LexemeConfig::Reference).then_some(surface.as_str())
+            })
+            .min()
+            .unwrap_or("");
+        if !typed.references.is_empty() && reference_surface.is_empty() {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(
+                "surface language has reference slots but no canonical reference root".into(),
+            )));
+        }
+        let resolved_surface = materialize_resolved_surface(
+            &typed,
+            &resolved,
+            discourse,
+            &self.semantics,
+            reference_surface,
+        )
+        .map_err(LanguageError::DiscourseGenerate)?;
+        let canonical_resolved_surface =
+            linearize_surface(&resolved_surface, self.syntax.config(), &lexicon)
+                .map_err(|error| LanguageError::Syntax(SurfaceError::Generate(error)))?;
         Ok(DiscourseSurfaceAnalysis {
             syntax,
             typed,
             canonical_surface,
+            canonical_resolved_surface,
             inferred_type: resolved.inferred_type.to_string(),
             canonical_semantics: canonicalize(&resolved.term).to_string(),
             resolved,
         })
+    }
+
+    pub fn validate_alias_surface(&self, surface: &str) -> Result<(), LanguageError> {
+        validate_surface_token("discourse alias", surface, &self.phonology)?;
+        if self.roots.roots().iter().any(|root| root == surface) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "discourse alias `{surface}` collides with lexical root `{surface}`"
+            ))));
+        }
+        let config = self.syntax.config();
+        let structural = [
+            config.scope.open.as_str(),
+            config.scope.close.as_str(),
+            config.discourse.alias.as_str(),
+            config.discourse.definition.as_str(),
+            config.discourse.relative.as_str(),
+            config.discourse.frame.as_str(),
+        ];
+        if structural.contains(&surface) {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "discourse alias `{surface}` collides with structural marker `{surface}`"
+            ))));
+        }
+        let check = self.phonology.check_root(surface, &self.roots);
+        if !check.is_valid() {
+            return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
+                "discourse alias `{surface}` is not a collision-free spoken form"
+            ))));
+        }
+        Ok(())
+    }
+
+    pub fn bind_alias(
+        &self,
+        discourse: &mut DiscourseState,
+        surface: &str,
+        referent: ReferentId,
+    ) -> Result<(), LanguageError> {
+        self.validate_alias_surface(surface)?;
+        discourse
+            .bind_alias(surface.to_owned(), referent)
+            .map_err(|error| LanguageError::Discourse(DiscourseResolutionError::Discourse(error)))
+    }
+
+    pub fn define_alias(
+        &self,
+        discourse: &mut DiscourseState,
+        surface: &str,
+        value: Term,
+    ) -> Result<ReferentId, LanguageError> {
+        self.validate_alias_surface(surface)?;
+        discourse
+            .define_alias(surface.to_owned(), value, &self.semantics)
+            .map_err(|error| LanguageError::Discourse(DiscourseResolutionError::Discourse(error)))
+    }
+
+    pub fn bind_alias_to_surface(
+        &self,
+        discourse: &mut DiscourseState,
+        alias: &str,
+        target: &str,
+    ) -> Result<ReferentId, LanguageError> {
+        self.validate_alias_surface(alias)?;
+        let analysis = self.analyze_surface_with_discourse(target, discourse)?;
+        let resolved = discourse
+            .resolve_reference_value(
+                &analysis.resolved.term,
+                &analysis.resolved.inferred_type,
+                &self.semantics,
+            )
+            .map_err(|error| LanguageError::Discourse(DiscourseResolutionError::Discourse(error)))?;
+        discourse
+            .bind_alias(alias.to_owned(), resolved.id)
+            .map_err(|error| LanguageError::Discourse(DiscourseResolutionError::Discourse(error)))?;
+        Ok(resolved.id)
+    }
+
+    pub fn define_alias_from_surface(
+        &self,
+        discourse: &mut DiscourseState,
+        alias: &str,
+        target: &str,
+    ) -> Result<ReferentId, LanguageError> {
+        let analysis = self.analyze_surface_with_discourse(target, discourse)?;
+        self.define_alias(discourse, alias, analysis.resolved.term)
+    }
+
+    pub fn analyze_with_relative_binding(
+        &self,
+        discourse: &mut DiscourseState,
+        alias: &str,
+        target: &str,
+        body: &str,
+    ) -> Result<DiscourseSurfaceAnalysis, LanguageError> {
+        let target = self.analyze_surface_with_discourse(target, discourse)?;
+        discourse.enter_scope();
+        let defined = self.define_alias(discourse, alias, target.resolved.term);
+        let result = match defined {
+            Ok(_) => self.analyze_surface_with_discourse(body, discourse),
+            Err(error) => Err(error),
+        };
+        let leave = discourse.leave_scope();
+        match (result, leave) {
+            (Ok(analysis), Ok(_)) => Ok(analysis),
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(LanguageError::Discourse(
+                DiscourseResolutionError::Discourse(error),
+            )),
+        }
+    }
+
+    fn discourse_lexicon(&self, discourse: &DiscourseState) -> Result<SurfaceLexicon, LanguageError> {
+        self.syntax
+            .lexicon()
+            .with_aliases(
+                discourse
+                    .active_aliases()
+                    .into_iter()
+                    .map(|binding| (binding.surface, binding.ty.to_string())),
+            )
+            .map_err(|message| LanguageError::Syntax(SurfaceError::InvalidBinding(message)))
     }
 
     pub fn explain(&self, expression: &str) -> Result<SemanticAnalysis, LanguageError> {
@@ -563,11 +709,20 @@ fn validate_syntax(
 ) -> Result<(), LanguageError> {
     syntax.validate_environment(semantics).map_err(LanguageError::Syntax)?;
 
-    for marker in [&syntax.config().scope.open, &syntax.config().scope.close] {
-        validate_surface_token("scope marker", marker, phonology)?;
+    let config = syntax.config();
+    let markers = [
+        ("scope marker", config.scope.open.as_str()),
+        ("scope marker", config.scope.close.as_str()),
+        ("discourse alias marker", config.discourse.alias.as_str()),
+        ("discourse definition marker", config.discourse.definition.as_str()),
+        ("discourse relative marker", config.discourse.relative.as_str()),
+        ("discourse frame marker", config.discourse.frame.as_str()),
+    ];
+    for (kind, marker) in markers {
+        validate_surface_token(kind, marker, phonology)?;
         if roots.roots().iter().any(|root| root == marker) {
             return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
-                "scope marker `{marker}` collides with lexical root `{marker}`"
+                "{kind} `{marker}` collides with lexical root `{marker}`"
             ))));
         }
     }
@@ -623,6 +778,7 @@ impl fmt::Display for LanguageError {
             Self::SyntaxConfig(error) => write!(f, "syntax config: {error}"),
             Self::Syntax(error) => write!(f, "syntax: {error}"),
             Self::Discourse(error) => write!(f, "discourse: {error}"),
+            Self::DiscourseGenerate(error) => write!(f, "discourse generation: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
             Self::Semantics(errors) => {

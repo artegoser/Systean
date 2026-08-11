@@ -6,6 +6,10 @@ pub enum LexemeConfig {
         semantic: String,
     },
     Reference,
+    Alias {
+        name: String,
+        ty: String,
+    },
     Context {
         key: String,
         ty: String,
@@ -70,5 +74,24 @@ impl SurfaceLexicon {
 
     pub fn iter(&self) -> impl Iterator<Item = (&String, &LexemeConfig)> {
         self.entries.iter()
+    }
+
+    pub fn with_aliases<I>(&self, aliases: I) -> Result<Self, String>
+    where
+        I: IntoIterator<Item = (String, String)>,
+    {
+        let mut entries = self.entries.clone();
+        for (surface, ty) in aliases {
+            if entries.contains_key(&surface) {
+                return Err(format!(
+                    "discourse alias `{surface}` collides with an existing lexical root"
+                ));
+            }
+            entries.insert(
+                surface.clone(),
+                LexemeConfig::Alias { name: surface, ty },
+            );
+        }
+        Ok(Self { entries })
     }
 }

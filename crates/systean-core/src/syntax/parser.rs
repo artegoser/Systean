@@ -152,11 +152,16 @@ impl ParserState<'_> {
                 self.index += 1;
                 Ok(SurfaceExpr::Context(token))
             }
+            Some(LexemeConfig::Alias { .. }) if !self.argument_starts_clause() => {
+                self.index += 1;
+                Ok(SurfaceExpr::Alias(token))
+            }
             Some(LexemeConfig::Reference) if !self.argument_starts_clause() => Err(vec![self.error(
                 format!("reference `{token}` requires a typed argument slot"),
             )]),
             Some(LexemeConfig::Atom { .. })
             | Some(LexemeConfig::Context { .. })
+            | Some(LexemeConfig::Alias { .. })
             | Some(LexemeConfig::Reference)
             | Some(LexemeConfig::Quantifier { .. })
             | Some(LexemeConfig::Predicate { .. }) => self.parse_clause(),
@@ -196,6 +201,7 @@ impl ParserState<'_> {
         match self.lexicon.get(token)? {
             LexemeConfig::Atom { .. }
             | LexemeConfig::Context { .. }
+            | LexemeConfig::Alias { .. }
             | LexemeConfig::Reference => Some(start + 1),
             LexemeConfig::Quantifier { .. } => {
                 let restriction = self.tokens.get(start + 1)?;
@@ -325,6 +331,10 @@ impl ParserState<'_> {
                 self.index += 1;
                 Ok(Argument::Reference(token))
             }
+            Some(LexemeConfig::Alias { .. }) => {
+                self.index += 1;
+                Ok(Argument::Alias(token))
+            }
             Some(LexemeConfig::Quantifier { .. }) => {
                 self.index += 1;
                 let Some(restriction) = self.peek().cloned() else {
@@ -359,6 +369,7 @@ impl ParserState<'_> {
                 self.lexicon.get(token),
                 Some(LexemeConfig::Atom { .. })
                     | Some(LexemeConfig::Context { .. })
+                    | Some(LexemeConfig::Alias { .. })
                     | Some(LexemeConfig::Reference)
                     | Some(LexemeConfig::Quantifier { .. })
             )
@@ -468,6 +479,7 @@ fn lexeme_kind(lexeme: &LexemeConfig) -> &'static str {
     match lexeme {
         LexemeConfig::Atom { .. } => "atom",
         LexemeConfig::Reference => "reference",
+        LexemeConfig::Alias { .. } => "alias",
         LexemeConfig::Context { .. } => "context",
         LexemeConfig::Class { .. } => "class",
         LexemeConfig::Predicate { .. } => "predicate",

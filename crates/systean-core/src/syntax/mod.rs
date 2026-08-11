@@ -9,11 +9,11 @@ mod parser;
 
 pub use ast::{Argument, Clause, SurfaceExpr};
 pub use config::{
-    ArgumentOmission, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig,
+    ArgumentOmission, DiscourseConfig, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder, GrammarConfig,
     QuantifierScopePolicy, RoleRealization, SurfaceFormConfig, SyntaxConfig, SyntaxConfigError,
 };
 pub use elaborate::{
-    ContextSlot, ReferenceSlot, ReferenceSource, SurfaceElaborationError, TypedSurfaceAst,
+    AliasSlot, ContextSlot, ReferenceSlot, ReferenceSource, SurfaceElaborationError, TypedSurfaceAst,
     elaborate_surface,
 };
 pub use engine::{SurfaceAnalysis, SurfaceError, SyntaxEngine};

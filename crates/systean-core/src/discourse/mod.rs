@@ -1,11 +1,13 @@
+mod generate;
 mod resolve;
 mod state;
 
+pub use generate::{DiscourseGenerationError, materialize_resolved_surface};
 pub use resolve::{
-    DiscourseResolutionError, ResolvedContextBinding, ResolvedReferenceBinding,
+    DiscourseResolutionError, ResolvedAliasBinding, ResolvedContextBinding, ResolvedReferenceBinding,
     ResolvedSurfaceAst, resolve_surface,
 };
 pub use state::{
-    AccessibilityScopeId, ContextValue, DiscourseError, DiscourseState, IntroductionOrigin,
+    AccessibilityScopeId, AliasBinding, ContextValue, DiscourseError, DiscourseFrameId, DiscourseState, IntroductionOrigin,
     ReferenceCandidate, Referent, ReferentId, ResolvedReference,
 };

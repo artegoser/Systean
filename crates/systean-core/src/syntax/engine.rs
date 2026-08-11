@@ -57,6 +57,23 @@ impl SyntaxEngine {
                     }
                 }
                 LexemeConfig::Reference => {}
+                LexemeConfig::Alias { ty, .. } => {
+                    let ty = parse_type(ty).map_err(|errors| {
+                        SurfaceError::InvalidBinding(format!(
+                            "discourse alias `{surface}` has invalid type: {}",
+                            errors
+                                .into_iter()
+                                .map(|error| error.to_string())
+                                .collect::<Vec<_>>()
+                                .join("; ")
+                        ))
+                    })?;
+                    if !environment.is_well_formed_type(&ty) {
+                        return Err(SurfaceError::InvalidBinding(format!(
+                            "discourse alias `{surface}` uses unknown type `{ty}`"
+                        )));
+                    }
+                }
                 LexemeConfig::Context { ty, .. } => {
                     let ty = parse_type(ty).map_err(|errors| {
                         SurfaceError::InvalidBinding(format!(

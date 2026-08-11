@@ -30,12 +30,22 @@ pub struct ContextSlot {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AliasSlot {
+    pub placeholder: String,
+    pub surface: String,
+    pub alias: String,
+    pub declared_type: Type,
+    pub expected_type: Type,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypedSurfaceAst {
     pub surface: SurfaceExpr,
     pub template: Term,
     pub inferred_type: Type,
     pub references: Vec<ReferenceSlot>,
     pub contexts: Vec<ContextSlot>,
+    pub aliases: Vec<AliasSlot>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,6 +83,7 @@ pub fn elaborate_surface(
         quantifier_index: 0,
         references: Vec::new(),
         contexts: Vec::new(),
+        aliases: Vec::new(),
     };
     let template = elaborator.lower_expr(expression)?;
     let mut variables = BTreeMap::new();
@@ -80,6 +91,9 @@ pub fn elaborate_surface(
         variables.insert(slot.placeholder.clone(), slot.expected_type.clone());
     }
     for slot in &elaborator.contexts {
+        variables.insert(slot.placeholder.clone(), slot.expected_type.clone());
+    }
+    for slot in &elaborator.aliases {
         variables.insert(slot.placeholder.clone(), slot.expected_type.clone());
     }
     let inferred_type = Checker::new(environment)
@@ -91,6 +105,7 @@ pub fn elaborate_surface(
         inferred_type,
         references: elaborator.references,
         contexts: elaborator.contexts,
+        aliases: elaborator.aliases,
     })
 }
 
@@ -101,6 +116,7 @@ struct Elaborator<'a> {
     quantifier_index: usize,
     references: Vec<ReferenceSlot>,
     contexts: Vec<ContextSlot>,
+    aliases: Vec<AliasSlot>,
 }
 
 #[derive(Clone)]
@@ -122,6 +138,7 @@ impl Elaborator<'_> {
         match expression {
             SurfaceExpr::Atom(surface) => self.lower_atom(surface),
             SurfaceExpr::Context(surface) => self.lower_standalone_context(surface),
+            SurfaceExpr::Alias(surface) => self.lower_standalone_alias(surface),
             SurfaceExpr::Clause(clause) => self.lower_clause(clause),
             SurfaceExpr::Prefix { operator, operand } => {
                 let operand = self.lower_expr(operand)?;
@@ -180,6 +197,28 @@ impl Elaborator<'_> {
         Ok(Term::Var(placeholder))
     }
 
+    fn lower_standalone_alias(
+        &mut self,
+        surface: &str,
+    ) -> Result<Term, SurfaceElaborationError> {
+        let LexemeConfig::Alias { name, ty } = self.lexeme(surface)?.clone() else {
+            return Err(SurfaceElaborationError::WrongLexemeKind {
+                surface: surface.to_owned(),
+                expected: "alias",
+            });
+        };
+        let declared_type = self.parse_declared_type(&ty)?;
+        let placeholder = self.next_placeholder("alias");
+        self.aliases.push(AliasSlot {
+            placeholder: placeholder.clone(),
+            surface: surface.to_owned(),
+            alias: name,
+            declared_type: declared_type.clone(),
+            expected_type: declared_type,
+        });
+        Ok(Term::Var(placeholder))
+    }
+
     fn lower_clause(&mut self, clause: &Clause) -> Result<Term, SurfaceElaborationError> {
         let predicate = self.lexeme(&clause.predicate)?.clone();
         let LexemeConfig::Predicate {
@@ -201,6 +240,7 @@ impl Elaborator<'_> {
 
         let reference_start = self.references.len();
         let context_start = self.contexts.len();
+        let alias_start = self.aliases.len();
         let mut type_bindings = BTreeMap::new();
         let mut arguments = BTreeMap::new();
         let mut introductions = Vec::new();
@@ -259,6 +299,7 @@ impl Elaborator<'_> {
 
         self.finalize_reference_types(reference_start, &type_bindings)?;
         self.finalize_context_types(context_start, &type_bindings)?;
+        self.finalize_alias_types(alias_start, &type_bindings)?;
 
         let mut term = Term::Call {
             function: semantic,
@@ -316,6 +357,25 @@ impl Elaborator<'_> {
                     placeholder: placeholder.clone(),
                     surface: surface.clone(),
                     key,
+                    declared_type,
+                    expected_type: expected.clone(),
+                });
+                Ok((Term::Var(placeholder), None))
+            }
+            Argument::Alias(surface) => {
+                let LexemeConfig::Alias { name, ty } = self.lexeme(surface)?.clone() else {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: surface.clone(),
+                        expected: "alias",
+                    });
+                };
+                let declared_type = self.parse_declared_type(&ty)?;
+                self.match_expected(expected, &declared_type, type_bindings, role)?;
+                let placeholder = self.next_placeholder("alias");
+                self.aliases.push(AliasSlot {
+                    placeholder: placeholder.clone(),
+                    surface: surface.clone(),
+                    alias: name,
                     declared_type,
                     expected_type: expected.clone(),
                 });
@@ -429,6 +489,24 @@ impl Elaborator<'_> {
             if contains_type_variable(&resolved) {
                 return Err(SurfaceElaborationError::UnconstrainedReferenceType {
                     role: format!("context {}", slot.key),
+                    ty: resolved,
+                });
+            }
+            slot.expected_type = resolved;
+        }
+        Ok(())
+    }
+
+    fn finalize_alias_types(
+        &mut self,
+        start: usize,
+        bindings: &BTreeMap<String, Type>,
+    ) -> Result<(), SurfaceElaborationError> {
+        for slot in &mut self.aliases[start..] {
+            let resolved = slot.expected_type.substitute(bindings);
+            if contains_type_variable(&resolved) {
+                return Err(SurfaceElaborationError::UnconstrainedReferenceType {
+                    role: format!("alias {}", slot.alias),
                     ty: resolved,
                 });
             }

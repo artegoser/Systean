@@ -16,6 +16,7 @@ pub enum SurfaceLowerError {
     DiscourseRequired {
         references: usize,
         contexts: usize,
+        aliases: usize,
     },
     InvalidSemanticTerm(String),
 }
@@ -27,10 +28,11 @@ pub fn lower_surface(
 ) -> Result<LoweredSurface, SurfaceLowerError> {
     let typed = elaborate_surface(expression, lexicon, environment)
         .map_err(SurfaceLowerError::Elaborate)?;
-    if !typed.references.is_empty() || !typed.contexts.is_empty() {
+    if !typed.references.is_empty() || !typed.contexts.is_empty() || !typed.aliases.is_empty() {
         return Err(SurfaceLowerError::DiscourseRequired {
             references: typed.references.len(),
             contexts: typed.contexts.len(),
+            aliases: typed.aliases.len(),
         });
     }
     let inferred_type = Checker::new(environment)
@@ -49,9 +51,10 @@ impl fmt::Display for SurfaceLowerError {
             Self::DiscourseRequired {
                 references,
                 contexts,
+                aliases,
             } => write!(
                 f,
-                "surface expression requires discourse resolution ({references} reference slot(s), {contexts} context value(s))"
+                "surface expression requires discourse resolution ({references} reference slot(s), {contexts} context value(s), {aliases} alias slot(s))"
             ),
             Self::InvalidSemanticTerm(message) => write!(f, "surface semantics: {message}"),
         }
