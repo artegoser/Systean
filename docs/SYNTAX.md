@@ -1,6 +1,6 @@
 # Systean Surface Syntax and Scope
 
-Status: **structural v1 + typed discourse-reference core implemented; core grammatical/operator vocabulary fixed**
+Status: **structural v1 + typed discourse, proper names, opaque quotation, and playable core vocabulary implemented**
 
 This document defines the current normative structural rules for Systean surface syntax. Structural policy lives in `language/syntax.toml`; lexical roots, semantic identities, and root-specific surface realizations live once in `language/dictionary.toml`. The generic parser/generator/lowering engine lives in `systean-core::syntax`.
 
@@ -10,6 +10,8 @@ The syntax engine does **not** invent grammatical roots. The following core form
 | --- | --- | --- |
 | `ki` | open explicit scope | structural delimiter |
 | `ku` | close explicit scope | structural delimiter |
+| `sit` | open opaque quotation | structural delimiter |
+| `tis` | close opaque quotation | structural delimiter |
 | `ke` | truth-question marker | `ask_truth` |
 | `ne` | negation | `not` |
 | `va` | conjunction | `and` |
@@ -21,8 +23,9 @@ The syntax engine does **not** invent grammatical roots. The following core form
 | `ref` | typed shorthand reference | runtime discourse resolver |
 | `mi` | current speaker | runtime context `speaker` |
 | `tu` | current addressee | runtime context `addressee` |
+| `na` | proper-name marker | `proper_name` |
 
-`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, `me`, `ref`, `mi`, and `tu` are declared once as lexical roots in `dictionary.toml`; the package compiler derives their surface lexicon entries from those same dictionary entries. `ref` is the universal typed shorthand-reference form; `mi` and `tu` are deterministic runtime-context values for the current speaker and addressee. `ki` and `ku` are reserved structural delimiters rather than lexical roots.
+`ke`, `ne`, `va`, `zo`, `ra`, `mu`, `da`, `me`, `ref`, `mi`, `tu`, and `na` are declared once as lexical roots in `dictionary.toml`; the package compiler derives their surface lexicon entries from those same dictionary entries. `ref` is the universal typed shorthand-reference form; `mi` and `tu` are deterministic runtime-context values for the current speaker and addressee. `na` introduces one canonical Systean proper-name payload. `ki`/`ku` and `sit`/`tis` are reserved structural delimiters rather than lexical roots.
 
 Test fixtures still provide temporary content vocabulary such as people, predicates, and classes. Those fixture-only forms must never be treated as normative Systean vocabulary.
 
@@ -225,7 +228,7 @@ There is no independent lexical table in `syntax.toml`.
 `dictionary.toml` is the single source of lexical roots. Every dictionary root is compiled into the surface lexicon automatically:
 
 - a semantic `constant` root becomes an `atom` with no extra syntax declaration;
-- an `operator` root carries exactly one root-specific `syntax` realization: `class`, `predicate`, `prefix`, `infix`, `quantifier`, or `speech_act`.
+- an `operator` root carries exactly one root-specific `syntax` realization: `class`, `predicate`, `prefix`, `infix`, `quantifier`, `speech_act`, or `name`.
 
 For example, an ordinary constant root needs only:
 
@@ -286,23 +289,17 @@ The regression suite covers:
 - explicit question/command/request constructions;
 - automatic dictionary-root visibility in surface syntax;
 - dictionary-only addition of new constant roots without syntax-config edits;
-- surface-to-semantic type checking, including wrong-type operator application.
+- surface-to-semantic type checking, including wrong-type operator application;
+- proper-name payload validation and writing/speech round-trip;
+- opaque and nested external quotation without lexical parsing of its payload.
 
 ## 14. Planned higher syntax/discourse layers
 
 The structural surface grammar in this document is implemented. The architecture of the remaining higher layers is now defined in [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md) and scheduled in [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
 
-The first higher layer is now implemented: typed unresolved-reference slots, explicit `ref`, deterministic `mi`/`tu` runtime context, accessibility-scoped `DiscourseState`, and 0/1/many typed reference resolution.
+The typed discourse layer, scoped aliases/boundaries, proper-name construction, opaque quotation, and the first playable content vocabulary are now implemented. `ref`, omission, aliases, `mi`/`tu`, `na`, and `sit ... tis` all flow through the same validated language package.
 
-Remaining layers include:
-
-1. aliases, explicit discourse boundaries, and longer-lived safe shorthand through the same resolver;
-2. explicit inverse-quantifier scope using ordinary binding/reference machinery rather than hidden binding;
-3. proper-name and quotation structures;
-4. explicit focus/topic constructions without argument reordering;
-5. repair/correction and complete text/turn boundaries.
-
-The exact future particles/roots remain manual language-authoring decisions. None of these layers permits heuristic parsing while unimplemented.
+Remaining higher layers include structured numbers and quantities, time/aspect completion, unknown-information constructions, generic/statistical claims, focus/affect/repair, explicit utterance/document boundaries, and the whole-language ambiguity compiler. None of these layers permits heuristic parsing while unimplemented.
 
 ## Phase 3 discourse control layer
 
@@ -382,3 +379,26 @@ systean discourse
 ```
 
 It is both interactive and pipe/script friendly. Useful commands include `context`, `intro`, `intro-sem`, `analyze`, `resolve`, `bind`, `scope enter`, `scope leave`, `state`, plus the configured `ali`, `def`, `rel`, and `fra` forms. Analysis output includes resolved context values, aliases, shorthand-reference targets, canonical semantic IR, and canonical resolved surface.
+
+
+## Phase 4 name and quotation layer
+
+Proper names use the selected lexical marker `na` followed by exactly one canonical Systean spoken payload token:
+
+```text
+na artemi
+```
+
+The payload is not looked up as a dictionary root. The language package validates it directly against the fixed alphabet and root phonology, including the requirement that a root-like payload contain a vowel so lexical stress is defined. Source-language spelling or pronunciation is never guessed. Native and externally adapted names therefore use one grammatical mechanism: the author/speaker supplies the intended canonical Systean payload explicitly.
+
+`na PAYLOAD` lowers through the package-defined semantic operator `proper_name(payload: Text) -> Entity`. Equal name payloads do not imply one discourse referent: two separately introduced people named `na alek` receive different referent IDs, and generic `ref` remains ambiguous until ordinary structural refinement or an exact alias distinguishes them.
+
+External text uses the reserved structural boundaries:
+
+```text
+sit ... tis
+```
+
+The text between the matching boundaries is captured as an opaque `Text` literal before ordinary Systean lexical parsing. Foreign spelling, punctuation, digits, and otherwise invalid Systean tokens inside that payload are preserved rather than interpreted as roots. Nested `sit ... tis` pairs are balanced deterministically and remain literal boundary text inside the outer payload. A missing or stray boundary is a structural parse error.
+
+Quotation boundaries are configured in `syntax.toml`; they are reserved against dictionary-root and local-alias collisions. The WASM syntax-policy API exposes the same boundaries used by the Rust parser.

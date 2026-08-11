@@ -629,13 +629,13 @@ A proper name must have a short marker or other overt morphological mechanism th
 - compatible with a previously unseen name;
 - independently segmentable from the name body.
 
-The exact marker is unresolved.
-
-Conceptually:
+The selected marker is `na`. Normative proper names use exactly one explicit canonical Systean payload token:
 
 ```text
-<NAME-MARKER> + <Systean-compatible phonological name form>
+na <Systean-compatible phonological name form>
 ```
+
+The payload is validated by the same fixed alphabet and root phonology used elsewhere, but it is not required to be a dictionary root.
 
 ### 14.2 Names are labels, not global IDs
 
@@ -689,7 +689,7 @@ This includes:
 
 An external/quoted region is opaque to the normal Systean lexical parser unless a more specific quoted representation is explicitly requested.
 
-The exact surface syntax must be human-friendly and available in speech. It must **not** require JSON-like inline syntax, language tags, or source-language metadata for ordinary use.
+The selected spoken/written structural boundaries are `sit ... tis`. The parser captures the matched payload before ordinary root tokenization, so punctuation, foreign spelling, digits, and other non-Systean content remain opaque `Text` data. Nested `sit ... tis` boundaries are balanced deterministically. The construction does **not** require JSON-like inline syntax, language tags, or source-language metadata for ordinary use.
 
 If source language or pronunciation matters, that information can be stated explicitly as normal Systean content rather than hidden in parsing heuristics.
 

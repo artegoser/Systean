@@ -391,21 +391,21 @@ Alias spellings are local root-like spoken forms, not dictionary roots. The lang
 
 Required validation:
 
-- [ ] Alias resolves exactly regardless of other compatible referents
-- [ ] Alias cannot escape its lexical scope
-- [ ] Inner alias binding shadows an outer alias deterministically and the outer binding reappears after scope exit
-- [ ] Non-Entity aliases type-check in typed operator slots
-- [ ] Boundary retires ordinary shorthand while preserving an in-scope exact alias
-- [ ] Omission becomes invalid as soon as a second compatible candidate exists
-- [ ] `ali` fails when its target is not one existing accessible discourse value
-- [ ] `def` introduces one local value and exact alias
-- [ ] Private `def` bindings do not become ordinary shorthand candidates
-- [ ] `rel` never exports its temporary alias
-- [ ] Alias surfaces cannot collide with lexical or structural forms
-- [ ] Canonical resolved generation materializes safe shorthand deterministically
-- [ ] CLI playground integration tests cover successful and intentionally failing resolution paths
+- [x] Alias resolves exactly regardless of other compatible referents
+- [x] Alias cannot escape its lexical scope
+- [x] Inner alias binding shadows an outer alias deterministically and the outer binding reappears after scope exit
+- [x] Non-Entity aliases type-check in typed operator slots
+- [x] Boundary retires ordinary shorthand while preserving an in-scope exact alias
+- [x] Omission becomes invalid as soon as a second compatible candidate exists
+- [x] `ali` fails when its target is not one existing accessible discourse value
+- [x] `def` introduces one local value and exact alias
+- [x] Private `def` bindings do not become ordinary shorthand candidates
+- [x] `rel` never exports its temporary alias
+- [x] Alias surfaces cannot collide with lexical or structural forms
+- [x] Canonical resolved generation materializes safe shorthand deterministically
+- [x] CLI playground integration tests cover successful and intentionally failing resolution paths
 
-Status: implementation and dedicated Phase 3/core + CLI integration tests are present. Validation remains open until the new test suites execute on the author Rust toolchain.
+Status: complete. The dedicated Phase 3 core suite passed 12/12 and the CLI integration suite passed 3/3 on the author toolchain; the full workspace regression suite, Svelte check, WASM build, production site build, and scripted playground smoke test also completed successfully.
 
 Completion result: safe cross-sentence reference, exact local naming, deterministic boundaries, and omission are usable.
 
@@ -417,15 +417,15 @@ Goal: allow real people, places, projects, titles, and foreign text in ordinary 
 
 Implementation:
 
-- [ ] Implement selected audible/visible proper-name marker `na`
-- [ ] Define deterministic name payload representation
-- [ ] Define canonical pronunciation/adaptation rules
-- [ ] Keep native/foreign names in one grammatical class
-- [ ] Route same-name collisions through normal reference disambiguation
-- [ ] Implement selected explicit external quotation boundaries `sit ... tis`
-- [ ] Support nested quotation deterministically
-- [ ] Preserve quoted payload as opaque text
-- [ ] Prevent quoted foreign text from entering the ordinary root parser
+- [x] Implement selected audible/visible proper-name marker `na`
+- [x] Define deterministic name payload representation
+- [x] Define canonical pronunciation/adaptation rules
+- [x] Keep native/foreign names in one grammatical class
+- [x] Route same-name collisions through normal reference disambiguation
+- [x] Implement selected explicit external quotation boundaries `sit ... tis`
+- [x] Support nested quotation deterministically
+- [x] Preserve quoted payload as opaque text
+- [x] Prevent quoted foreign text from entering the ordinary root parser
 
 Required validation:
 
@@ -433,6 +433,8 @@ Required validation:
 - [ ] Two same-named referents remain distinguishable only through explicit context/aliasing
 - [ ] Foreign text never parses as Systean accidentally inside opaque quotation
 - [ ] Nested quotes preserve exact boundaries
+
+Status: implementation and dedicated Phase 4 tests are present. Runtime validation remains open until the author toolchain executes the new suite.
 
 Completion result: names and arbitrary external text can appear in real conversations.
 
@@ -444,11 +446,11 @@ Goal: stop testing only engine mechanics and make Systean usable for small real 
 
 Language authoring:
 
-- [ ] Implement and formally bind the manually selected initial 30–50 high-value content roots listed in the pre-implementation surface freeze
-- [ ] Cover people/entities, perception, possession, movement, communication, location, basic properties, and everyday actions
-- [ ] Give every predicate/relation an explicit semantic frame
-- [ ] Avoid contextual polysemy and vague derivations
-- [ ] Add only roots chosen manually by the language author
+- [x] Implement and formally bind the manually selected initial 30–50 high-value content roots listed in the pre-implementation surface freeze
+- [x] Cover people/entities, perception, possession, movement, communication, location, basic properties, and everyday actions
+- [x] Give every predicate/relation an explicit semantic frame
+- [x] Avoid contextual polysemy and vague derivations
+- [x] Add only roots chosen manually by the language author
 
 Tooling:
 
@@ -466,6 +468,8 @@ Required validation:
 - [ ] Use existential and universal quantification
 - [ ] Use coordination with `va/zo` precedence
 - [ ] Demonstrate an intentional ambiguity error and explicit repair
+
+Status: the manually selected 40-root playable vocabulary, semantic bindings, dedicated core tests, and CLI conversation tests are present. The exact implemented frames are summarized in [`PLAYABLE_VOCABULARY.md`](PLAYABLE_VOCABULARY.md). Runtime validation remains open until the author toolchain executes the new suites.
 
 Completion result: **Playable Systean milestone**.
 
