@@ -22,6 +22,8 @@ fn language() -> LanguagePackage {
         &fs::read_to_string(repo.join("tests/fixtures/syntax/lexicon.toml")).unwrap(),
     );
     let core = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
+    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
     let fixture = fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap();
 
     LanguagePackage::from_sources(
@@ -32,6 +34,8 @@ fn language() -> LanguagePackage {
         &dictionary,
         &[
             ("language/semantics/core.semsys", &core),
+            ("language/semantics/pragmatics.semsys", &pragmatics),
+            ("language/semantics/subjective.semsys", &subjective),
             ("tests/fixtures/semantics/syntax.semsys", &fixture),
         ],
     )

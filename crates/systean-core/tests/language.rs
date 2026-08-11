@@ -16,6 +16,8 @@ fn package_from_dictionary(dictionary: &str) -> Result<LanguagePackage, systean_
     let morphology = fs::read_to_string(repo.join("language/morphology.toml")).unwrap();
     let syntax = fs::read_to_string(repo.join("language/syntax.toml")).unwrap();
     let semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
+    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
 
     LanguagePackage::from_sources(
         &alphabet,
@@ -23,7 +25,11 @@ fn package_from_dictionary(dictionary: &str) -> Result<LanguagePackage, systean_
         &morphology,
         &syntax,
         dictionary,
-        &[("language/semantics/core.semsys", &semantics)],
+        &[
+            ("language/semantics/core.semsys", &semantics),
+            ("language/semantics/pragmatics.semsys", &pragmatics),
+            ("language/semantics/subjective.semsys", &subjective),
+        ],
     )
 }
 
@@ -35,11 +41,13 @@ fn canonical_language_package_loads_as_one_validated_unit() {
         language.phonology().alphabet.pronounce("Systean").unwrap(),
         "sjstean"
     );
-    assert_eq!(language.roots().roots().len(), 83);
+    assert_eq!(language.roots().roots().len(), 175);
     for root in [
         "sol", "ref", "mi", "tu", "na", "ke", "ne", "va", "zo", "ra", "mu", "da", "me",
         "per", "vid", "mov", "viv", "gov", "skrib", "sta", "stop", "unk", "vak",
         "hid", "rov", "mini", "maks", "tip", "stat", "prob", "frek", "imp", "hip",
+        "emo", "fok", "top", "ret", "kor", "klar", "felis", "trist", "eros", "eruz",
+        "dolor", "superb", "avari", "lusta", "gula", "leni",
     ] {
         assert!(language.roots().roots().iter().any(|known| known == root));
     }
@@ -54,6 +62,12 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert_eq!(language.syntax().config().discourse.definition, "def");
     assert_eq!(language.syntax().config().discourse.relative, "rel");
     assert_eq!(language.syntax().config().discourse.frame, "fra");
+    assert_eq!(language.syntax().config().pragmatics.default_assertion_operator, "assert");
+    assert_eq!(language.syntax().config().pragmatics.expressive_operator, "express_affect");
+    assert!(language.semantics().operator("express_affect").is_some());
+    assert!(language
+        .semantics()
+        .is_assignable(&Type::named("SubjectiveEvent"), &Type::named("Event")));
     assert!(
         language.syntax().config().logic.precedence["and"]
             > language.syntax().config().logic.precedence["or"]
@@ -61,6 +75,7 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert_eq!(language.syntax().lexicon().len(), language.roots().roots().len());
     for surface in [
         "sol", "ref", "mi", "tu", "na", "ne", "va", "zo", "ra", "mu", "ke", "da", "me",
+        "emo", "fok", "top", "ret", "kor", "klar", "felis", "dolor",
     ] {
         assert!(language.syntax().lexicon().contains_key(surface));
     }
@@ -121,6 +136,35 @@ frame = "fra"
 open = "sit"
 close = "tis"
 
+[pragmatics]
+default_assertion_operator = "assert"
+default_assertion_role = "content"
+question_operator = "ask_truth"
+question_content_role = "content"
+command_operator = "command"
+command_content_role = "content"
+request_operator = "request"
+request_content_role = "content"
+expressive_operator = "express_affect"
+expressive_state_role = "state"
+focus_operator = "focus"
+focus_target_role = "target"
+focus_content_role = "content"
+topic_operator = "topic"
+topic_target_role = "target"
+topic_content_role = "content"
+retract_operator = "retract"
+repair_target_role = "target"
+correction_operator = "correct"
+correction_replacement_role = "replacement"
+clarification_operator = "clarify"
+clarification_content_role = "content"
+disjunction_operator = "or"
+disjunction_left_role = "left"
+disjunction_right_role = "right"
+information_family = "information"
+unknown_status = "unknown"
+
 [lexemes.ne]
 kind = "prefix"
 semantic = "not"
@@ -140,13 +184,19 @@ fn language_package_can_be_built_from_embedded_sources() {
     let syntax = fs::read_to_string(repo.join("language/syntax.toml")).unwrap();
     let dictionary = fs::read_to_string(repo.join("language/dictionary.toml")).unwrap();
     let semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
+    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
     let language = LanguagePackage::from_sources(
         &alphabet,
         &phonology,
         &morphology,
         &syntax,
         &dictionary,
-        &[("language/semantics/core.semsys", &semantics)],
+        &[
+            ("language/semantics/core.semsys", &semantics),
+            ("language/semantics/pragmatics.semsys", &pragmatics),
+            ("language/semantics/subjective.semsys", &subjective),
+        ],
     )
     .unwrap();
     assert!(
@@ -171,6 +221,8 @@ fn language_package_can_be_built_from_embedded_full_sources() {
     let literals = fs::read_to_string(repo.join("language/literals.toml")).unwrap();
     let units = fs::read_to_string(repo.join("language/units.toml")).unwrap();
     let semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
+    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
+    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
     let language = LanguagePackage::from_sources_full(
         &alphabet,
         &phonology,
@@ -179,7 +231,11 @@ fn language_package_can_be_built_from_embedded_full_sources() {
         &dictionary,
         &literals,
         &units,
-        &[("language/semantics/core.semsys", &semantics)],
+        &[
+            ("language/semantics/core.semsys", &semantics),
+            ("language/semantics/pragmatics.semsys", &pragmatics),
+            ("language/semantics/subjective.semsys", &subjective),
+        ],
     )
     .unwrap();
 

@@ -124,13 +124,19 @@ syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"
     );
     let mut semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
     semantics.push_str("\noperator utter_text_fixture(speaker: Entity, content: Text) -> Proposition;\n");
+    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
+    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
     let language = LanguagePackage::from_sources(
         &alphabet,
         &phonology,
         &morphology,
         &syntax,
         &dictionary,
-        &[("language/semantics/core.semsys", &semantics)],
+        &[
+            ("language/semantics/core.semsys", &semantics),
+            ("language/semantics/pragmatics.semsys", &pragmatics),
+            ("language/semantics/subjective.semsys", &subjective),
+        ],
     )
     .unwrap();
 
