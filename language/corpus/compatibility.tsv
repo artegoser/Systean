@@ -1,0 +1,9 @@
+# label<TAB>source<TAB>canonical surface<TAB>type<TAB>canonical semantics
+bare entity	sol	sol	Entity	sol
+proper name	na artemi	na artemi	Entity	proper_name(payload = "artemi")
+binary predicate	mi vi tu	mi vi tu	Proposition	see(observed = mary, observer = john)
+explicit question	ke mi si	ke mi si	Utterance	ask_truth(content = sleep(sleeper = john))
+negated universal	ne ra pe si	ne ra pe si	Proposition	not(value = forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = sleep(sleeper = v0))))
+nested quantifiers	ra pe vi mu kan	ra pe vi mu kan	Proposition	forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = exists(predicate = bind v1: Entity => and(left = dog(entity = v1), right = see(observed = v1, observer = v0)))))
+spoken exact number	mega uno pent	mega uno pent	Number	number<"1000005">
+opaque text	sit hello world tis	sit hello world tis	Text	"hello world"

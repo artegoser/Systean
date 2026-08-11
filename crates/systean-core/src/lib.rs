@@ -1,3 +1,4 @@
+pub mod compiler;
 pub mod discourse;
 pub mod language;
 pub mod literals;

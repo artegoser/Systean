@@ -1,0 +1,9 @@
+# mode<TAB>label<TAB>source<TAB>expected canonical surface for canonical mode
+reject	noncanonical argument order	vi mi tu
+reject	stray quote close	tis
+reject	missing quote close	sit hello
+reject	noncanonical magnitude chain	kilo kilo uno
+canonical	redundant scope	ki mi si ku	mi si
+canonical	associative grouping	mi si va ki tu si va mi vi tu ku	mi si va tu si va mi vi tu
+canonical	required precedence scope	ki mi si zo tu si ku va mi vi tu	ki mi si zo tu si ku va mi vi tu
+canonical	explicit plus normalizes	plus pent	pent

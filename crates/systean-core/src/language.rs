@@ -5,6 +5,11 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::compiler::{
+    PackageInvariantError, PackageManifest, PackageManifestError, PackageProvenance,
+    PackageValidationReport, WholeLanguageCompiler, validate_compiled_package,
+    validate_declared_corpora,
+};
 use crate::discourse::{
     ConversationError, ConversationState, DiscourseFrameId, DiscourseGenerationError,
     DiscourseResolutionError, DiscourseState, ReferentId, ResolvedSurfaceAst, SectionId,
@@ -347,6 +352,9 @@ pub struct LanguagePackage {
     dictionary: Dictionary,
     roots: RootInventory,
     semantics: Environment,
+    manifest: PackageManifest,
+    provenance: PackageProvenance,
+    validation: PackageValidationReport,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -430,12 +438,22 @@ pub enum LanguageError {
     Dictionary(String),
     RootInventory(String),
     Semantics(Vec<PackageError>),
+    PackageManifest(PackageManifestError),
+    Package(Vec<PackageInvariantError>),
     SemanticExpression(String),
 }
 
 impl LanguagePackage {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, LanguageError> {
-        let path = path.as_ref();
+        WholeLanguageCompiler::compile_path(path)
+    }
+
+    pub(crate) fn compile_directory(path: &Path) -> Result<Self, LanguageError> {
+        let manifest_source = read(path.join("package.toml"))?;
+        let manifest = PackageManifest::from_toml(&manifest_source)
+            .map_err(LanguageError::PackageManifest)?;
+        let provenance = PackageProvenance::from_directory(path, &manifest)
+            .map_err(LanguageError::PackageManifest)?;
         let alphabet = read(path.join("alphabet.toml"))?;
         let phonology = read(path.join("phonology.toml"))?;
         let morphology = read(path.join("morphology.toml"))?;
@@ -445,8 +463,16 @@ impl LanguagePackage {
         let units = read(path.join("units.toml"))?;
         let semantics = compile_path(path.join("semantics")).map_err(LanguageError::Semantics)?;
         Self::from_parts(
-            &alphabet, &phonology, &morphology, &syntax, &dictionary,
-            Some((&literals, &units)), semantics
+            &alphabet,
+            &phonology,
+            &morphology,
+            &syntax,
+            &dictionary,
+            Some((&literals, &units)),
+            semantics,
+            manifest,
+            provenance,
+            Some(path),
         )
     }
 
@@ -464,7 +490,35 @@ impl LanguagePackage {
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
         .map_err(LanguageError::Semantics)?;
-        Self::from_parts(alphabet, phonology, morphology, syntax, dictionary, None, semantics)
+        let manifest = PackageManifest::synthetic();
+        let provenance = PackageProvenance::from_sources(
+            &manifest,
+            [
+                ("alphabet.toml".to_owned(), alphabet.to_owned()),
+                ("phonology.toml".to_owned(), phonology.to_owned()),
+                ("morphology.toml".to_owned(), morphology.to_owned()),
+                ("syntax.toml".to_owned(), syntax.to_owned()),
+                ("dictionary.toml".to_owned(), dictionary.to_owned()),
+            ]
+            .into_iter()
+            .chain(
+                semantic_sources
+                    .iter()
+                    .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+            ),
+        );
+        Self::from_parts(
+            alphabet,
+            phonology,
+            morphology,
+            syntax,
+            dictionary,
+            None,
+            semantics,
+            manifest,
+            provenance,
+            None,
+        )
     }
 
     pub fn from_sources_full(
@@ -483,9 +537,36 @@ impl LanguagePackage {
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
         .map_err(LanguageError::Semantics)?;
+        let manifest = PackageManifest::synthetic();
+        let provenance = PackageProvenance::from_sources(
+            &manifest,
+            [
+                ("alphabet.toml".to_owned(), alphabet.to_owned()),
+                ("phonology.toml".to_owned(), phonology.to_owned()),
+                ("morphology.toml".to_owned(), morphology.to_owned()),
+                ("syntax.toml".to_owned(), syntax.to_owned()),
+                ("dictionary.toml".to_owned(), dictionary.to_owned()),
+                ("literals.toml".to_owned(), literals.to_owned()),
+                ("units.toml".to_owned(), units.to_owned()),
+            ]
+            .into_iter()
+            .chain(
+                semantic_sources
+                    .iter()
+                    .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+            ),
+        );
         Self::from_parts(
-            alphabet, phonology, morphology, syntax, dictionary,
-            Some((literals, units)), semantics
+            alphabet,
+            phonology,
+            morphology,
+            syntax,
+            dictionary,
+            Some((literals, units)),
+            semantics,
+            manifest,
+            provenance,
+            None,
         )
     }
 
@@ -497,35 +578,39 @@ impl LanguagePackage {
         dictionary: &str,
         structured_sources: Option<(&str, &str)>,
         semantics: Environment,
+        manifest: PackageManifest,
+        provenance: PackageProvenance,
+        package_root: Option<&Path>,
     ) -> Result<Self, LanguageError> {
-        let phonology = PhonologyConfig::from_toml(alphabet, phonology)
+        let phonology_config = PhonologyConfig::from_toml(alphabet, phonology)
             .map_err(LanguageError::Phonology)?;
-        let morphology = MorphologyEngine::new(
+        let morphology_engine = MorphologyEngine::new(
             MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
         );
         let syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
-        validate_roots(&phonology, &roots)?;
-        validate_morphology(&morphology, &phonology, &roots)?;
+        validate_roots(&phonology_config, &roots)?;
+        validate_morphology(&morphology_engine, &phonology_config, &roots)?;
 
         let mut semantics = semantics;
         dictionary_parsed.install_constants(&mut semantics)?;
         validate_pragmatics(&syntax_config.pragmatics, &semantics)
             .map_err(LanguageError::Pragmatics)?;
-        let syntax = if let Some((literal_source, units_source)) = structured_sources {
+        let syntax_engine = if let Some((literal_source, units_source)) = structured_sources {
             let literal_config = LiteralConfig::from_toml(literal_source)
                 .map_err(LanguageError::LiteralConfig)?;
             let units_config = UnitsConfig::from_toml(units_source)
                 .map_err(LanguageError::UnitsConfig)?;
-            let units = UnitRegistry::new(units_config).map_err(LanguageError::UnitsConfig)?;
+            let units_registry = UnitRegistry::new(units_config).map_err(LanguageError::UnitsConfig)?;
             let literal_engine = LiteralEngine::new(
                 literal_config,
-                units,
+                units_registry,
                 syntax_config.scope.open.clone(),
                 syntax_config.scope.close.clone(),
-            ).map_err(LanguageError::Literal)?;
+            )
+            .map_err(LanguageError::Literal)?;
             SyntaxEngine::new_with_literals(
                 syntax_config,
                 dictionary_parsed.surface_lexicon(),
@@ -534,17 +619,54 @@ impl LanguagePackage {
         } else {
             SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon())
         };
-        validate_syntax(&syntax, &phonology, &roots, &semantics)?;
-        validate_literals(&syntax, &phonology, &roots, &semantics)?;
+        validate_syntax(&syntax_engine, &phonology_config, &roots, &semantics)?;
+        validate_literals(&syntax_engine, &phonology_config, &roots, &semantics)?;
 
-        Ok(Self {
-            phonology,
-            morphology,
-            syntax,
+        let mut package = Self {
+            phonology: phonology_config,
+            morphology: morphology_engine,
+            syntax: syntax_engine,
             dictionary: dictionary_parsed,
             roots,
             semantics,
-        })
+            manifest,
+            provenance,
+            validation: PackageValidationReport::empty(),
+        };
+        let (literal_source, units_source) = structured_sources.unwrap_or(("", ""));
+        let module_sources = [
+            ("alphabet", alphabet),
+            ("phonology", phonology),
+            ("morphology", morphology),
+            ("syntax", syntax),
+            ("dictionary", dictionary),
+            ("literals", literal_source),
+            ("units", units_source),
+        ];
+        let mut report = validate_compiled_package(&package, &package.manifest, &module_sources)
+            .map_err(LanguageError::Package)?;
+        if let Some(root) = package_root {
+            validate_declared_corpora(&package, root, &mut report)
+                .map_err(LanguageError::Package)?;
+        }
+        package.validation = report;
+        Ok(package)
+    }
+
+    pub fn manifest(&self) -> &PackageManifest {
+        &self.manifest
+    }
+
+    pub fn provenance(&self) -> &PackageProvenance {
+        &self.provenance
+    }
+
+    pub fn validation_report(&self) -> &PackageValidationReport {
+        &self.validation
+    }
+
+    pub fn package_fingerprint(&self) -> &str {
+        &self.provenance.fingerprint
     }
 
     pub fn phonology(&self) -> &PhonologyConfig {
@@ -1262,6 +1384,16 @@ impl fmt::Display for LanguageError {
                         writeln!(f)?;
                     }
                     write!(f, "semantics: {error}")?;
+                }
+                Ok(())
+            }
+            Self::PackageManifest(error) => write!(f, "package manifest: {error}"),
+            Self::Package(errors) => {
+                for (index, error) in errors.iter().enumerate() {
+                    if index > 0 {
+                        writeln!(f)?;
+                    }
+                    write!(f, "package invariant: {error}")?;
                 }
                 Ok(())
             }

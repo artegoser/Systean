@@ -1,0 +1,27 @@
+[package]
+name = "systean"
+version = "0.16.0"
+revision = 16
+
+[provenance]
+source = "language/"
+specification = "docs/FINAL_ARCHITECTURE.md"
+
+[modules]
+alphabet = "1.0"
+phonology = "1.0"
+morphology = "1.0"
+syntax = "1.6"
+dictionary = "14.0"
+literals = "1.0"
+units = "1.0"
+
+[compatibility]
+# Revisions with the same epoch promise to preserve the frozen compatibility
+# corpus. Deliberate incompatible language changes increment this epoch.
+epoch = 1
+
+[validation]
+compatibility_corpus = "corpus/compatibility.tsv"
+adversarial_corpus = "corpus/adversarial.tsv"
+exhaustive_max_tokens = 3
