@@ -549,7 +549,10 @@ impl LiteralEngine {
         if tokens.get(start).is_some_and(|token| token == &self.config.number.approximation)
             && tokens.get(start + 1).is_some_and(|token| token == &self.scope_open)
         {
-            return self.parse_spoken_uncertain_quantity(tokens, start).map(Some);
+            if let Some(quantity) = self.parse_spoken_uncertain_quantity(tokens, start)? {
+                return Ok(Some(quantity));
+            }
+            return Ok(None);
         }
 
         let approximate = tokens.get(start).is_some_and(|token| token == &self.config.number.approximation);
@@ -565,7 +568,7 @@ impl LiteralEngine {
         self.quantity_match(quantity, unit_index + 1 - start, LiteralRealization::Spoken).map(Some)
     }
 
-    fn parse_spoken_uncertain_quantity(&self, tokens: &[String], start: usize) -> Result<LiteralMatch, LiteralError> {
+    fn parse_spoken_uncertain_quantity(&self, tokens: &[String], start: usize) -> Result<Option<LiteralMatch>, LiteralError> {
         let mut index = start + 1;
         require(tokens, &mut index, &self.scope_open, "approximate quantity value")?;
         let value = parse_spoken_number(tokens, index, &self.config.number, &self.scope_open, &self.scope_close)
@@ -578,7 +581,11 @@ impl LiteralEngine {
         index += uncertainty.consumed;
         require(tokens, &mut index, &self.scope_close, "approximate quantity uncertainty")?;
         let Some(unit) = tokens.get(index).and_then(|surface| self.units.unit_by_spoken(surface)) else {
-            return Err(LiteralError("approximate quantity requires a spoken unit form".into()));
+            // `apro ki VALUE ku ki TOLERANCE ku` is also the complete spoken form of an
+            // Approximate<Number>. Do not commit to the quantity grammar until a unit
+            // follows the two numeric scopes; the number parser gets the same token
+            // stream if no unit is present.
+            return Ok(None);
         };
         index += 1;
         self.quantity_match(
@@ -591,6 +598,7 @@ impl LiteralEngine {
             index - start,
             LiteralRealization::Spoken,
         )
+        .map(Some)
     }
 
     fn quantity_value_from_canonical(&self, canonical: &str) -> Result<QuantityValue, LiteralError> {
