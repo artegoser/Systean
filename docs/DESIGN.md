@@ -5,7 +5,7 @@ Purpose: preserve the goals, architectural decisions, invariants, and unresolved
 
 This document supersedes historical prototype assumptions where they conflict with the current executable language package. Active normative files live under `language/`; superseded grammar and morphology prototypes live under `language/legacy/`.
 
-Detailed semantic, phonological, morphological, and surface-syntax architecture is specified in [`SEMANTICS.md`](SEMANTICS.md), [`PHONOLOGY.md`](PHONOLOGY.md), [`MORPHOLOGY.md`](MORPHOLOGY.md), and [`SYNTAX.md`](SYNTAX.md). Those focused specifications take precedence over older examples in this baseline when they conflict.
+Detailed semantic, phonological, morphological, surface-syntax, and structured-value architecture is specified in [`SEMANTICS.md`](SEMANTICS.md), [`PHONOLOGY.md`](PHONOLOGY.md), [`MORPHOLOGY.md`](MORPHOLOGY.md), [`SYNTAX.md`](SYNTAX.md), and [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md). Those focused specifications take precedence over older examples in this baseline when they conflict.
 
 ---
 
@@ -1278,12 +1278,13 @@ The architecture is therefore no longer waiting on open questions such as whethe
 
 What intentionally remains human language authoring rather than architecture includes:
 
-- exact surface forms for future reference/alias/focus/repair constructions;
-- proper-name marker and deterministic name adaptation details;
-- spoken numeral inventory and compact notation details;
-- unit/time/affect vocabulary;
+- future affect/focus/repair and other not-yet-implemented surface forms already selected in the roadmap;
+- expansion of the initial unit registry where real usage requires additional units;
+- future event/aspect, uncertainty, generic/statistical, and speech-act vocabulary already assigned to later phases;
 - manually authored content roots and predicate frames;
 - corpus-driven refinement of semantic signatures where the generic architecture already supports the required mechanism.
+
+Phases 6–8 now execute the selected numeric, quantity/unit, and temporal architecture; their exact current surface contracts are recorded in [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 The fixed phoneme/alphabet inventory, first-root-syllable stress, bare-root morphology, structural surface syntax, core particles, dictionary ownership, and generic semantic engine remain unchanged.
 

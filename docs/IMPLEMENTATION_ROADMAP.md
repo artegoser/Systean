@@ -429,12 +429,12 @@ Implementation:
 
 Required validation:
 
-- [ ] Proper-name status round-trips in writing and speech
-- [ ] Two same-named referents remain distinguishable only through explicit context/aliasing
-- [ ] Foreign text never parses as Systean accidentally inside opaque quotation
-- [ ] Nested quotes preserve exact boundaries
+- [x] Proper-name status round-trips in writing and speech
+- [x] Two same-named referents remain distinguishable only through explicit context/aliasing
+- [x] Foreign text never parses as Systean accidentally inside opaque quotation
+- [x] Nested quotes preserve exact boundaries
 
-Status: implementation and dedicated Phase 4 tests are present. Runtime validation remains open until the author toolchain executes the new suite.
+Status: **validated**. The dedicated Phase 4 suite and the full workspace/site regression run passed on the author toolchain.
 
 Completion result: names and arbitrary external text can appear in real conversations.
 
@@ -460,16 +460,16 @@ Tooling:
 
 Required validation:
 
-- [ ] Small greeting/introduction dialogue
-- [ ] Refer to two different people across several turns
-- [ ] Ask and answer a truth question
-- [ ] Give a command and request
-- [ ] State and negate propositions
-- [ ] Use existential and universal quantification
-- [ ] Use coordination with `va/zo` precedence
-- [ ] Demonstrate an intentional ambiguity error and explicit repair
+- [x] Small greeting/introduction dialogue
+- [x] Refer to two different people across several turns
+- [x] Ask and answer a truth question
+- [x] Give a command and request
+- [x] State and negate propositions
+- [x] Use existential and universal quantification
+- [x] Use coordination with `va/zo` precedence
+- [x] Demonstrate an intentional ambiguity error and explicit repair
 
-Status: the manually selected 40-root playable vocabulary, semantic bindings, dedicated core tests, and CLI conversation tests are present. The exact implemented frames are summarized in [`PLAYABLE_VOCABULARY.md`](PLAYABLE_VOCABULARY.md). Runtime validation remains open until the author toolchain executes the new suites.
+Status: **validated**. The manually selected 40-root playable vocabulary, semantic bindings, dedicated core tests, CLI conversation tests, root audit, full workspace regression suite, WASM build, and site checks passed on the author toolchain. The exact implemented frames are summarized in [`PLAYABLE_VOCABULARY.md`](PLAYABLE_VOCABULARY.md).
 
 Completion result: **Playable Systean milestone**.
 
@@ -481,17 +481,17 @@ Goal: support formal numeric content without allocating a root for every value.
 
 Implementation:
 
-- [ ] Add generic structured-literal codec interface
-- [ ] Implement `Number`
-- [ ] Implement `Digit`
-- [ ] Implement `DigitSequence`
-- [ ] Implement canonical Arabic decimal numeral notation for written `Number` values
-- [ ] Implement selected spoken digit forms `nul/uno/dva/tri/kvar/pent/siks/sev/okt/nin`
-- [ ] Implement the selected sparse magnitude-first integer composition
-- [ ] Implement selected negative-number realization with `minus`
-- [ ] Implement exact decimal `dot` and exact rational `rat` realization
-- [ ] Implement direct `dek/hek/kilo/mega/giga/tera/peta/eksa/zeta/yota/rona/keta` magnitudes, canonical large-scale chaining, and explicit `eks` exponent notation
-- [ ] Keep approximation outside exact numeric parsing
+- [x] Add generic structured-literal codec interface
+- [x] Implement `Number`
+- [x] Implement `Digit`
+- [x] Implement `DigitSequence`
+- [x] Implement canonical Arabic decimal numeral notation for written `Number` values
+- [x] Implement selected spoken digit forms `nul/uno/dva/tri/kvar/pent/siks/sev/okt/nin`
+- [x] Implement the selected sparse magnitude-first integer composition
+- [x] Implement selected negative-number realization with `minus`
+- [x] Implement exact decimal `dot` and exact rational `rat` realization
+- [x] Implement direct `dek/hek/kilo/mega/giga/tera/peta/eksa/zeta/yota/rona/keta` magnitudes, canonical large-scale chaining, and explicit `eks` exponent notation
+- [x] Keep approximation outside exact numeric parsing
 
 Required validation:
 
@@ -504,6 +504,8 @@ Required validation:
 - [ ] Every accepted spoken integer has exactly one complete numeric parse
 - [ ] Alternative accepted forms, if any, regenerate canonically
 
+Status: implementation and dedicated Phase 6 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
+
 Completion result: exact numeric expressions are first-class language values.
 
 ---
@@ -514,13 +516,13 @@ Goal: express measurements compositionally and without conflating values with un
 
 Implementation:
 
-- [ ] Define semantic `Unit`/`Quantity` representation
-- [ ] Declare unit dimensions
-- [ ] Add canonical unit identities
-- [ ] Add deterministic written/spoken unit forms
-- [ ] Add exact conversion metadata where applicable
-- [ ] Represent measurement uncertainty/precision explicitly
-- [ ] Keep conversion/evaluation separate from parsing
+- [x] Define semantic `Unit`/`Quantity` representation
+- [x] Declare unit dimensions
+- [x] Add canonical unit identities
+- [x] Add deterministic written/spoken unit forms
+- [x] Add exact conversion metadata where applicable
+- [x] Represent measurement uncertainty/precision explicitly
+- [x] Keep conversion/evaluation separate from parsing
 
 Required validation:
 
@@ -528,6 +530,8 @@ Required validation:
 - [ ] Incompatible unit dimensions fail type checking where required
 - [ ] Exact conversions preserve exact values
 - [ ] Approximate measurement remains explicitly approximate
+
+Status: implementation and dedicated Phase 7 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 Completion result: measurements are usable in ordinary and technical language.
 
@@ -539,15 +543,15 @@ Goal: express when events occur without obligatory tense morphology.
 
 Implementation:
 
-- [ ] Finalize `Instant` / `Interval` / `Duration` / calendar type split
-- [ ] Add calendar/date literal codec if compact notation is used
-- [ ] Implement selected calendar/time support forms `dat` and `zon`
-- [ ] Add deterministic spoken date/time generation
-- [ ] Add selected temporal forms `ante` (before), `aft` (after), and `pot` (during)
-- [ ] Add duration relations
-- [ ] Add selected context-bound `nau` (`now`) and context-provider contract
-- [ ] Define context input contract for speaker/addressee/time/place when used
-- [ ] Keep temporal relation independent from aspectual target identity
+- [x] Finalize `Instant` / `Interval` / `Duration` / calendar type split
+- [x] Add calendar/date literal codec if compact notation is used
+- [x] Implement selected calendar/time support forms `dat` and `zon`
+- [x] Add deterministic spoken date/time generation
+- [x] Add selected temporal forms `ante` (before), `aft` (after), and `pot` (during)
+- [x] Add duration relations
+- [x] Add selected context-bound `nau` (`now`) and context-provider contract
+- [x] Define context input contract for speaker/addressee/time/place when used
+- [x] Keep temporal relation independent from aspectual target identity
 
 Required validation:
 
@@ -555,6 +559,8 @@ Required validation:
 - [ ] Relative time uses an explicit/context-bound anchor
 - [ ] Same sentence under different explicit `now` contexts resolves deterministically to different intended values without changing parse rules
 - [ ] No hidden tense inference from word order
+
+Status: implementation and dedicated Phase 8 tests are present. Runtime validation of the new suite remains pending on the author toolchain. See [`STRUCTURED_VALUES.md`](STRUCTURED_VALUES.md).
 
 Completion result: normal scheduling, history, duration, and temporal description are possible.
 
