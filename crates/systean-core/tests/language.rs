@@ -210,7 +210,9 @@ semantic = { kind = "constant", type = "Entity" }
 "#,
     )
     .unwrap_err();
-    assert!(error.to_string().contains("semantic identity belongs to language/typed"), "{error}");
+    let message = error.to_string();
+    assert!(message.contains("unsupported field `semantic`"), "{error}");
+    assert!(message.contains("language/typed/*.semsys"), "{error}");
 }
 
 #[test]
