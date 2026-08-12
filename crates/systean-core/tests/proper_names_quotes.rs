@@ -21,7 +21,7 @@ fn proper_name_round_trips_as_one_marked_entity() {
     assert_eq!(analysis.inferred_type, "Entity");
     assert_eq!(
         analysis.canonical_semantics,
-        "proper_name(payload = \"artemi\")"
+        "na(payload = \"artemi\")"
     );
 
     let pronunciation = language
@@ -118,14 +118,13 @@ fn opaque_quote_can_fill_a_typed_text_slot_without_parsing_payload_roots() {
         r#"
 [govtest]
 definition = "Fixture text-taking predicate."
-semantic = { kind = "operator", name = "utter_text_fixture" }
 syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"] }
 "#,
     );
-    let mut semantics = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
-    semantics.push_str("\noperator utter_text_fixture(speaker: Entity, content: Text) -> Proposition;\n");
-    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
-    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
+    let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
+    let mut lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    lexicon.push_str("\nword govtest($speaker: Entity, $content: Text) -> Proposition;\n");
+    let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
     let language = LanguagePackage::from_sources(
         &alphabet,
         &phonology,
@@ -133,9 +132,9 @@ syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"
         &syntax,
         &dictionary,
         &[
-            ("language/semantics/core.semsys", &semantics),
-            ("language/semantics/pragmatics.semsys", &pragmatics),
-            ("language/semantics/subjective.semsys", &subjective),
+            ("language/typed/core.semsys", &core),
+            ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/units.semsys", &units),
         ],
     )
     .unwrap();

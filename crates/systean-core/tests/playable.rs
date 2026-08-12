@@ -63,14 +63,14 @@ fn small_greeting_and_introduction_dialogue_is_expressible() {
     assert_eq!(greeting.inferred_type, "Proposition");
     assert_eq!(
         greeting.canonical_semantics,
-        "speak(content = \"sal\", speaker = proper_name(payload = \"artemi\"))"
+        "gov(content = \"sal\", speaker = na(payload = \"artemi\"))"
     );
 
     let introduction = language.analyze_surface("na artemi per").unwrap();
     assert_eq!(introduction.inferred_type, "Proposition");
     assert_eq!(
         introduction.canonical_semantics,
-        "person(entity = proper_name(payload = \"artemi\"))"
+        "per(entity = na(payload = \"artemi\"))"
     );
 }
 
@@ -104,7 +104,7 @@ fn two_people_can_be_referred_to_exactly_across_multiple_turns() {
             .analyze_surface_with_discourse("arta vid mara", &discourse)
             .unwrap()
             .canonical_semantics,
-        "see(observed = proper_name(payload = \"mari\"), observer = proper_name(payload = \"artemi\"))"
+        "vid(observed = na(payload = \"mari\"), observer = na(payload = \"artemi\"))"
     );
     discourse.advance_frame();
     assert_eq!(
@@ -112,7 +112,7 @@ fn two_people_can_be_referred_to_exactly_across_multiple_turns() {
             .analyze_surface_with_discourse("mara vid arta", &discourse)
             .unwrap()
             .canonical_semantics,
-        "see(observed = proper_name(payload = \"artemi\"), observer = proper_name(payload = \"mari\"))"
+        "vid(observed = na(payload = \"artemi\"), observer = na(payload = \"mari\"))"
     );
 }
 
@@ -128,8 +128,8 @@ fn truth_question_and_answer_use_explicit_speech_act_structure() {
         .unwrap();
     assert_eq!(question.inferred_type, "Utterance");
     assert_eq!(answer.inferred_type, "Proposition");
-    assert!(question.canonical_semantics.starts_with("ask_truth(content = alive("));
-    assert!(answer.canonical_semantics.starts_with("alive(entity = "));
+    assert!(question.canonical_semantics.starts_with("ke(content = viv("));
+    assert!(answer.canonical_semantics.starts_with("viv(entity = "));
 }
 
 #[test]
@@ -144,8 +144,8 @@ fn command_and_request_use_explicit_operators_with_playable_roots() {
         .unwrap();
     assert_eq!(command.inferred_type, "Utterance");
     assert_eq!(request.inferred_type, "Utterance");
-    assert!(command.canonical_semantics.starts_with("command(content = move("));
-    assert!(request.canonical_semantics.starts_with("request(content = speak("));
+    assert!(command.canonical_semantics.starts_with("da(content = mov("));
+    assert!(request.canonical_semantics.starts_with("me(content = gov("));
 }
 
 #[test]
@@ -163,8 +163,8 @@ fn propositions_negation_quantification_and_coordination_are_playable() {
 
     let exists = language.analyze_surface("mu per viv").unwrap();
     let every = language.analyze_surface("ra per viv").unwrap();
-    assert!(exists.canonical_semantics.starts_with("exists(predicate = bind"));
-    assert!(every.canonical_semantics.starts_with("forall(predicate = bind"));
+    assert!(exists.canonical_semantics.starts_with("mu(predicate = bind"));
+    assert!(every.canonical_semantics.starts_with("ra(predicate = bind"));
 
     let mixed = language
         .analyze_surface_with_discourse("mi viv zo tu viv va mi vid tu", &discourse)
@@ -219,21 +219,21 @@ fn context_dependent_properties_require_explicit_standards() {
             .analyze_surface("na alfa nov na beta")
             .unwrap()
             .canonical_semantics,
-        "new_relative(standard = proper_name(payload = \"beta\"), value = proper_name(payload = \"alfa\"))"
+        "nov(standard = na(payload = \"beta\"), value = na(payload = \"alfa\"))"
     );
     assert_eq!(
         language
             .analyze_surface("na alfa bon na beta")
             .unwrap()
             .canonical_semantics,
-        "positive_by(criterion = proper_name(payload = \"beta\"), value = proper_name(payload = \"alfa\"))"
+        "bon(criterion = na(payload = \"beta\"), value = na(payload = \"alfa\"))"
     );
     assert_eq!(
         language
             .analyze_surface("na alfa prok na beta na gama")
             .unwrap()
             .canonical_semantics,
-        "near_by(reference = proper_name(payload = \"beta\"), standard = proper_name(payload = \"gama\"), value = proper_name(payload = \"alfa\"))"
+        "prok(reference = na(payload = \"beta\"), standard = na(payload = \"gama\"), value = na(payload = \"alfa\"))"
     );
 }
 
@@ -245,13 +245,13 @@ fn text_and_communication_roots_accept_opaque_text_values() {
             .analyze_surface("sit hello world tis tekst")
             .unwrap()
             .canonical_semantics,
-        "text_value(value = \"hello world\")"
+        "tekst(value = \"hello world\")"
     );
     assert_eq!(
         language
             .analyze_surface("na artemi skrib sit hello world tis")
             .unwrap()
             .canonical_semantics,
-        "write(content = \"hello world\", writer = proper_name(payload = \"artemi\"))"
+        "skrib(content = \"hello world\", writer = na(payload = \"artemi\"))"
     );
 }

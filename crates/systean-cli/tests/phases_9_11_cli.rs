@@ -35,7 +35,7 @@ fn run_script(script: &str) -> (String, String, bool) {
 #[test]
 fn playground_exposes_explicit_aspect_targets_and_repetition() {
     let (stdout, stderr, success) = run_script(
-        "intro-sem process_of(content = move(mover = sol))\n\
+        "intro-sem process_of(content = mov(mover = sol))\n\
          bind prun r0\n\
          analyze sta prun\n\
          analyze stop reg prun\n\
@@ -45,16 +45,16 @@ fn playground_exposes_explicit_aspect_targets_and_repetition() {
 
     assert!(success);
     assert!(stderr.is_empty(), "{stderr}");
-    assert!(stdout.contains("introduced: r0:Process=process_of(content = move(mover = sol))"));
-    assert!(stdout.contains("canonical semantics: start(target = process_of(content = move(mover = sol)))"));
-    assert!(stdout.contains("canonical semantics: cease(target = habitual(activity = process_of(content = move(mover = sol))))"));
-    assert!(stdout.contains("canonical semantics: repeat(count = number<\"3\">, target = process_of(content = move(mover = sol)))"));
+    assert!(stdout.contains("introduced: r0:Process=process_of(content = mov(mover = sol))"));
+    assert!(stdout.contains("canonical semantics: sta(target = process_of(content = mov(mover = sol)))"));
+    assert!(stdout.contains("canonical semantics: stop(target = reg(activity = process_of(content = mov(mover = sol))))"));
+    assert!(stdout.contains("canonical semantics: rep(count = number<\"3\">, target = process_of(content = mov(mover = sol)))"));
 }
 
 #[test]
 fn playground_exposes_information_statuses_without_guessing() {
     let (stdout, stderr, success) = run_script(
-        "context addressee proper_name(payload = \"mari\")\n\
+        "context addressee na(payload = \"mari\")\n\
          analyze na artemi vid unk tu\n\
          analyze na artemi vid vak\n\
          analyze na artemi vid hid\n\
@@ -63,9 +63,9 @@ fn playground_exposes_information_statuses_without_guessing() {
 
     assert!(success);
     assert!(stderr.is_empty(), "{stderr}");
-    assert!(stdout.contains("information<\"unknown:context:@"));
-    assert!(stdout.contains("information<\"unspecified\">"));
-    assert!(stdout.contains("information<\"withheld\">"));
+    assert!(stdout.contains("information(status = unknown, knower = context(@"));
+    assert!(stdout.contains("information(status = unspecified)"));
+    assert!(stdout.contains("information(status = withheld)"));
 }
 
 #[test]
@@ -81,9 +81,9 @@ fn playground_exposes_counted_quantifiers_and_distinct_generalizations() {
 
     assert!(success);
     assert!(stderr.is_empty(), "{stderr}");
-    assert!(stdout.contains("canonical semantics: exactly(count = number<\"3\">, predicate = bind"));
-    assert!(stdout.contains("canonical semantics: typical(domain = proper_name(payload = \"alfa\")"));
-    assert!(stdout.contains("canonical semantics: statistical(domain = proper_name(payload = \"alfa\")"));
-    assert!(stdout.contains("canonical semantics: implies("));
-    assert!(stdout.contains("canonical semantics: counterfactual("));
+    assert!(stdout.contains("canonical semantics: rov(count = number<\"3\">, predicate = bind"));
+    assert!(stdout.contains("canonical semantics: tip(domain = na(payload = \"alfa\")"));
+    assert!(stdout.contains("canonical semantics: stat(domain = na(payload = \"alfa\")"));
+    assert!(stdout.contains("canonical semantics: imp("));
+    assert!(stdout.contains("canonical semantics: hip("));
 }

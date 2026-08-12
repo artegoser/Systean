@@ -43,9 +43,9 @@ fn counted_quantifiers_are_explicit_and_semantically_distinct() {
     let at_least = language.analyze_surface("mini tri per viv").unwrap();
     let at_most = language.analyze_surface("maks tri per viv").unwrap();
 
-    assert!(exactly.canonical_semantics.starts_with("exactly(count = number<\"3\">, predicate = bind"));
-    assert!(at_least.canonical_semantics.starts_with("at_least(count = number<\"3\">, predicate = bind"));
-    assert!(at_most.canonical_semantics.starts_with("at_most(count = number<\"3\">, predicate = bind"));
+    assert!(exactly.canonical_semantics.starts_with("rov(count = number<\"3\">, predicate = bind"));
+    assert!(at_least.canonical_semantics.starts_with("mini(count = number<\"3\">, predicate = bind"));
+    assert!(at_most.canonical_semantics.starts_with("maks(count = number<\"3\">, predicate = bind"));
     assert_ne!(exactly.canonical_semantics, at_least.canonical_semantics);
     assert_ne!(at_least.canonical_semantics, at_most.canonical_semantics);
     assert_eq!(exactly.canonical_surface, "rov tri per viv");
@@ -59,9 +59,9 @@ fn collections_keep_set_list_and_group_identity_distinct() {
     let list = language.analyze_surface("na alfa list na beta").unwrap();
     let group = language.analyze_surface("na alfa grup na beta").unwrap();
 
-    assert!(set.canonical_semantics.starts_with("set_pair("));
-    assert!(list.canonical_semantics.starts_with("list_pair("));
-    assert!(group.canonical_semantics.starts_with("group_pair("));
+    assert!(set.canonical_semantics.starts_with("set("));
+    assert!(list.canonical_semantics.starts_with("list("));
+    assert!(group.canonical_semantics.starts_with("grup("));
     assert_ne!(set.canonical_semantics, list.canonical_semantics);
     assert_ne!(set.canonical_semantics, group.canonical_semantics);
 }
@@ -72,8 +72,8 @@ fn collective_and_distributive_interpretations_are_explicitly_different() {
     let collective = language.analyze_surface("kol na alfa viv").unwrap();
     let distributive = language.analyze_surface("dis na alfa viv").unwrap();
 
-    assert!(collective.canonical_semantics.starts_with("collective(content = alive("));
-    assert!(distributive.canonical_semantics.starts_with("distributive(content = alive("));
+    assert!(collective.canonical_semantics.starts_with("kol(content = viv("));
+    assert!(distributive.canonical_semantics.starts_with("dis(content = viv("));
     assert_ne!(collective.canonical_semantics, distributive.canonical_semantics);
 }
 
@@ -83,7 +83,7 @@ fn association_does_not_guess_a_more_specific_relation() {
     let association = language.analyze_surface("na alfa aso na beta").unwrap();
     assert_eq!(
         association.canonical_semantics,
-        "association(left = proper_name(payload = \"alfa\"), right = proper_name(payload = \"beta\"))"
+        "aso(left = na(payload = \"alfa\"), right = na(payload = \"beta\"))"
     );
 }
 
@@ -97,8 +97,8 @@ fn material_implication_and_counterfactual_are_distinct_constructions() {
         .analyze_surface("na alfa viv hip na beta viv")
         .unwrap();
 
-    assert!(implication.canonical_semantics.starts_with("implies("));
-    assert!(counterfactual.canonical_semantics.starts_with("counterfactual("));
+    assert!(implication.canonical_semantics.starts_with("imp("));
+    assert!(counterfactual.canonical_semantics.starts_with("hip("));
     assert_ne!(implication.canonical_semantics, counterfactual.canonical_semantics);
 }
 
@@ -110,10 +110,10 @@ fn typical_claim_is_not_an_exception_tolerant_universal() {
         .analyze_surface("na alfa tip na beta 0.8")
         .unwrap();
 
-    assert!(universal.canonical_semantics.starts_with("forall(predicate = bind"));
-    assert!(!universal.canonical_semantics.contains("typical("));
-    assert!(!universal.canonical_semantics.contains("statistical("));
-    assert!(typical.canonical_semantics.starts_with("typical("));
+    assert!(universal.canonical_semantics.starts_with("ra(predicate = bind"));
+    assert!(!universal.canonical_semantics.contains("tip("));
+    assert!(!universal.canonical_semantics.contains("stat("));
+    assert!(typical.canonical_semantics.starts_with("tip("));
     assert_ne!(universal.canonical_semantics, typical.canonical_semantics);
 }
 
@@ -129,11 +129,11 @@ fn typical_and_statistical_claims_expose_domain_measure_and_value() {
 
     assert_eq!(
         typical.canonical_semantics,
-        "typical(domain = proper_name(payload = \"alfa\"), measure = proper_name(payload = \"beta\"), standard = number<\"0.8\">)"
+        "tip(domain = na(payload = \"alfa\"), measure = na(payload = \"beta\"), standard = number<\"0.8\">)"
     );
     assert_eq!(
         statistical.canonical_semantics,
-        "statistical(domain = proper_name(payload = \"alfa\"), measure = proper_name(payload = \"beta\"), value = number<\"0.8\">)"
+        "stat(domain = na(payload = \"alfa\"), measure = na(payload = \"beta\"), value = number<\"0.8\">)"
     );
     assert_ne!(typical.canonical_semantics, statistical.canonical_semantics);
 }
@@ -142,12 +142,12 @@ fn typical_and_statistical_claims_expose_domain_measure_and_value() {
 fn probability_and_frequency_require_explicit_typed_targets_and_values() {
     let language = language();
     let mut discourse = DiscourseState::new();
-    bind_semantic(&language, &mut discourse, "prop", "alive(entity = sol)");
+    bind_semantic(&language, &mut discourse, "prop", "viv(entity = sol)");
     bind_semantic(
         &language,
         &mut discourse,
         "habit",
-        "activity_of(content = move(mover = sol))",
+        "activity_of(content = mov(mover = sol))",
     );
 
     let probability = language
@@ -159,11 +159,11 @@ fn probability_and_frequency_require_explicit_typed_targets_and_values() {
 
     assert_eq!(
         probability.canonical_semantics,
-        "probability(claim = alive(entity = sol), value = number<\"0.7\">)"
+        "prob(claim = viv(entity = sol), value = number<\"0.7\">)"
     );
     assert_eq!(
         frequency.canonical_semantics,
-        "frequency(activity = activity_of(content = move(mover = sol)), measure = proper_name(payload = \"kal\"), value = number<\"3\">)"
+        "frek(activity = activity_of(content = mov(mover = sol)), measure = na(payload = \"kal\"), value = number<\"3\">)"
     );
 }
 
@@ -186,10 +186,10 @@ fn majority_is_compositional_and_not_a_primitive_typical_or_statistical_claim() 
         .analyze_surface("na alfa stat na beta 0.6")
         .unwrap();
 
-    assert!(composition.canonical_semantics.contains("exactly(count = number<\"5\">"));
-    assert!(composition.canonical_semantics.contains("at_least(count = number<\"3\">"));
-    assert!(!composition.canonical_semantics.contains("typical("));
-    assert!(!composition.canonical_semantics.contains("statistical("));
+    assert!(composition.canonical_semantics.contains("rov(count = number<\"5\">"));
+    assert!(composition.canonical_semantics.contains("mini(count = number<\"3\">"));
+    assert!(!composition.canonical_semantics.contains("tip("));
+    assert!(!composition.canonical_semantics.contains("stat("));
     assert_ne!(composition.canonical_semantics, typical.canonical_semantics);
     assert_ne!(composition.canonical_semantics, statistical.canonical_semantics);
 }

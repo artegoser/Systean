@@ -104,14 +104,14 @@ fn temporal_relations_use_explicit_typed_values_without_tense_inference() {
         .unwrap();
     assert_eq!(before.inferred_type, "Proposition");
     assert_eq!(after.inferred_type, "Proposition");
-    assert!(before.canonical_semantics.starts_with("before("));
-    assert!(after.canonical_semantics.starts_with("after("));
+    assert!(before.canonical_semantics.starts_with("ante("));
+    assert!(after.canonical_semantics.starts_with("aft("));
 
     let interval = "2026-08-11T12:00:00Z/2026-08-11T13:00:00Z";
     let during = language
         .analyze_surface(&format!("2026-08-11T12:30:00Z pot {interval}"))
         .unwrap();
-    assert!(during.canonical_semantics.starts_with("during("));
+    assert!(during.canonical_semantics.starts_with("pot("));
 }
 
 #[test]

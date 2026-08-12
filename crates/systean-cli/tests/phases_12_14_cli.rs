@@ -56,7 +56,7 @@ fn playground_classifies_phase12_question_types_without_intonation() {
 #[test]
 fn playground_exposes_phase13_expressive_focus_and_topic_acts() {
     let (stdout, stderr, success) = run_script(
-        "context speaker proper_name(payload = \"artemi\")\n\
+        "context speaker na(payload = \"artemi\")\n\
          say mi felis 0.8\n\
          say emo mi felis 0.8\n\
          say na beta fok na alfa vid na beta\n\
@@ -70,7 +70,7 @@ fn playground_exposes_phase13_expressive_focus_and_topic_acts() {
     assert!(stdout.contains("act: expressive"));
     assert!(stdout.contains("act: focus"));
     assert!(stdout.contains("act: topic"));
-    assert!(stdout.contains("affect_felis"));
+    assert!(stdout.contains("felis"));
 }
 
 #[test]
@@ -92,5 +92,5 @@ fn playground_preserves_history_and_updates_commitments_for_repairs() {
     assert!(stdout.contains("u2 act=correction surface=uno kor na alfa mor"));
     assert!(stdout.contains("u3 act=clarification surface=uno klar na alfa per"));
     assert!(stdout.contains("act: retraction"));
-    assert!(stdout.contains("die(entity = proper_name(payload = \"alfa\"))"));
+    assert!(stdout.contains("mor(entity = na(payload = \"alfa\"))"));
 }

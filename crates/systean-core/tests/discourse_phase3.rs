@@ -21,10 +21,10 @@ fn language() -> LanguagePackage {
     dictionary.push_str(
         &fs::read_to_string(repo.join("tests/fixtures/syntax/lexicon.toml")).unwrap(),
     );
-    let core = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
-    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
-    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
-    let fixture = fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap();
+    let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
+    let lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
+    let fixture = fs::read_to_string(repo.join("tests/fixtures/typed/syntax.semsys")).unwrap();
 
     LanguagePackage::from_sources(
         &alphabet,
@@ -33,10 +33,10 @@ fn language() -> LanguagePackage {
         &syntax,
         &dictionary,
         &[
-            ("language/semantics/core.semsys", &core),
-            ("language/semantics/pragmatics.semsys", &pragmatics),
-            ("language/semantics/subjective.semsys", &subjective),
-            ("tests/fixtures/semantics/syntax.semsys", &fixture),
+            ("language/typed/core.semsys", &core),
+            ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/units.semsys", &units),
+            ("tests/fixtures/typed/syntax.semsys", &fixture),
         ],
     )
     .unwrap()
@@ -45,17 +45,17 @@ fn language() -> LanguagePackage {
 fn discourse_with_context(language: &LanguagePackage) -> DiscourseState {
     let mut discourse = DiscourseState::new();
     discourse
-        .set_context_value("speaker", Term::Const("john".into()), language.semantics())
+        .set_context_value("speaker", Term::Const("jon".into()), language.semantics())
         .unwrap();
     discourse
-        .set_context_value("addressee", Term::Const("mary".into()), language.semantics())
+        .set_context_value("addressee", Term::Const("mari".into()), language.semantics())
         .unwrap();
     discourse
 }
 
 fn sleep(entity: &str) -> Term {
     Term::Call {
-        function: "sleep".into(),
+        function: "si".into(),
         arguments: BTreeMap::from([("sleeper".into(), Term::Const(entity.into()))]),
     }
 }
@@ -80,8 +80,8 @@ fn introduce_entity(
 fn exact_alias_resolves_even_when_generic_reference_is_ambiguous() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    introduce_entity(&mut discourse, &language, "john");
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    introduce_entity(&mut discourse, &language, "jon");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
     language.bind_alias(&mut discourse, "zen", mary).unwrap();
 
     let generic = language
@@ -100,15 +100,15 @@ fn exact_alias_resolves_even_when_generic_reference_is_ambiguous() {
     assert_eq!(exact.resolved.aliases.len(), 1);
     assert_eq!(exact.resolved.aliases[0].referent.id, mary);
     assert_eq!(exact.canonical_surface, "mi vi zen");
-    assert_eq!(exact.canonical_semantics, "see(observed = mary, observer = john)");
+    assert_eq!(exact.canonical_semantics, "vi(observed = mari, observer = jon)");
 }
 
 #[test]
 fn alias_scope_is_lexical_and_inner_binding_shadows_outer_binding() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    let john = introduce_entity(&mut discourse, &language, "john");
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    let john = introduce_entity(&mut discourse, &language, "jon");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
     language.bind_alias(&mut discourse, "zen", john).unwrap();
 
     assert_eq!(
@@ -116,7 +116,7 @@ fn alias_scope_is_lexical_and_inner_binding_shadows_outer_binding() {
             .analyze_surface_with_discourse("zen si", &discourse)
             .unwrap()
             .canonical_semantics,
-        "sleep(sleeper = john)"
+        "si(sleeper = jon)"
     );
 
     discourse.enter_scope();
@@ -126,7 +126,7 @@ fn alias_scope_is_lexical_and_inner_binding_shadows_outer_binding() {
             .analyze_surface_with_discourse("zen si", &discourse)
             .unwrap()
             .canonical_semantics,
-        "sleep(sleeper = mary)"
+        "si(sleeper = mari)"
     );
     discourse.leave_scope().unwrap();
 
@@ -135,7 +135,7 @@ fn alias_scope_is_lexical_and_inner_binding_shadows_outer_binding() {
             .analyze_surface_with_discourse("zen si", &discourse)
             .unwrap()
             .canonical_semantics,
-        "sleep(sleeper = john)"
+        "si(sleeper = jon)"
     );
 }
 
@@ -143,7 +143,7 @@ fn alias_scope_is_lexical_and_inner_binding_shadows_outer_binding() {
 fn local_alias_cannot_escape_its_scope() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    let john = introduce_entity(&mut discourse, &language, "john");
+    let john = introduce_entity(&mut discourse, &language, "jon");
 
     discourse.enter_scope();
     language.bind_alias(&mut discourse, "zen", john).unwrap();
@@ -164,9 +164,9 @@ fn aliases_can_name_non_entity_values_and_are_typed_in_operator_slots() {
     let mut discourse = discourse_with_context(&language);
     let proposition = discourse
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
-                label: "john sleeps".into(),
+                label: "jon sleeps".into(),
             },
             language.semantics(),
         )
@@ -177,14 +177,14 @@ fn aliases_can_name_non_entity_values_and_are_typed_in_operator_slots() {
         .analyze_surface_with_discourse("ne prop", &discourse)
         .unwrap();
     assert_eq!(analysis.resolved.aliases[0].referent.ty, Type::named("Proposition"));
-    assert_eq!(analysis.canonical_semantics, "not(value = sleep(sleeper = john))");
+    assert_eq!(analysis.canonical_semantics, "ne(value = si(sleeper = jon))");
 }
 
 #[test]
 fn frame_boundary_retires_ordinary_reference_but_preserves_exact_alias() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
     language.bind_alias(&mut discourse, "zen", mary).unwrap();
 
     assert!(language
@@ -209,7 +209,7 @@ fn frame_boundary_retires_ordinary_reference_but_preserves_exact_alias() {
             .analyze_surface_with_discourse("mi vi zen", &discourse)
             .unwrap()
             .canonical_semantics,
-        "see(observed = mary, observer = john)"
+        "vi(observed = mari, observer = jon)"
     );
 }
 
@@ -217,14 +217,14 @@ fn frame_boundary_retires_ordinary_reference_but_preserves_exact_alias() {
 fn omission_becomes_invalid_immediately_after_second_candidate_is_introduced() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    introduce_entity(&mut discourse, &language, "mary");
+    introduce_entity(&mut discourse, &language, "mari");
     let unique = language
         .analyze_surface_with_discourse("mi vi", &discourse)
         .unwrap();
     assert_eq!(unique.canonical_surface, "mi vi");
     assert_eq!(unique.canonical_resolved_surface, "mi vi ref");
 
-    introduce_entity(&mut discourse, &language, "john");
+    introduce_entity(&mut discourse, &language, "jon");
     let error = language
         .analyze_surface_with_discourse("mi vi", &discourse)
         .unwrap_err();
@@ -251,7 +251,7 @@ fn ali_binds_only_an_existing_accessible_surface_value() {
         ))
     ));
 
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
     let bound = language
         .bind_alias_to_surface(&mut discourse, "zen", "mari")
         .unwrap();
@@ -272,7 +272,7 @@ fn def_introduces_and_binds_a_new_local_semantic_value() {
             .analyze_surface_with_discourse("zen si", &discourse)
             .unwrap()
             .canonical_semantics,
-        "sleep(sleeper = mary)"
+        "si(sleeper = mari)"
     );
 }
 
@@ -280,7 +280,7 @@ fn def_introduces_and_binds_a_new_local_semantic_value() {
 fn definitions_do_not_become_ordinary_shorthand_candidates() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
 
     language
         .define_alias_from_surface(&mut discourse, "zen", "jon")
@@ -290,12 +290,12 @@ fn definitions_do_not_become_ordinary_shorthand_candidates() {
         .analyze_surface_with_discourse("mi vi ref", &discourse)
         .unwrap();
     assert_eq!(generic.resolved.references[0].referent.id, mary);
-    assert_eq!(generic.canonical_semantics, "see(observed = mary, observer = john)");
+    assert_eq!(generic.canonical_semantics, "vi(observed = mari, observer = jon)");
 
     let exact = language
         .analyze_surface_with_discourse("mi vi zen", &discourse)
         .unwrap();
-    assert_eq!(exact.canonical_semantics, "see(observed = john, observer = john)");
+    assert_eq!(exact.canonical_semantics, "vi(observed = jon, observer = jon)");
 }
 
 #[test]
@@ -306,7 +306,7 @@ fn rel_creates_a_temporary_nested_binding_and_never_exports_it() {
     let analysis = language
         .analyze_with_relative_binding(&mut discourse, "zen", "mari", "zen si")
         .unwrap();
-    assert_eq!(analysis.canonical_semantics, "sleep(sleeper = mary)");
+    assert_eq!(analysis.canonical_semantics, "si(sleeper = mari)");
     assert!(discourse.active_alias("zen").is_none());
     assert!(language
         .analyze_surface_with_discourse("zen si", &discourse)
@@ -317,7 +317,7 @@ fn rel_creates_a_temporary_nested_binding_and_never_exports_it() {
 fn alias_surface_cannot_collide_with_lexicon_or_structural_markers() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    let mary = introduce_entity(&mut discourse, &language, "mary");
+    let mary = introduce_entity(&mut discourse, &language, "mari");
 
     assert!(language.bind_alias(&mut discourse, "sol", mary).is_err());
     assert!(language.bind_alias(&mut discourse, "fra", mary).is_err());
@@ -330,7 +330,7 @@ fn ordinary_frame_changes_do_not_change_alias_identity_or_type() {
     let mut discourse = discourse_with_context(&language);
     let proposition = discourse
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "proposition".into(),
             },

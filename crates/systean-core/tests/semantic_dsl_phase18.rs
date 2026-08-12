@@ -1,13 +1,13 @@
 use std::path::Path;
 
-use systean_core::language::{LanguagePackage, LexicalSemantic};
+use systean_core::language::LanguagePackage;
 use systean_core::semantics::{
     ContextSlotId, InformationKnowerValue, InformationStatus, Literal, StructuredValue, Term, Type,
 };
 use systean_core::spec::{
     CompiledScalar, CompiledSymbolKind, CompiledTerm, CompiledType, DefaultSurfaceItem,
     TypedCompileError,
-    compile_typed_sources, parse_typed_specification,
+    compile_typed_sources, parse_typed_specification, resolve_legacy_lexical_map,
 };
 
 fn representative_source() -> &'static str {
@@ -431,46 +431,42 @@ fn ordinary_words_derive_the_phase17_default_surface_frame_from_arity() {
 }
 
 #[test]
-fn representative_words_match_phase17_signatures_while_owning_new_systean_ids() {
+fn production_words_are_owned_by_typed_systean_root_symbols() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let legacy = LanguagePackage::load(repository.join("language")).expect("Phase 17 package");
-    let typed = compile_typed_sources([(
-        "representative.semsys".to_owned(),
-        representative_source().to_owned(),
-    )])
-    .unwrap();
+    let language = LanguagePackage::load(repository.join("language")).expect("Phase 18 package");
+    let typed = language.typed_semantics();
 
-    for (root, old_operator, arity) in [
-        ("per", "person", 1usize),
-        ("viv", "alive", 1usize),
-        ("vid", "see", 2usize),
-    ] {
-        let entry = legacy
-            .dictionary()
-            .entries()
-            .iter()
-            .find(|entry| entry.root == root)
-            .expect("legacy dictionary entry");
-        let LexicalSemantic::Operator { name } = &entry.semantic else {
-            panic!("{root} should be a legacy operator")
-        };
-        assert_eq!(name, old_operator);
-        assert_eq!(legacy.semantics().operator(old_operator).unwrap().parameters.len(), arity);
-
-        let id = typed.symbol_id(root).expect("new Systean-owned symbol id");
+    for (root, arity) in [("per", 1usize), ("viv", 1usize), ("vid", 2usize)] {
+        let id = typed.symbol_id(root).expect("Systean-owned symbol id");
         let symbol = typed.symbol(id).unwrap();
+        assert_eq!(symbol.kind, CompiledSymbolKind::Word);
         assert_eq!(symbol.signature.parameters.len(), arity);
-        assert_ne!(format!("{id}"), old_operator);
+        assert_eq!(typed.source_name_for_symbol(id), Some(root));
+        assert!(language.semantics().operator(root).is_some());
     }
 
-    for (root, old_key) in [("mi", "speaker"), ("tu", "addressee")] {
-        let entry = legacy.dictionary().entries().iter().find(|entry| entry.root == root).unwrap();
-        let LexicalSemantic::Context { key, .. } = &entry.semantic else {
-            panic!("{root} should be a legacy context value")
-        };
-        assert_eq!(key, old_key);
+    for (root, context) in [("mi", "speaker"), ("tu", "addressee")] {
         let symbol = typed.symbol(typed.symbol_id(root).unwrap()).unwrap();
-        assert!(matches!(symbol.definition.as_ref(), Some(CompiledTerm::Context(_))));
+        assert_eq!(
+            symbol.definition.as_ref(),
+            Some(&CompiledTerm::Context(typed.context_slot_id(context).unwrap())),
+        );
+    }
+}
+
+#[test]
+fn archived_phase17_aliases_resolve_to_phase18_ids_without_becoming_semantic_input() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("Phase 18 package");
+    let legacy = std::fs::read_to_string(repository.join("language/legacy/lexical-map.tsv")).unwrap();
+    let mappings = resolve_legacy_lexical_map(language.typed_semantics(), &legacy).unwrap();
+    assert_eq!(mappings.len(), language.dictionary().entries().len());
+
+    for (root, old) in [("vid", "see"), ("per", "person"), ("viv", "alive")] {
+        let mapping = mappings.iter().find(|mapping| mapping.root == root).unwrap();
+        assert_eq!(mapping.legacy_semantic, old);
+        assert_eq!(mapping.symbol, language.typed_semantics().symbol_id(root).unwrap());
+        assert!(language.semantics().operator(old).is_none());
     }
 }
 
@@ -497,12 +493,42 @@ fn peel_zero_parameter_definition(term: &CompiledTerm) -> Option<&CompiledTerm> 
     }
 }
 
+
 #[test]
-fn legacy_environment_still_keeps_phase17_behavior_during_dual_path_migration() {
+fn production_type_subtype_and_literal_ownership_is_in_the_typed_package() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let package = LanguagePackage::load(repository.join("language")).expect("legacy package loads");
-    assert_eq!(package.semantics().operator("see").unwrap().returns, Type::named("Proposition"));
-    assert!(package.analyze("mi vid tu").is_ok());
+    let language = LanguagePackage::load(repository.join("language")).expect("Phase 18 package");
+    let typed = language.typed_semantics();
+
+    let event = typed.type_id("Event").unwrap();
+    let occurrence = typed.type_id("Occurrence").unwrap();
+    assert!(typed.subtypes().any(|edge| edge == (event, occurrence)));
+    assert_eq!(
+        typed.literal_types().find(|(kind, _)| *kind == systean_core::semantics::LiteralKind::String).map(|(_, ty)| ty),
+        Some(&CompiledType::Named(typed.type_id("Text").unwrap())),
+    );
+}
+
+#[test]
+fn typed_subtype_cycles_are_rejected_before_environment_projection() {
+    let source = r#"
+        type A;
+        type B;
+        subtype A: B;
+        subtype B: A;
+    "#;
+    let errors = compile_typed_sources([("subtypes.semsys".to_owned(), source.to_owned())])
+        .expect_err("subtype cycle must fail");
+    assert!(errors.iter().any(|error| matches!(error, TypedCompileError::CyclicSubtype(_))));
+}
+
+#[test]
+fn phase17_checker_projection_is_derived_from_phase18_root_symbols() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let package = LanguagePackage::load(repository.join("language")).expect("Phase 18 package loads");
+    assert_eq!(package.semantics().operator("vid").unwrap().returns, Type::named("Proposition"));
+    assert!(package.semantics().operator("see").is_none());
+    assert!(package.analyze_surface("na artemi vid na mari").is_ok());
 }
 
 
@@ -603,18 +629,23 @@ fn information_context_is_structural_before_discourse_resolution() {
 
 
 #[test]
-fn phase18b1_typed_bridge_is_not_yet_normative_package_provenance() {
+fn phase18_typed_sources_are_normative_package_provenance_and_legacy_sources_are_not() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let language = LanguagePackage::load(repository.join("language")).expect("language package");
-    assert!(language
+    let sources = language
         .provenance()
         .sources
         .iter()
-        .all(|source| !source.path.starts_with("typed/")));
+        .map(|source| source.path.as_str())
+        .collect::<Vec<_>>();
+    for required in ["typed/core.semsys", "typed/lexicon.semsys", "typed/units.semsys"] {
+        assert!(sources.contains(&required), "missing normative source {required}");
+    }
+    assert!(sources.iter().all(|source| !source.starts_with("legacy/")));
 }
 
 #[test]
-fn phase18b1_runtime_has_no_structured_value_string_reparse_or_duration_name_hardcode() {
+fn phase18_runtime_has_no_structured_value_string_reparse_or_duration_name_hardcode() {
     let literals = include_str!("../src/literals/mod.rs");
     let pragmatics = include_str!("../src/pragmatics.rs");
     let workbench = include_str!("../src/workbench.rs");
@@ -626,6 +657,87 @@ fn phase18b1_runtime_has_no_structured_value_string_reparse_or_duration_name_har
     }
     assert!(!literals.contains("unit.dimension != \"time\""));
     assert!(!literals.contains("unit_by_id(\"second\")"));
+}
+
+#[test]
+fn archived_phase17_operator_signatures_match_phase18_projection() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("Phase 18 package");
+    let old = systean_core::spec::compile_path(repository.join("language/legacy/semantics"))
+        .expect("archived Phase 17 semantics");
+    let source = std::fs::read_to_string(repository.join("language/legacy/lexical-map.tsv")).unwrap();
+    let mappings = resolve_legacy_lexical_map(language.typed_semantics(), &source).unwrap();
+
+    let mut lexical_operators = 0usize;
+    for mapping in &mappings {
+        let Some(old_signature) = old.operator(&mapping.legacy_semantic) else { continue; };
+        let new_signature = language
+            .semantics()
+            .operator(&mapping.root)
+            .unwrap_or_else(|| panic!("typed root `{}` lost its compatibility signature", mapping.root));
+        assert_signatures_alpha_equivalent(old_signature, new_signature, &mapping.root);
+        lexical_operators += 1;
+    }
+    assert_eq!(lexical_operators, 167);
+
+    for primitive in [
+        "activity_of",
+        "assert",
+        "duration_of",
+        "equal",
+        "event_of",
+        "interval",
+        "process_of",
+        "state_of",
+    ] {
+        assert_signatures_alpha_equivalent(
+            old.operator(primitive).unwrap(),
+            language.semantics().operator(primitive).unwrap(),
+            primitive,
+        );
+    }
+}
+
+fn assert_signatures_alpha_equivalent(
+    old: &systean_core::semantics::Signature,
+    new: &systean_core::semantics::Signature,
+    owner: &str,
+) {
+    assert_eq!(old.type_parameters.len(), new.type_parameters.len(), "generic arity drift for {owner}");
+    assert_eq!(old.parameters.len(), new.parameters.len(), "parameter arity drift for {owner}");
+    for (old, new) in old.parameters.iter().zip(&new.parameters) {
+        assert_eq!(old.name, new.name, "parameter role drift for {owner}");
+        assert_eq!(normalized_type(&old.ty), normalized_type(&new.ty), "parameter type drift for {owner}/{}", old.name);
+    }
+    assert_eq!(normalized_type(&old.returns), normalized_type(&new.returns), "return type drift for {owner}");
+}
+
+fn normalized_type(ty: &Type) -> Type {
+    use systean_core::semantics::FunctionParameter;
+    match ty {
+        Type::Named(name) => Type::Named(name.clone()),
+        Type::Generic { name, arguments } => Type::Generic {
+            name: name.clone(),
+            arguments: arguments.iter().map(normalized_type).collect(),
+        },
+        Type::Variable(_) => Type::Variable("_".into()),
+        Type::Function { parameters, returns } => Type::Function {
+            parameters: parameters
+                .iter()
+                .map(|parameter| FunctionParameter {
+                    name: None,
+                    ty: normalized_type(&parameter.ty),
+                })
+                .collect(),
+            returns: Box::new(normalized_type(returns)),
+        },
+        Type::Record(fields) => Type::Record(
+            fields
+                .iter()
+                .map(|(name, ty)| (name.clone(), normalized_type(ty)))
+                .collect(),
+        ),
+    }
 }
 
 fn find_information(term: &Term) -> Option<&StructuredValue> {

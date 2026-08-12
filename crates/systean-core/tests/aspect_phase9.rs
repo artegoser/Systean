@@ -40,7 +40,7 @@ fn bind_semantic(
 fn occurrence_reification_patterns_have_explicit_distinct_types() {
     let language = language();
     let checker = Checker::new(language.semantics());
-    let proposition = "move(mover = sol)";
+    let proposition = "mov(mover = sol)";
     let cases = [
         ("event_of", "Event"),
         ("process_of", "Process"),
@@ -62,16 +62,16 @@ fn phase9_aspect_roots_apply_only_to_explicit_occurrence_targets() {
         &language,
         &mut discourse,
         "prun",
-        "process_of(content = move(mover = sol))",
+        "process_of(content = mov(mover = sol))",
     );
 
     let cases = [
-        ("sta prun", "start(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("dur prun", "continue(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("fin prun", "finish(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("stop prun", "cease(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("rup prun", "interrupt(target = process_of(content = move(mover = sol)))", "Proposition"),
-        ("reg prun", "habitual(activity = process_of(content = move(mover = sol)))", "Activity"),
+        ("sta prun", "sta(target = process_of(content = mov(mover = sol)))", "Proposition"),
+        ("dur prun", "dur(target = process_of(content = mov(mover = sol)))", "Proposition"),
+        ("fin prun", "fin(target = process_of(content = mov(mover = sol)))", "Proposition"),
+        ("stop prun", "stop(target = process_of(content = mov(mover = sol)))", "Proposition"),
+        ("rup prun", "rup(target = process_of(content = mov(mover = sol)))", "Proposition"),
+        ("reg prun", "reg(activity = process_of(content = mov(mover = sol)))", "Activity"),
     ];
 
     for (surface, semantics, ty) in cases {
@@ -91,7 +91,7 @@ fn stopping_one_process_is_not_stopping_its_habitual_activity() {
         &language,
         &mut discourse,
         "prun",
-        "process_of(content = move(mover = sol))",
+        "process_of(content = mov(mover = sol))",
     );
 
     let concrete = language
@@ -104,7 +104,7 @@ fn stopping_one_process_is_not_stopping_its_habitual_activity() {
     assert_ne!(concrete.canonical_semantics, habitual.canonical_semantics);
     assert_eq!(
         habitual.canonical_semantics,
-        "cease(target = habitual(activity = process_of(content = move(mover = sol))))"
+        "stop(target = reg(activity = process_of(content = mov(mover = sol))))"
     );
 }
 
@@ -116,7 +116,7 @@ fn finish_and_cease_remain_different_even_on_the_same_process() {
         &language,
         &mut discourse,
         "prun",
-        "process_of(content = create(creator = sol, product = sol))",
+        "process_of(content = fak(creator = sol, product = sol))",
     );
 
     let finish = language
@@ -127,8 +127,8 @@ fn finish_and_cease_remain_different_even_on_the_same_process() {
         .unwrap();
 
     assert_ne!(finish.canonical_semantics, cease.canonical_semantics);
-    assert!(finish.canonical_semantics.starts_with("finish(target = process_of("));
-    assert!(cease.canonical_semantics.starts_with("cease(target = process_of("));
+    assert!(finish.canonical_semantics.starts_with("fin(target = process_of("));
+    assert!(cease.canonical_semantics.starts_with("stop(target = process_of("));
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn repetition_count_is_explicit_and_changes_the_semantic_term() {
         &language,
         &mut discourse,
         "prun",
-        "process_of(content = move(mover = sol))",
+        "process_of(content = mov(mover = sol))",
     );
 
     let three = language
@@ -164,13 +164,13 @@ fn aspect_parsing_does_not_require_world_state_or_prior_speaker_knowledge() {
         &language,
         &mut first,
         "prun",
-        "process_of(content = move(mover = sol))",
+        "process_of(content = mov(mover = sol))",
     );
     bind_semantic(
         &language,
         &mut second,
         "prun",
-        "process_of(content = move(mover = sol))",
+        "process_of(content = mov(mover = sol))",
     );
     second
         .set_context_value("speaker", semantic("sol"), language.semantics())

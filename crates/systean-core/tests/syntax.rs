@@ -10,7 +10,7 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-fn fixture_language(extra_dictionary: &str) -> LanguagePackage {
+fn fixture_language(extra_dictionary: &str, extra_typed: &str) -> LanguagePackage {
     let repo = repository();
     let alphabet = fs::read_to_string(repo.join("language/alphabet.toml")).unwrap();
     let phonology = fs::read_to_string(repo.join("language/phonology.toml")).unwrap();
@@ -23,10 +23,12 @@ fn fixture_language(extra_dictionary: &str) -> LanguagePackage {
     );
     dictionary.push('\n');
     dictionary.push_str(extra_dictionary);
-    let core = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
-    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
-    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
-    let fixture = fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap();
+    let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
+    let lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
+    let mut fixture = fs::read_to_string(repo.join("tests/fixtures/typed/syntax.semsys")).unwrap();
+    fixture.push('\n');
+    fixture.push_str(extra_typed);
 
     LanguagePackage::from_sources(
         &alphabet,
@@ -35,26 +37,26 @@ fn fixture_language(extra_dictionary: &str) -> LanguagePackage {
         &syntax,
         &dictionary,
         &[
-            ("language/semantics/core.semsys", &core),
-            ("language/semantics/pragmatics.semsys", &pragmatics),
-            ("language/semantics/subjective.semsys", &subjective),
-            ("tests/fixtures/semantics/syntax.semsys", &fixture),
+            ("language/typed/core.semsys", &core),
+            ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/units.semsys", &units),
+            ("tests/fixtures/typed/syntax.semsys", &fixture),
         ],
     )
     .unwrap()
 }
 
 fn language() -> LanguagePackage {
-    fixture_language("")
+    fixture_language("", "")
 }
 
 fn discourse(language: &LanguagePackage) -> DiscourseState {
     let mut discourse = DiscourseState::new();
     discourse
-        .set_context_value("speaker", Term::Const("john".into()), language.semantics())
+        .set_context_value("speaker", Term::Const("jon".into()), language.semantics())
         .unwrap();
     discourse
-        .set_context_value("addressee", Term::Const("mary".into()), language.semantics())
+        .set_context_value("addressee", Term::Const("mari".into()), language.semantics())
         .unwrap();
     discourse
 }
@@ -97,14 +99,14 @@ fn adding_a_constant_root_requires_no_syntax_config_change() {
         r#"
 [lu]
 definition = "Fixture entity added only to the dictionary."
-semantic = { kind = "constant", type = "Entity" }
 "#,
+        "word lu : Entity;",
     );
 
     assert!(language.syntax().lexicon().contains_key("lu"));
     assert_eq!(
         language.analyze_surface("lu si").unwrap().canonical_semantics,
-        "sleep(sleeper = lu)"
+        "si(sleeper = lu)"
     );
 }
 
@@ -127,7 +129,7 @@ fn unknown_root_is_rejected_as_lexical_not_as_missing_config_binding() {
 fn canonical_frame_order_lowers_roles_without_role_markers() {
     assert_eq!(
         semantics("mi vi tu"),
-        "see(observed = mary, observer = john)"
+        "vi(observed = mari, observer = jon)"
     );
 }
 
@@ -138,11 +140,11 @@ fn negation_scope_follows_surface_order() {
     assert_ne!(not_every, every_not);
     assert_eq!(
         not_every,
-        "not(value = forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = sleep(sleeper = v0))))"
+        "ne(value = ra(predicate = bind v0: Entity => imp(condition = pe(entity = v0), consequence = si(sleeper = v0))))"
     );
     assert_eq!(
         every_not,
-        "forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = not(value = sleep(sleeper = v0))))"
+        "ra(predicate = bind v0: Entity => imp(condition = pe(entity = v0), consequence = ne(value = si(sleeper = v0))))"
     );
 }
 
@@ -150,7 +152,7 @@ fn negation_scope_follows_surface_order() {
 fn quantifiers_nest_in_order_of_appearance() {
     assert_eq!(
         semantics("ra pe vi mu kan"),
-        "forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = exists(predicate = bind v1: Entity => and(left = dog(entity = v1), right = see(observed = v1, observer = v0)))))"
+        "ra(predicate = bind v0: Entity => imp(condition = pe(entity = v0), consequence = mu(predicate = bind v1: Entity => va(left = kan(entity = v1), right = vi(observed = v1, observer = v0)))))"
     );
 }
 
@@ -217,9 +219,9 @@ fn explicit_speech_acts_do_not_use_word_order_tricks() {
     let question = semantics("ke mi si");
     let command = semantics("da mi si");
     let request = semantics("me mi si");
-    assert_eq!(question, "ask_truth(content = sleep(sleeper = john))");
-    assert_eq!(command, "command(content = sleep(sleeper = john))");
-    assert_eq!(request, "request(content = sleep(sleeper = john))");
+    assert_eq!(question, "ke(content = si(sleeper = jon))");
+    assert_eq!(command, "da(content = si(sleeper = jon))");
+    assert_eq!(request, "me(content = si(sleeper = jon))");
 }
 
 #[test]

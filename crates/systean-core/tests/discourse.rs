@@ -24,10 +24,10 @@ fn language() -> LanguagePackage {
     dictionary.push_str(
         &fs::read_to_string(repo.join("tests/fixtures/syntax/lexicon.toml")).unwrap(),
     );
-    let core = fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap();
-    let pragmatics = fs::read_to_string(repo.join("language/semantics/pragmatics.semsys")).unwrap();
-    let subjective = fs::read_to_string(repo.join("language/semantics/subjective.semsys")).unwrap();
-    let fixture = fs::read_to_string(repo.join("tests/fixtures/semantics/syntax.semsys")).unwrap();
+    let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
+    let lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
+    let fixture = fs::read_to_string(repo.join("tests/fixtures/typed/syntax.semsys")).unwrap();
 
     LanguagePackage::from_sources(
         &alphabet,
@@ -36,10 +36,10 @@ fn language() -> LanguagePackage {
         &syntax,
         &dictionary,
         &[
-            ("language/semantics/core.semsys", &core),
-            ("language/semantics/pragmatics.semsys", &pragmatics),
-            ("language/semantics/subjective.semsys", &subjective),
-            ("tests/fixtures/semantics/syntax.semsys", &fixture),
+            ("language/typed/core.semsys", &core),
+            ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/units.semsys", &units),
+            ("tests/fixtures/typed/syntax.semsys", &fixture),
         ],
     )
     .unwrap()
@@ -50,14 +50,14 @@ fn discourse_with_context(language: &LanguagePackage) -> DiscourseState {
     discourse
         .set_context_value(
             "speaker",
-            Term::Const("john".into()),
+            Term::Const("jon".into()),
             language.semantics(),
         )
         .unwrap();
     discourse
         .set_context_value(
             "addressee",
-            Term::Const("mary".into()),
+            Term::Const("mari".into()),
             language.semantics(),
         )
         .unwrap();
@@ -66,7 +66,7 @@ fn discourse_with_context(language: &LanguagePackage) -> DiscourseState {
 
 fn sleep(term: &str) -> Term {
     Term::Call {
-        function: "sleep".into(),
+        function: "si".into(),
         arguments: BTreeMap::from([("sleeper".into(), Term::Const(term.into()))]),
     }
 }
@@ -98,7 +98,7 @@ fn context_forms_resolve_through_explicit_runtime_context() {
 
     assert_eq!(analysis.typed.contexts.len(), 2);
     assert!(analysis.typed.references.is_empty());
-    assert_eq!(analysis.canonical_semantics, "see(observed = mary, observer = john)");
+    assert_eq!(analysis.canonical_semantics, "vi(observed = mari, observer = jon)");
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn explicit_reference_resolves_only_unique_compatible_referent() {
     let mut discourse = discourse_with_context(&language);
     let mary = discourse
         .introduce(
-            Term::Const("mary".into()),
+            Term::Const("mari".into()),
             IntroductionOrigin::Surface {
                 source: "previous utterance".into(),
             },
@@ -116,7 +116,7 @@ fn explicit_reference_resolves_only_unique_compatible_referent() {
         .unwrap();
     discourse
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "proposition".into(),
             },
@@ -136,7 +136,7 @@ fn explicit_reference_resolves_only_unique_compatible_referent() {
         ReferenceSource::Explicit { surface } if surface == "ref"
     ));
     assert_eq!(analysis.resolved.references[0].referent.id, mary);
-    assert_eq!(analysis.canonical_semantics, "see(observed = mary, observer = john)");
+    assert_eq!(analysis.canonical_semantics, "vi(observed = mari, observer = jon)");
 }
 
 #[test]
@@ -145,7 +145,7 @@ fn zero_compatible_candidates_is_an_unresolved_reference_error() {
     let mut discourse = discourse_with_context(&language);
     discourse
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "proposition only".into(),
             },
@@ -168,8 +168,8 @@ fn zero_compatible_candidates_is_an_unresolved_reference_error() {
 fn multiple_compatible_candidates_are_reported_without_ranking() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    introduce(&mut discourse, &language, "john", "first");
-    introduce(&mut discourse, &language, "mary", "second");
+    introduce(&mut discourse, &language, "jon", "first");
+    introduce(&mut discourse, &language, "mari", "second");
 
     let error = language
         .analyze_surface_with_discourse("mi vi ref", &discourse)
@@ -187,8 +187,8 @@ fn multiple_compatible_candidates_are_reported_without_ranking() {
     assert_eq!(role, "observed");
     assert_eq!(expected, Type::named("Entity"));
     assert_eq!(candidates.len(), 2);
-    assert_eq!(candidates[0].value, Term::Const("john".into()));
-    assert_eq!(candidates[1].value, Term::Const("mary".into()));
+    assert_eq!(candidates[0].value, Term::Const("jon".into()));
+    assert_eq!(candidates[1].value, Term::Const("mari".into()));
 }
 
 #[test]
@@ -197,14 +197,14 @@ fn wrong_type_candidates_are_excluded_before_resolution() {
     let mut discourse = discourse_with_context(&language);
     discourse
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "wrong type".into(),
             },
             language.semantics(),
         )
         .unwrap();
-    introduce(&mut discourse, &language, "mary", "entity");
+    introduce(&mut discourse, &language, "mari", "entity");
 
     let analysis = language
         .analyze_surface_with_discourse("mi vi ref", &discourse)
@@ -212,7 +212,7 @@ fn wrong_type_candidates_are_excluded_before_resolution() {
     assert_eq!(analysis.resolved.references.len(), 1);
     assert_eq!(
         analysis.resolved.references[0].referent.value,
-        Term::Const("mary".into())
+        Term::Const("mari".into())
     );
 }
 
@@ -223,20 +223,20 @@ fn unique_resolution_is_independent_of_candidate_insertion_order() {
     let mut first = discourse_with_context(&language);
     first
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "proposition".into(),
             },
             language.semantics(),
         )
         .unwrap();
-    introduce(&mut first, &language, "mary", "entity");
+    introduce(&mut first, &language, "mari", "entity");
 
     let mut second = discourse_with_context(&language);
-    introduce(&mut second, &language, "mary", "entity");
+    introduce(&mut second, &language, "mari", "entity");
     second
         .introduce(
-            sleep("john"),
+            sleep("jon"),
             IntroductionOrigin::External {
                 label: "proposition".into(),
             },
@@ -259,7 +259,7 @@ fn unique_resolution_is_independent_of_candidate_insertion_order() {
 fn omitted_argument_uses_exactly_the_same_reference_resolver() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    introduce(&mut discourse, &language, "mary", "entity");
+    introduce(&mut discourse, &language, "mari", "entity");
 
     let explicit = language
         .analyze_surface_with_discourse("mi vi ref", &discourse)
@@ -283,7 +283,7 @@ fn omitted_argument_uses_exactly_the_same_reference_resolver() {
 fn omitted_primary_argument_uses_the_same_typed_resolver() {
     let language = language();
     let mut discourse = discourse_with_context(&language);
-    introduce(&mut discourse, &language, "john", "sleeper");
+    introduce(&mut discourse, &language, "jon", "sleeper");
 
     let explicit = language
         .analyze_surface_with_discourse("ref si", &discourse)
@@ -320,7 +320,7 @@ fn runtime_context_is_required_and_type_checked_deterministically() {
 
     let mut wrong_type = DiscourseState::new();
     wrong_type
-        .set_context_value("speaker", sleep("john"), language.semantics())
+        .set_context_value("speaker", sleep("jon"), language.semantics())
         .unwrap();
     let error = language
         .analyze_surface_with_discourse("mi si", &wrong_type)
@@ -341,7 +341,7 @@ fn nested_accessibility_scopes_are_deterministic() {
     let mut discourse = discourse_with_context(&language);
     let outer = discourse
         .introduce(
-            Term::Const("john".into()),
+            Term::Const("jon".into()),
             IntroductionOrigin::External {
                 label: "outer".into(),
             },
@@ -352,7 +352,7 @@ fn nested_accessibility_scopes_are_deterministic() {
     discourse.enter_scope();
     let inner = discourse
         .introduce(
-            Term::Const("mary".into()),
+            Term::Const("mari".into()),
             IntroductionOrigin::External {
                 label: "inner".into(),
             },
@@ -383,14 +383,14 @@ fn referent_ids_types_and_origins_are_stable_runtime_metadata() {
     };
     let first = discourse
         .introduce(
-            Term::Const("john".into()),
+            Term::Const("jon".into()),
             first_origin.clone(),
             language.semantics(),
         )
         .unwrap();
     let second = discourse
         .introduce(
-            Term::Const("mary".into()),
+            Term::Const("mari".into()),
             second_origin.clone(),
             language.semantics(),
         )

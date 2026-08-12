@@ -221,10 +221,10 @@ fn function_assignability_is_covariant_in_returns() {
 #[test]
 fn explainer_reports_types_roles_and_definition_origins() {
     let repository = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let core = std::fs::read_to_string(repository.join("language/semantics/core.semsys")).unwrap();
+    let core = std::fs::read_to_string(repository.join("language/legacy/semantics/core.semsys")).unwrap();
     let demo = std::fs::read_to_string(repository.join("tests/fixtures/semantics/demo.semsys")).unwrap();
     let environment = systean_core::spec::compile_sources([
-        ("language/semantics/core.semsys".to_owned(), core),
+        ("language/legacy/semantics/core.semsys".to_owned(), core),
         ("tests/fixtures/semantics/demo.semsys".to_owned(), demo),
     ])
     .expect("semantic fixtures should compile");

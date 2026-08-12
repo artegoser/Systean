@@ -7,7 +7,7 @@ fn repository()->PathBuf{root().join("../..")}
 fn environment()->systean_core::semantics::Environment{
  let repo=repository();
  let sources=[
-  ("language/semantics/core.semsys".to_owned(),fs::read_to_string(repo.join("language/semantics/core.semsys")).unwrap()),
+  ("language/legacy/semantics/core.semsys".to_owned(),fs::read_to_string(repo.join("language/legacy/semantics/core.semsys")).unwrap()),
   ("tests/fixtures/semantics/demo.semsys".to_owned(),fs::read_to_string(repo.join("tests/fixtures/semantics/demo.semsys")).unwrap()),
   ("tests/fixtures/semantics/corpus.semsys".to_owned(),fs::read_to_string(repo.join("tests/fixtures/semantics/corpus.semsys")).unwrap()),
  ];

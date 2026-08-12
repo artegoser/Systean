@@ -1,0 +1,7 @@
+// Surface/discourse test vocabulary using Phase 18 typed semantic ownership.
+word jon : Entity;
+word mari : Entity;
+word pe($entity: Entity) -> Proposition;
+word kan($entity: Entity) -> Proposition;
+word vi($observer: Entity, $observed: Entity) -> Proposition;
+word si($sleeper: Entity) -> Proposition;

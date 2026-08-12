@@ -270,7 +270,7 @@ fn repairs_cross_turn_and_frame_boundaries_because_history_is_document_scoped() 
         .current_commitment_for(UtteranceId::from_raw(1))
         .unwrap();
     assert_eq!(active.entry, UtteranceId::from_raw(2));
-    assert!(active.content.to_string().starts_with("die("));
+    assert!(active.content.to_string().starts_with("mor("));
 }
 
 #[test]

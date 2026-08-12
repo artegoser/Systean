@@ -16,7 +16,7 @@ fn language() -> LanguagePackage {
 
 fn named(name: &str) -> Term {
     Term::Call {
-        function: "proper_name".into(),
+        function: "na".into(),
         arguments: BTreeMap::from([(
             "payload".into(),
             Term::Literal(Literal::String(name.into())),
@@ -74,7 +74,7 @@ fn experienced_affect_is_an_assertable_state_separate_from_emo_expression() {
     assert!(matches!(experienced.pragmatics.act, CommunicativeAct::Assertion { .. }));
     assert!(matches!(expressed.pragmatics.act, CommunicativeAct::Expressive { .. }));
     assert_ne!(experienced.pragmatics.utterance, expressed.pragmatics.utterance);
-    assert!(expressed.pragmatics.utterance.to_string().contains("affect_felis"));
+    assert!(expressed.pragmatics.utterance.to_string().contains("felis"));
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn emo_can_explicitly_express_a_bodily_subjective_state_without_retyping_it_as_a
     let CommunicativeAct::Expressive { state } = &analysis.pragmatics.act else {
         panic!("expected expressive bodily state")
     };
-    assert!(state.to_string().starts_with("state_dolor("));
+    assert!(state.to_string().starts_with("dolor("));
 }
 
 #[test]
@@ -191,9 +191,9 @@ fn focus_marks_an_existing_target_without_changing_content_roles() {
         panic!("expected focus")
     };
     assert_eq!(plain_content, content);
-    assert_eq!(target.to_string(), "proper_name(payload = \"beta\")");
-    assert!(content.to_string().contains("observer = proper_name(payload = \"alfa\")"));
-    assert!(content.to_string().contains("observed = proper_name(payload = \"beta\")"));
+    assert_eq!(target.to_string(), "na(payload = \"beta\")");
+    assert!(content.to_string().contains("observer = na(payload = \"alfa\")"));
+    assert!(content.to_string().contains("observed = na(payload = \"beta\")"));
 }
 
 #[test]
@@ -226,7 +226,7 @@ fn topic_preserves_explicit_logical_scope() {
         panic!("expected topic")
     };
     assert_eq!(plain_content, content);
-    assert!(content.to_string().starts_with("not("));
+    assert!(content.to_string().starts_with("ne("));
 }
 
 #[test]
@@ -246,5 +246,5 @@ fn expressive_affect_never_invents_sarcastic_negation() {
         .analyze_utterance_with_discourse("emo mi disap zeni 0.9", &discourse)
         .unwrap();
     let rendered = analysis.pragmatics.utterance.to_string();
-    assert!(!rendered.contains("not("), "expressive affect must not create negation: {rendered}");
+    assert!(!rendered.contains("ne("), "expressive affect must not create negation: {rendered}");
 }

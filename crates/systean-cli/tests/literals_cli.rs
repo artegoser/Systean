@@ -72,5 +72,5 @@ fn discourse_playground_accepts_surface_now_context() {
     assert!(output.status.success());
     assert!(stderr.is_empty(), "{stderr}");
     assert!(stdout.contains("context now: instant<\"2026-08-11T12:00:00Z\">"), "{stdout}");
-    assert!(stdout.contains("canonical semantics: before("), "{stdout}");
+    assert!(stdout.contains("canonical semantics: ante("), "{stdout}");
 }

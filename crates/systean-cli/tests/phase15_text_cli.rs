@@ -60,5 +60,5 @@ fn playground_frame_boundary_changes_section_without_erasing_history() {
     assert!(stdout.contains("section: b1 frame: f1"), "{stdout}");
     assert!(stdout.contains("u1 act=assertion"), "{stdout}");
     assert!(stdout.contains("u2 act=correction"), "{stdout}");
-    assert!(stdout.contains("u2 active=die(entity = proper_name(payload = \"alfa\"))"), "{stdout}");
+    assert!(stdout.contains("u2 active=mor(entity = na(payload = \"alfa\"))"), "{stdout}");
 }

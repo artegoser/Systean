@@ -59,7 +59,7 @@ fn correction_supersedes_commitment_without_mutating_history() {
     let active = conversation.active_commitments();
     assert_eq!(active.len(), 1);
     assert_eq!(active[0].entry, correction);
-    assert!(active[0].content.to_string().starts_with("die("));
+    assert!(active[0].content.to_string().starts_with("mor("));
 }
 
 #[test]

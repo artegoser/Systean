@@ -17,9 +17,11 @@ fn workbench_exposes_package_version_fingerprint_and_full_provenance() {
     let language = language();
     let info = workbench::package_info(&language);
 
-    assert_eq!(info.manifest.package.version, "0.17.0");
-    assert_eq!(info.manifest.package.revision, 17);
+    assert_eq!(info.manifest.package.version, "0.18.0");
+    assert_eq!(info.manifest.package.revision, 18);
     assert_eq!(info.provenance.fingerprint, language.package_fingerprint());
+    assert_eq!(info.semantic_fingerprint, language.semantic_fingerprint());
+    assert_eq!(info.surface_fingerprint, language.surface_fingerprint());
     assert!(info.provenance.sources.iter().any(|source| source.path == "package.toml"));
     assert!(info.validation.generated_surfaces > 0);
 }
@@ -71,7 +73,7 @@ fn surface_workbench_shows_typed_ast_scope_semantic_ir_and_resolved_reference() 
         Some(id_text.as_str())
     );
     assert!(report.surface_ast.kind.contains("clause"));
-    assert!(report.semantic_ir.contains("alive"));
+    assert!(report.semantic_ir.contains("viv"));
     assert!(!report.semantic_explanation.label.is_empty());
 }
 
@@ -166,9 +168,9 @@ fn embedded_versioned_package_has_the_same_fingerprint_as_native_package() {
     let dictionary = read("dictionary.toml");
     let literals = read("literals.toml");
     let units = read("units.toml");
-    let core = read("semantics/core.semsys");
-    let pragmatics = read("semantics/pragmatics.semsys");
-    let subjective = read("semantics/subjective.semsys");
+    let core = read("typed/core.semsys");
+    let lexicon = read("typed/lexicon.semsys");
+    let typed_units = read("typed/units.semsys");
     let compatibility = read("corpus/compatibility.tsv");
     let adversarial = read("corpus/adversarial.tsv");
 
@@ -182,9 +184,9 @@ fn embedded_versioned_package_has_the_same_fingerprint_as_native_package() {
         &literals,
         &units,
         &[
-            ("semantics/core.semsys", &core),
-            ("semantics/pragmatics.semsys", &pragmatics),
-            ("semantics/subjective.semsys", &subjective),
+            ("typed/core.semsys", &core),
+            ("typed/lexicon.semsys", &lexicon),
+            ("typed/units.semsys", &typed_units),
         ],
         &compatibility,
         &adversarial,

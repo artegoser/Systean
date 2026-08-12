@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use systean_core::language::LanguagePackage;
 use systean_core::pragmatics::{CommunicativeAct, QuestionKind};
-use systean_core::semantics::Type;
+use systean_core::semantics::{InformationStatus, Type};
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -22,7 +22,7 @@ fn unmarked_top_level_proposition_is_a_default_assertion() {
     assert!(matches!(analysis.pragmatics.act, CommunicativeAct::Assertion { .. }));
     assert_eq!(
         analysis.pragmatics.utterance.to_string(),
-        "assert(content = alive(entity = proper_name(payload = \"alfa\")))"
+        "assert(content = viv(entity = na(payload = \"alfa\")))"
     );
 }
 
@@ -57,7 +57,7 @@ fn value_question_is_recovered_from_explicit_typed_unknown_slot() {
     };
     assert_eq!(requested.len(), 1);
     assert_eq!(requested[0].ty, Type::named("Entity"));
-    assert_eq!(requested[0].status, "unknown");
+    assert_eq!(requested[0].status, InformationStatus::Unknown);
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn truth_answers_are_ordinary_explicit_assertions() {
 
     assert!(matches!(positive.pragmatics.act, CommunicativeAct::Assertion { .. }));
     assert!(matches!(negative.pragmatics.act, CommunicativeAct::Assertion { .. }));
-    assert!(negative.pragmatics.utterance.to_string().contains("not("));
+    assert!(negative.pragmatics.utterance.to_string().contains("ne("));
 }
 
 #[test]

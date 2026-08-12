@@ -1,27 +1,21 @@
 [jon]
 definition = "Fixture entity John."
-semantic = { kind = "constant", name = "john", type = "Entity" }
 
 [mari]
 definition = "Fixture entity Mary."
-semantic = { kind = "constant", name = "mary", type = "Entity" }
 
 [pe]
 definition = "Fixture class of persons."
-semantic = { kind = "operator", name = "person" }
 syntax = { kind = "class", role = "entity" }
 
 [kan]
 definition = "Fixture class of dogs."
-semantic = { kind = "operator", name = "dog" }
 syntax = { kind = "class", role = "entity" }
 
 [vi]
 definition = "Fixture relation of seeing."
-semantic = { kind = "operator", name = "see" }
 syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
 
 [si]
 definition = "Fixture relation of sleeping."
-semantic = { kind = "operator", name = "sleep" }
 syntax = { kind = "predicate", primary_role = "sleeper", rest_roles = [] }

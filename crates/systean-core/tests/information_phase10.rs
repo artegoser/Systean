@@ -49,9 +49,9 @@ fn unknown_unspecified_and_withheld_are_three_distinct_typed_values() {
         .analyze_surface_with_discourse("mi vid hid", &discourse)
         .unwrap();
 
-    assert!(unknown.canonical_semantics.contains("information<\"unknown:context:@"));
-    assert!(unspecified.canonical_semantics.contains("information<\"unspecified\">"));
-    assert!(withheld.canonical_semantics.contains("information<\"withheld\">"));
+    assert!(unknown.canonical_semantics.contains("information(status = unknown, knower = context(@"));
+    assert!(unspecified.canonical_semantics.contains("information(status = unspecified)"));
+    assert!(withheld.canonical_semantics.contains("information(status = withheld)"));
     assert_ne!(unknown.canonical_semantics, unspecified.canonical_semantics);
     assert_ne!(unspecified.canonical_semantics, withheld.canonical_semantics);
     assert_ne!(unknown.canonical_semantics, withheld.canonical_semantics);
@@ -74,7 +74,7 @@ fn unknown_requires_an_explicit_or_context_bound_knower() {
         .unwrap();
     assert!(named_knower
         .canonical_semantics
-        .contains("information<\"unknown:value:proper_name(payload = \\\"mari\\\")\">"));
+        .contains("information(status = unknown, knower = na(payload = \"mari\"))"));
 }
 
 #[test]
@@ -95,8 +95,8 @@ fn existential_quantification_is_not_an_information_status() {
     let exists = language.analyze_surface("mu per viv").unwrap();
     let unspecified = language.analyze_surface("na artemi vid vak").unwrap();
 
-    assert!(exists.canonical_semantics.starts_with("exists(predicate = bind"));
-    assert!(unspecified.canonical_semantics.contains("information<\"unspecified\">"));
+    assert!(exists.canonical_semantics.starts_with("mu(predicate = bind"));
+    assert!(unspecified.canonical_semantics.contains("information(status = unspecified)"));
     assert_ne!(exists.canonical_semantics, unspecified.canonical_semantics);
 }
 
@@ -140,6 +140,6 @@ fn contextual_standards_remain_explicit_instead_of_using_world_knowledge() {
     let explicit = language.analyze_surface("na alfa nov na beta").unwrap();
     assert_eq!(
         explicit.canonical_semantics,
-        "new_relative(standard = proper_name(payload = \"beta\"), value = proper_name(payload = \"alfa\"))"
+        "nov(standard = na(payload = \"beta\"), value = na(payload = \"alfa\"))"
     );
 }
