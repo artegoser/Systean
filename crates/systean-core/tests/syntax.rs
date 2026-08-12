@@ -25,6 +25,7 @@ fn fixture_language(extra_dictionary: &str, extra_typed: &str) -> LanguagePackag
     dictionary.push_str(extra_dictionary);
     let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
     let lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    let effects = fs::read_to_string(repo.join("language/typed/effects.semsys")).unwrap();
     let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
     let mut fixture = fs::read_to_string(repo.join("tests/fixtures/typed/syntax.semsys")).unwrap();
     fixture.push('\n');
@@ -39,6 +40,7 @@ fn fixture_language(extra_dictionary: &str, extra_typed: &str) -> LanguagePackag
         &[
             ("language/typed/core.semsys", &core),
             ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/effects.semsys", &effects),
             ("language/typed/units.semsys", &units),
             ("tests/fixtures/typed/syntax.semsys", &fixture),
         ],

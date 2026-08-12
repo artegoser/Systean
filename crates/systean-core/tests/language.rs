@@ -3,14 +3,14 @@ use std::path::{Path, PathBuf};
 
 use systean_core::language::{Dictionary, LanguageError, LanguagePackage};
 use systean_core::semantics::{ContextSlotId, Type};
-use systean_core::syntax::{LexemeConfig, SyntaxConfig};
+use systean_core::syntax::{CompiledSurfaceBinding, SyntaxConfig};
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn typed_sources(repo: &Path) -> Vec<(String, String)> {
-    ["core.semsys", "lexicon.semsys", "units.semsys"]
+    ["core.semsys", "lexicon.semsys", "effects.semsys", "units.semsys"]
         .into_iter()
         .map(|name| {
             (
@@ -82,8 +82,10 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert_eq!(language.syntax().config().discourse.definition, "def");
     assert_eq!(language.syntax().config().discourse.relative, "rel");
     assert_eq!(language.syntax().config().discourse.frame, "fra");
-    assert_eq!(language.syntax().config().pragmatics.default_assertion_operator, "assert");
-    assert_eq!(language.syntax().config().pragmatics.expressive_operator, "emo");
+    let default_effect = language.typed_semantics().default_effect().expect("default effect");
+    assert_eq!(language.typed_semantics().source_name_for_symbol(default_effect), Some("assert"));
+    let emo = language.typed_semantics().symbol_id("emo").unwrap();
+    assert!(language.typed_semantics().effect_program(emo).is_some());
     assert!(language.semantics().operator("emo").is_some());
     assert!(language
         .semantics()
@@ -190,8 +192,8 @@ fn dictionary_is_metadata_only_and_typed_words_own_semantics() {
 #[test]
 fn dictionary_supports_reference_and_context_through_typed_definitions() {
     let language = LanguagePackage::load(repository().join("language")).unwrap();
-    assert!(matches!(language.syntax().lexicon().get("ref"), Some(LexemeConfig::Reference)));
-    let Some(LexemeConfig::Context { slot, ty, .. }) = language.syntax().lexicon().get("mi") else {
+    assert!(matches!(language.syntax().lexicon().get("ref"), Some(CompiledSurfaceBinding::Reference)));
+    let Some(CompiledSurfaceBinding::Context { slot, ty, .. }) = language.syntax().lexicon().get("mi") else {
         panic!("mi must compile to a context lexeme")
     };
     assert_eq!(*slot, ContextSlotId::from_source("context", "speaker"));

@@ -123,6 +123,7 @@ definition = "Fixture text-taking predicate."
     let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
     let mut lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
     lexicon.push_str("\nword govtest($speaker: Entity, $content: Text) -> Proposition;\n");
+    let effects = fs::read_to_string(repo.join("language/typed/effects.semsys")).unwrap();
     let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
     let language = LanguagePackage::from_sources(
         &alphabet,
@@ -133,6 +134,7 @@ definition = "Fixture text-taking predicate."
         &[
             ("language/typed/core.semsys", &core),
             ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/effects.semsys", &effects),
             ("language/typed/units.semsys", &units),
         ],
     )

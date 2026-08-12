@@ -23,6 +23,7 @@ fn language() -> LanguagePackage {
     );
     let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();
     let lexicon = fs::read_to_string(repo.join("language/typed/lexicon.semsys")).unwrap();
+    let effects = fs::read_to_string(repo.join("language/typed/effects.semsys")).unwrap();
     let units = fs::read_to_string(repo.join("language/typed/units.semsys")).unwrap();
     let fixture = fs::read_to_string(repo.join("tests/fixtures/typed/syntax.semsys")).unwrap();
 
@@ -35,6 +36,7 @@ fn language() -> LanguagePackage {
         &[
             ("language/typed/core.semsys", &core),
             ("language/typed/lexicon.semsys", &lexicon),
+            ("language/typed/effects.semsys", &effects),
             ("language/typed/units.semsys", &units),
             ("tests/fixtures/typed/syntax.semsys", &fixture),
         ],

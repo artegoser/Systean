@@ -5,14 +5,14 @@ use systean_core::spec::{
     CompiledSurfaceItem, CompiledTerm, SourceSurfaceItem, TypedCompileError,
     compile_typed_sources, parse_typed_specification,
 };
-use systean_core::syntax::{LexemeConfig, SurfaceFormConfig};
+use systean_core::syntax::CompiledSurfaceBinding;
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn language() -> LanguagePackage {
-    LanguagePackage::load(repository().join("language")).expect("Phase 19A language package")
+    LanguagePackage::load(repository().join("language")).expect("Phase 19 language package")
 }
 
 #[test]
@@ -184,30 +184,22 @@ fn malformed_or_noninvertible_surface_forms_fail_package_compilation() {
 }
 
 #[test]
-fn production_surface_ownership_moved_out_of_dictionary_and_syntax_precedence_table() {
-    let language = language();
-    let overlays = language
-        .dictionary()
-        .entries()
-        .iter()
-        .filter_map(|entry| entry.syntax.as_ref())
-        .collect::<Vec<_>>();
-    assert_eq!(
-        overlays.len(),
-        9,
-        "only name, quantifier, counted-quantifier, and outer speech-act compatibility overlays remain in 19A",
-    );
-    assert!(overlays.iter().all(|surface| matches!(
-        surface,
-        SurfaceFormConfig::Name { .. }
-            | SurfaceFormConfig::Quantifier { .. }
-            | SurfaceFormConfig::CountedQuantifier { .. }
-            | SurfaceFormConfig::SpeechAct { .. }
-    )));
+fn production_surface_ownership_is_entirely_typed_and_legacy_policy_tables_are_gone() {
+    let dictionary_source = std::fs::read_to_string(repository().join("language/dictionary.toml")).unwrap();
+    assert!(!dictionary_source.contains("syntax ="));
 
     let syntax_source = std::fs::read_to_string(repository().join("language/syntax.toml")).unwrap();
     let syntax: toml::Value = toml::from_str(&syntax_source).unwrap();
-    assert!(syntax.get("logic").and_then(|logic| logic.get("precedence")).is_none());
+    for legacy in ["logic", "roles", "questions", "commands", "focus", "grammar", "pragmatics"] {
+        assert!(syntax.get(legacy).is_none(), "legacy syntax section `{legacy}` must be gone in 19B");
+    }
+
+    let language = language();
+    let lexicon = language.syntax().lexicon();
+    assert!(matches!(lexicon.get("na"), Some(CompiledSurfaceBinding::Capture { .. })));
+    assert!(matches!(lexicon.get("ra"), Some(CompiledSurfaceBinding::Binder { direct_parameters, .. }) if direct_parameters.is_empty()));
+    assert!(matches!(lexicon.get("rov"), Some(CompiledSurfaceBinding::Binder { direct_parameters, .. }) if direct_parameters.len() == 1));
+    assert!(matches!(lexicon.get("ke"), Some(CompiledSurfaceBinding::Prefix { outer_only: true, .. })));
 }
 
 #[test]
@@ -215,10 +207,10 @@ fn production_parser_and_linearizer_are_projected_from_the_same_typed_rules() {
     let language = language();
     let lexicon = language.syntax().lexicon();
 
-    assert!(matches!(lexicon.get("per"), Some(LexemeConfig::Class { .. })));
-    assert!(matches!(lexicon.get("vid"), Some(LexemeConfig::Predicate { .. })));
-    assert!(matches!(lexicon.get("ne"), Some(LexemeConfig::Prefix { .. })));
-    assert!(matches!(lexicon.get("ke"), Some(LexemeConfig::SpeechAct { .. })));
+    assert!(matches!(lexicon.get("per"), Some(CompiledSurfaceBinding::Class { .. })));
+    assert!(matches!(lexicon.get("vid"), Some(CompiledSurfaceBinding::Predicate { .. })));
+    assert!(matches!(lexicon.get("ne"), Some(CompiledSurfaceBinding::Prefix { .. })));
+    assert!(matches!(lexicon.get("ke"), Some(CompiledSurfaceBinding::Prefix { outer_only: true, .. })));
     let ke = language.typed_semantics().symbol_id("ke").unwrap();
     assert_eq!(
         language.typed_semantics().surface_rule(ke).unwrap().items,
@@ -226,11 +218,11 @@ fn production_parser_and_linearizer_are_projected_from_the_same_typed_rules() {
     );
     assert!(matches!(
         lexicon.get("va"),
-        Some(LexemeConfig::Infix { precedence: 20, associative: true, .. })
+        Some(CompiledSurfaceBinding::Infix { precedence: 20, associative: true, .. })
     ));
     assert!(matches!(
         lexicon.get("imp"),
-        Some(LexemeConfig::Infix { precedence: 5, associative: false, .. })
+        Some(CompiledSurfaceBinding::Infix { precedence: 5, associative: false, .. })
     ));
 
     for source in [
@@ -239,6 +231,9 @@ fn production_parser_and_linearizer_are_projected_from_the_same_typed_rules() {
         "mi viv va tu viv",
         "ki mi viv zo tu viv ku va mi viv",
         "ke mi viv",
+        "ra per viv",
+        "mini 2 per viv",
+        "na artemi viv",
     ] {
         let parsed = language.syntax().parse(source).unwrap_or_else(|errors| {
             panic!("{source}: {errors:?}")
@@ -250,7 +245,11 @@ fn production_parser_and_linearizer_are_projected_from_the_same_typed_rules() {
 
     assert!(
         language.syntax().parse("mi ke viv").is_err(),
-        "Phase 19A must preserve outer-only speech-act placement until the generic typed parser replaces the backend category",
+        "outer-only placement is declared by the typed surface rule and must reject embedded speech acts",
+    );
+    assert!(
+        language.syntax().parse("ra sol viv").is_err(),
+        "binder restriction candidates are eliminated by their compiled unary-predicate shape, not parser branch order",
     );
 }
 

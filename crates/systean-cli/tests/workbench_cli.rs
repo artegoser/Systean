@@ -25,7 +25,7 @@ fn workbench_cli_exposes_package_and_unified_word_report_as_json() {
     let (package, stderr, success) = run(&["package"]);
     assert!(success, "{stderr}");
     let package: serde_json::Value = serde_json::from_str(&package).unwrap();
-    assert_eq!(package["manifest"]["package"]["version"], "0.18.0");
+    assert_eq!(package["manifest"]["package"]["version"], "0.19.0");
     assert!(package["provenance"]["fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
     assert!(package["semantic_fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
     assert!(package["surface_fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));

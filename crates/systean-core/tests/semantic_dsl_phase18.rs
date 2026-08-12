@@ -256,7 +256,8 @@ fn context_and_units_are_resolved_without_runtime_source_strings() {
 #[test]
 fn unit_definitions_are_exact_id_based_relations_and_reject_invalid_graphs() {
     let normalized = r#"
-        dimension Time;
+        type TimeDimension;
+        dimension Time : TimeDimension;
         unit sek : Time;
         unit half : Time = 2/4 * sek;
     "#;
@@ -266,8 +267,10 @@ fn unit_definitions_are_exact_id_based_relations_and_reject_invalid_graphs() {
     assert_eq!(half.base, Some(package.unit_id("sek").unwrap()));
 
     let mismatch = r#"
-        dimension Time;
-        dimension Length;
+        type TimeDimension;
+        type LengthDimension;
+        dimension Time : TimeDimension;
+        dimension Length : LengthDimension;
         unit sek : Time;
         unit broken : Length = 1 * sek;
     "#;
@@ -280,7 +283,8 @@ fn unit_definitions_are_exact_id_based_relations_and_reject_invalid_graphs() {
     )));
 
     let cycle = r#"
-        dimension Time;
+        type TimeDimension;
+        dimension Time : TimeDimension;
         unit a : Time = 1 * b;
         unit b : Time = 1 * a;
     "#;
