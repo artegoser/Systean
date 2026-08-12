@@ -6,14 +6,30 @@ word ref<T> : $T = meta.resolve();
 word mi : Entity = speaker;
 word tu : Entity = addressee;
 word na($payload: Text) -> Entity;
-word ke($content: Proposition) -> Utterance;
-word ne($value: Proposition) -> Proposition;
-word va($left: Proposition, $right: Proposition) -> Proposition;
-word zo($left: Proposition, $right: Proposition) -> Proposition;
+word ke($content: Proposition) -> Utterance {
+    form _ $content;
+}
+word ne($value: Proposition) -> Proposition = logic.not($value) {
+    form _ $value;
+}
+word va($left: Proposition, $right: Proposition) -> Proposition = logic.and($left, $right) {
+    form $left _ $right;
+    precedence 20;
+    associative;
+}
+word zo($left: Proposition, $right: Proposition) -> Proposition = logic.or($left, $right) {
+    form $left _ $right;
+    precedence 10;
+    associative;
+}
 word ra($predicate: fn(value: Entity) -> Proposition) -> Proposition;
 word mu($predicate: fn(value: Entity) -> Proposition) -> Proposition;
-word da($content: Proposition) -> Utterance;
-word me($content: Proposition) -> Utterance;
+word da($content: Proposition) -> Utterance {
+    form _ $content;
+}
+word me($content: Proposition) -> Utterance {
+    form _ $content;
+}
 word per($entity: Entity) -> Proposition;
 word anim($entity: Entity) -> Proposition;
 word lok($entity: Entity) -> Proposition;
@@ -33,8 +49,12 @@ word nov($value: Entity, $standard: Entity) -> Proposition;
 word vet($value: Entity, $standard: Entity) -> Proposition;
 word bon($value: Entity, $criterion: Entity) -> Proposition;
 word mal($value: Entity, $criterion: Entity) -> Proposition;
-word ver($value: Proposition) -> Proposition;
-word fal($value: Proposition) -> Proposition;
+word ver($value: Proposition) -> Proposition {
+    form _ $value;
+}
+word fal($value: Proposition) -> Proposition {
+    form _ $value;
+}
 word sim($left: Entity, $right: Entity, $dimension: Entity) -> Proposition;
 word dif($left: Entity, $right: Entity, $dimension: Entity) -> Proposition;
 word par($left: Entity, $right: Entity, $dimension: Entity) -> Proposition;
@@ -59,14 +79,28 @@ word ante($left: Temporal, $right: Temporal) -> Proposition;
 word aft($left: Temporal, $right: Temporal) -> Proposition;
 word pot($value: Temporal, $interval: Interval) -> Proposition;
 word temp($value: Temporal) -> Proposition;
-word sta($target: Occurrence) -> Proposition;
-word stop($target: Occurrence) -> Proposition;
-word dur($target: Occurrence) -> Proposition;
-word fin($target: Occurrence) -> Proposition;
-word rup($target: Occurrence) -> Proposition;
-word reg($activity: Occurrence) -> Activity;
+word sta($target: Occurrence) -> Proposition {
+    form _ $target;
+}
+word stop($target: Occurrence) -> Proposition {
+    form _ $target;
+}
+word dur($target: Occurrence) -> Proposition {
+    form _ $target;
+}
+word fin($target: Occurrence) -> Proposition {
+    form _ $target;
+}
+word rup($target: Occurrence) -> Proposition {
+    form _ $target;
+}
+word reg($activity: Occurrence) -> Activity {
+    form _ $activity;
+}
 word rep($target: Occurrence, $count: Number) -> Activity;
-word unk<T>($knower: Entity) -> $T = meta.hole(InfoMode.unknown($knower));
+word unk<T>($knower: Entity) -> $T = meta.hole(InfoMode.unknown($knower)) {
+    form _ $knower;
+}
 word vak<T> : $T = meta.hole(InfoMode.unspecified);
 word hid<T> : $T = meta.hole(InfoMode.withheld);
 word rov($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition;
@@ -75,21 +109,47 @@ word maks($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Propo
 word set($left: Entity, $right: Entity) -> Entity;
 word list($first: Entity, $second: Entity) -> Entity;
 word grup($left: Entity, $right: Entity) -> Entity;
-word kol($content: Proposition) -> Proposition;
-word dis($content: Proposition) -> Proposition;
+word kol($content: Proposition) -> Proposition {
+    form _ $content;
+}
+word dis($content: Proposition) -> Proposition {
+    form _ $content;
+}
 word aso($left: Entity, $right: Entity) -> Proposition;
-word imp($condition: Proposition, $consequence: Proposition) -> Proposition;
-word hip($condition: Proposition, $consequence: Proposition) -> Proposition;
+word imp($condition: Proposition, $consequence: Proposition) -> Proposition {
+    form $condition _ $consequence;
+    precedence 5;
+}
+word hip($condition: Proposition, $consequence: Proposition) -> Proposition {
+    form $condition _ $consequence;
+    precedence 5;
+}
 word tip($domain: Entity, $measure: Entity, $standard: Number) -> Proposition;
 word stat($domain: Entity, $measure: Entity, $value: Number) -> Proposition;
 word prob($claim: Proposition, $value: Number) -> Proposition;
 word frek($activity: Activity, $measure: Entity, $value: Number) -> Proposition;
-word emo($state: SubjectiveExperience) -> Utterance;
-word fok<T>($target: $T, $content: Proposition) -> Utterance;
-word top<T>($target: $T, $content: Proposition) -> Utterance;
-word ret($target: Number) -> Utterance;
-word kor($target: Number, $replacement: Proposition) -> Utterance;
-word klar($target: Number, $content: Proposition) -> Utterance;
+word emo($state: SubjectiveExperience) -> Utterance {
+    form _ $state;
+}
+word fok<T>($target: $T, $content: Proposition) -> Utterance {
+    form $target _ $content;
+    precedence 2;
+}
+word top<T>($target: $T, $content: Proposition) -> Utterance {
+    form $target _ $content;
+    precedence 2;
+}
+word ret($target: Number) -> Utterance {
+    form _ $target;
+}
+word kor($target: Number, $replacement: Proposition) -> Utterance {
+    form $target _ $replacement;
+    precedence 1;
+}
+word klar($target: Number, $content: Proposition) -> Utterance {
+    form $target _ $content;
+    precedence 1;
+}
 word felis($experiencer: Entity, $intensity: Number) -> Affect;
 word satis($experiencer: Entity, $target: Proposition, $intensity: Number) -> Affect;
 word seren($experiencer: Entity, $intensity: Number) -> Affect;

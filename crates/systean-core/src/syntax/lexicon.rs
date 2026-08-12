@@ -39,6 +39,8 @@ pub enum LexemeConfig {
         semantic: String,
         left_role: String,
         right_role: String,
+        precedence: u16,
+        associative: bool,
     },
     Quantifier {
         semantic: String,

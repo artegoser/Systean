@@ -6,8 +6,8 @@ use chumsky::prelude::*;
 use crate::semantics::LiteralKind;
 use super::parser::type_parser;
 use super::typed_ast::{
-    DataConstructorDeclaration, SourceExpr, SourceParameter, SourceUnitDefinition, TypedDeclaration,
-    TypedSpecification,
+    DataConstructorDeclaration, SourceExpr, SourceParameter, SourceSurfaceItem, SourceSurfaceRule,
+    SourceUnitDefinition, TypedDeclaration, TypedSpecification,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -66,6 +66,81 @@ fn parameter_list<'src>() -> impl Parser<'src, &'src str, Vec<SourceParameter>, 
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just('(').padded(), just(')').padded())
+}
+
+fn surface_rule_parser<'src>() -> impl Parser<'src, &'src str, SourceSurfaceRule, Extra<'src>> + Clone {
+    #[derive(Clone, Debug)]
+    enum Directive {
+        Form(Vec<SourceSurfaceItem>),
+        Precedence(u16),
+        Associative,
+    }
+
+    let item = choice((
+        just('_').to(SourceSurfaceItem::Root),
+        just('$')
+            .padded()
+            .ignore_then(identifier())
+            .map(SourceSurfaceItem::Argument),
+    ))
+    .padded();
+
+    let form = just("form")
+        .padded()
+        .ignore_then(item.repeated().at_least(1).collect::<Vec<_>>())
+        .then_ignore(just(';').padded())
+        .map(Directive::Form);
+
+    let precedence = just("precedence")
+        .padded()
+        .ignore_then(text::digits::<_, Extra<'src>>(10).to_slice())
+        .try_map(|digits: &str, span| {
+            digits
+                .parse::<u16>()
+                .map(Directive::Precedence)
+                .map_err(|_| Rich::custom(span, "surface precedence is outside the supported u16 range"))
+        })
+        .then_ignore(just(';').padded());
+
+    let associative = just("associative")
+        .padded()
+        .then_ignore(just(';').padded())
+        .to(Directive::Associative);
+
+    choice((form, precedence, associative))
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .delimited_by(just('{').padded(), just('}').padded())
+        .try_map(|directives, span| {
+            let mut form = None;
+            let mut precedence = None;
+            let mut associative = false;
+            for directive in directives {
+                match directive {
+                    Directive::Form(items) => {
+                        if form.replace(items).is_some() {
+                            return Err(Rich::custom(span, "surface block contains more than one `form` declaration"));
+                        }
+                    }
+                    Directive::Precedence(value) => {
+                        if precedence.replace(value).is_some() {
+                            return Err(Rich::custom(span, "surface block contains more than one `precedence` declaration"));
+                        }
+                    }
+                    Directive::Associative => {
+                        if associative {
+                            return Err(Rich::custom(span, "surface block contains duplicate `associative` declaration"));
+                        }
+                        associative = true;
+                    }
+                }
+            }
+            let Some(items) = form else {
+                return Err(Rich::custom(span, "surface block requires exactly one `form` declaration"));
+            };
+            Ok(SourceSurfaceRule { items, precedence, associative })
+        })
 }
 
 fn source_expr_parser<'src>() -> impl Parser<'src, &'src str, SourceExpr, Extra<'src>> + Clone {
@@ -154,6 +229,7 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
     let parameters = parameter_list();
     let ty = type_parser();
     let expr = source_expr_parser();
+    let surface = surface_rule_parser();
 
     let type_declaration = just("type")
         .padded()
@@ -195,20 +271,25 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
         just(':').padded().ignore_then(ty.clone()).map(|returns| (Vec::new(), returns)),
     ));
 
+    let word_terminator = choice((
+        surface.clone().map(Some),
+        just(';').padded().to(None),
+    ));
     let word = just("word")
         .padded()
         .ignore_then(ident.clone())
         .then(generics.clone().or_not())
         .then(callable_shape.clone())
         .then(just('=').padded().ignore_then(expr.clone()).or_not())
-        .then_ignore(just(';').padded())
-        .map(|(((name, type_parameters), (parameters, returns)), definition)| {
+        .then(word_terminator)
+        .map(|((((name, type_parameters), (parameters, returns)), definition), surface)| {
             TypedDeclaration::Word {
                 name,
                 type_parameters: type_parameters.unwrap_or_default(),
                 parameters,
                 returns,
                 definition,
+                surface,
             }
         });
 

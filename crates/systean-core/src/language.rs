@@ -25,7 +25,7 @@ use crate::pragmatics::{PragmaticAnalysis, PragmaticError, interpret_pragmatics,
 use crate::units::{UnitRegistry, UnitsConfig, UnitsConfigError};
 use crate::semantics::{Checker, Environment, Explainer, InformationStatus, Term, Type, canonicalize};
 use crate::spec::{
-    CompiledSymbolKind, CompiledTerm, TypedCompileError, TypedSemanticPackage,
+    CompiledSurfaceItem, CompiledSymbolKind, CompiledTerm, TypedCompileError, TypedSemanticPackage,
     compile_typed_sources, legacy_typed_type, lower_term, parse_term, parse_type,
     project_typed_environment,
 };
@@ -215,75 +215,172 @@ fn compile_surface_lexeme(
         });
     }
 
+    // Phase 19A keeps only constructions that the Phase 17 backend cannot project from a
+    // bare reversible form without changing accepted grammar. They are removed in Phase 19B.
+    if let Some(surface) = &entry.syntax {
+        return match surface {
+            SurfaceFormConfig::Quantifier {
+                binder_role,
+                variable_type,
+                restriction_operator,
+                restriction_role,
+                body_role,
+            } => Ok(LexemeConfig::Quantifier {
+                semantic: entry.root.clone(),
+                binder_role: binder_role.clone(),
+                variable_type: variable_type.clone(),
+                restriction_operator: restriction_operator.clone(),
+                restriction_role: restriction_role.clone(),
+                body_role: body_role.clone(),
+            }),
+            SurfaceFormConfig::CountedQuantifier {
+                binder_role,
+                count_role,
+                variable_type,
+                restriction_operator,
+                restriction_role,
+                body_role,
+            } => Ok(LexemeConfig::CountedQuantifier {
+                semantic: entry.root.clone(),
+                binder_role: binder_role.clone(),
+                count_role: count_role.clone(),
+                variable_type: variable_type.clone(),
+                restriction_operator: restriction_operator.clone(),
+                restriction_role: restriction_role.clone(),
+                body_role: body_role.clone(),
+            }),
+            SurfaceFormConfig::Name { role } => Ok(LexemeConfig::Name {
+                semantic: entry.root.clone(),
+                role: role.clone(),
+            }),
+            SurfaceFormConfig::SpeechAct { role } => {
+                let rule = semantics.surface_rule(symbol_id).ok_or_else(|| {
+                    LanguageError::Dictionary(format!(
+                        "typed speech-act word `{}` has no compiled surface rule",
+                        entry.root
+                    ))
+                })?;
+                if rule.items.as_slice()
+                    != [CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(0)]
+                    || symbol.signature.parameters.len() != 1
+                {
+                    return Err(LanguageError::Dictionary(format!(
+                        "speech-act compatibility category for `{}` requires typed `form _ $content`",
+                        entry.root
+                    )));
+                }
+                let debug = semantics.debug_symbol(symbol_id).expect("speech-act debug info");
+                if debug.parameter_names.first().map(String::as_str) != Some(role.as_str()) {
+                    return Err(LanguageError::Dictionary(format!(
+                        "speech-act compatibility role `{role}` for `{}` does not match typed argument label",
+                        entry.root
+                    )));
+                }
+                Ok(LexemeConfig::SpeechAct {
+                    semantic: entry.root.clone(),
+                    role: role.clone(),
+                })
+            }
+            other => Err(LanguageError::Dictionary(format!(
+                "dictionary root `{}` uses obsolete Phase 18 surface overlay `{}`; declare its `form` in typed/lexicon.semsys",
+                entry.root,
+                surface_form_kind(other),
+            ))),
+        };
+    }
+
+    project_typed_surface_rule(entry, semantics, symbol_id)
+}
+
+fn project_typed_surface_rule(
+    entry: &DictionaryEntry,
+    semantics: &TypedSemanticPackage,
+    symbol_id: crate::semantics::SymbolId,
+) -> Result<LexemeConfig, LanguageError> {
+    let symbol = semantics.symbol(symbol_id).expect("typed word symbol");
+    let debug = semantics.debug_symbol(symbol_id).expect("word debug info");
+    let rule = semantics.surface_rule(symbol_id).ok_or_else(|| {
+        LanguageError::Dictionary(format!(
+            "typed word `{}` has no compiled surface rule",
+            entry.root
+        ))
+    })?;
     let semantic = entry.root.clone();
-    let lexeme = match &entry.syntax {
-        None if symbol.signature.parameters.is_empty() => LexemeConfig::Atom { semantic },
-        None => {
-            let debug = semantics.debug_symbol(symbol_id).expect("word debug info");
-            LexemeConfig::Predicate {
+    let role = |index: usize| {
+        debug
+            .parameter_names
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| format!("p{index}"))
+    };
+
+    match rule.items.as_slice() {
+        [CompiledSurfaceItem::Root] if symbol.signature.parameters.is_empty() => {
+            Ok(LexemeConfig::Atom { semantic })
+        }
+        [CompiledSurfaceItem::Argument(0), CompiledSurfaceItem::Root]
+            if symbol.signature.parameters.len() == 1 =>
+        {
+            Ok(LexemeConfig::Class { semantic, role: role(0) })
+        }
+        [CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(0)]
+            if symbol.signature.parameters.len() == 1 =>
+        {
+            Ok(LexemeConfig::Prefix { semantic, role: role(0) })
+        }
+        [CompiledSurfaceItem::Argument(0), CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(1)]
+            if symbol.signature.parameters.len() == 2 && rule.precedence.is_some() =>
+        {
+            Ok(LexemeConfig::Infix {
+                semantic,
+                left_role: role(0),
+                right_role: role(1),
+                precedence: rule.precedence.expect("guarded precedence"),
+                associative: rule.associative,
+            })
+        }
+        items if is_default_frame(items, symbol.signature.parameters.len()) => {
+            Ok(LexemeConfig::Predicate {
                 semantic,
                 primary_role: debug.parameter_names.first().cloned(),
                 rest_roles: debug.parameter_names.iter().skip(1).cloned().collect(),
-            }
+            })
         }
-        Some(SurfaceFormConfig::Class { role }) => LexemeConfig::Class {
-            semantic,
-            role: role.clone(),
-        },
-        Some(SurfaceFormConfig::Predicate { primary_role, rest_roles }) => LexemeConfig::Predicate {
-            semantic,
-            primary_role: primary_role.clone(),
-            rest_roles: rest_roles.clone(),
-        },
-        Some(SurfaceFormConfig::Prefix { role }) => LexemeConfig::Prefix {
-            semantic,
-            role: role.clone(),
-        },
-        Some(SurfaceFormConfig::Infix { left_role, right_role }) => LexemeConfig::Infix {
-            semantic,
-            left_role: left_role.clone(),
-            right_role: right_role.clone(),
-        },
-        Some(SurfaceFormConfig::Quantifier {
-            binder_role,
-            variable_type,
-            restriction_operator,
-            restriction_role,
-            body_role,
-        }) => LexemeConfig::Quantifier {
-            semantic,
-            binder_role: binder_role.clone(),
-            variable_type: variable_type.clone(),
-            restriction_operator: restriction_operator.clone(),
-            restriction_role: restriction_role.clone(),
-            body_role: body_role.clone(),
-        },
-        Some(SurfaceFormConfig::CountedQuantifier {
-            binder_role,
-            count_role,
-            variable_type,
-            restriction_operator,
-            restriction_role,
-            body_role,
-        }) => LexemeConfig::CountedQuantifier {
-            semantic,
-            binder_role: binder_role.clone(),
-            count_role: count_role.clone(),
-            variable_type: variable_type.clone(),
-            restriction_operator: restriction_operator.clone(),
-            restriction_role: restriction_role.clone(),
-            body_role: body_role.clone(),
-        },
-        Some(SurfaceFormConfig::SpeechAct { role }) => LexemeConfig::SpeechAct {
-            semantic,
-            role: role.clone(),
-        },
-        Some(SurfaceFormConfig::Name { role }) => LexemeConfig::Name {
-            semantic,
-            role: role.clone(),
-        },
-    };
-    Ok(lexeme)
+        _ => Err(LanguageError::Dictionary(format!(
+            "typed surface rule for `{}` is valid but not projectable to the Phase 19A parser backend; Phase 19B must compile this construction directly",
+            entry.root
+        ))),
+    }
+}
+
+fn is_default_frame(items: &[CompiledSurfaceItem], arity: usize) -> bool {
+    if arity == 0 {
+        return items == [CompiledSurfaceItem::Root];
+    }
+    if items.len() != arity + 1
+        || items.first() != Some(&CompiledSurfaceItem::Argument(0))
+        || items.get(1) != Some(&CompiledSurfaceItem::Root)
+    {
+        return false;
+    }
+    items
+        .iter()
+        .skip(2)
+        .enumerate()
+        .all(|(offset, item)| item == &CompiledSurfaceItem::Argument((offset + 1) as u32))
+}
+
+fn surface_form_kind(form: &SurfaceFormConfig) -> &'static str {
+    match form {
+        SurfaceFormConfig::Class { .. } => "class",
+        SurfaceFormConfig::Predicate { .. } => "predicate",
+        SurfaceFormConfig::Prefix { .. } => "prefix",
+        SurfaceFormConfig::Infix { .. } => "infix",
+        SurfaceFormConfig::Quantifier { .. } => "quantifier",
+        SurfaceFormConfig::CountedQuantifier { .. } => "counted_quantifier",
+        SurfaceFormConfig::SpeechAct { .. } => "speech_act",
+        SurfaceFormConfig::Name { .. } => "name",
+    }
 }
 
 fn strip_definition_lambdas(mut term: Option<&CompiledTerm>) -> Option<&CompiledTerm> {
@@ -607,7 +704,21 @@ impl LanguagePackage {
         let morphology_engine = MorphologyEngine::new(
             MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
         );
-        let syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
+        let mut syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
+        syntax_config.logic.precedence = typed_semantics
+            .surface_rules()
+            .filter_map(|rule| {
+                rule.precedence.map(|precedence| {
+                    (
+                        typed_semantics
+                            .source_name_for_symbol(rule.symbol)
+                            .expect("surface rule symbol must retain its source root")
+                            .to_owned(),
+                        precedence,
+                    )
+                })
+            })
+            .collect();
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;

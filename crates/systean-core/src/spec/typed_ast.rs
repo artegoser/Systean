@@ -46,6 +46,7 @@ pub enum TypedDeclaration {
         parameters: Vec<SourceParameter>,
         returns: Type,
         definition: Option<SourceExpr>,
+        surface: Option<SourceSurfaceRule>,
     },
     Primitive {
         name: String,
@@ -105,6 +106,20 @@ impl TypedDeclaration {
             | Self::Unit { name, .. } => name,
         }
     }
+}
+
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SourceSurfaceItem {
+    Root,
+    Argument(String),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceSurfaceRule {
+    pub items: Vec<SourceSurfaceItem>,
+    pub precedence: Option<u16>,
+    pub associative: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -182,6 +197,22 @@ pub enum CompiledTerm {
     Scalar(CompiledScalar),
 }
 
+
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CompiledSurfaceItem {
+    Root,
+    Argument(u32),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledSurfaceRule {
+    pub symbol: SymbolId,
+    pub items: Vec<CompiledSurfaceItem>,
+    pub precedence: Option<u16>,
+    pub associative: bool,
+    pub provenance: DeclarationProvenance,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DefaultSurfaceItem {

@@ -8,9 +8,10 @@ use crate::semantics::{
 
 use super::typed_ast::{
     CompiledConstructor, CompiledContextSlot, CompiledScalar, CompiledSignature, CompiledSymbol,
-    CompiledSymbolKind, CompiledTerm, CompiledType, CompiledUnit, DeclarationProvenance,
-    DefaultSurfaceFrame, DefaultSurfaceItem, IntrinsicBinding, SourceExpr, SourceParameter,
-    SourceSpan, SymbolDebugInfo, TypedDeclaration,
+    CompiledSurfaceItem, CompiledSurfaceRule, CompiledSymbolKind, CompiledTerm, CompiledType,
+    CompiledUnit, DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem, IntrinsicBinding,
+    SourceExpr, SourceParameter, SourceSpan, SourceSurfaceItem, SourceSurfaceRule, SymbolDebugInfo,
+    TypedDeclaration,
     TypedSpecification,
 };
 use super::typed_parser::{TypedParseError, parse_typed_specification};
@@ -59,6 +60,7 @@ pub struct TypedSemanticPackage {
     dimension_names: BTreeMap<String, DimensionId>,
     unit_names: BTreeMap<String, UnitId>,
     debug_symbols: BTreeMap<SymbolId, SymbolDebugInfo>,
+    surface_rules: BTreeMap<SymbolId, CompiledSurfaceRule>,
     semantic_fingerprint: String,
     surface_fingerprint: String,
 }
@@ -176,6 +178,14 @@ impl TypedSemanticPackage {
         self.debug_symbols.get(&id)
     }
 
+    pub fn surface_rule(&self, id: SymbolId) -> Option<&CompiledSurfaceRule> {
+        self.surface_rules.get(&id)
+    }
+
+    pub fn surface_rules(&self) -> impl Iterator<Item = &CompiledSurfaceRule> + '_ {
+        self.surface_rules.values()
+    }
+
     pub fn semantic_fingerprint(&self) -> &str {
         &self.semantic_fingerprint
     }
@@ -194,17 +204,15 @@ impl TypedSemanticPackage {
             return None;
         }
         let debug = self.debug_symbols.get(&id)?;
-        let arity = symbol.signature.parameters.len();
-        let mut items = Vec::with_capacity(arity + 1);
-        if arity == 0 {
-            items.push(DefaultSurfaceItem::Root);
-        } else {
-            items.push(DefaultSurfaceItem::Argument(0));
-            items.push(DefaultSurfaceItem::Root);
-            for index in 1..arity {
-                items.push(DefaultSurfaceItem::Argument(index as u32));
-            }
-        }
+        let rule = self.surface_rules.get(&id)?;
+        let items = rule
+            .items
+            .iter()
+            .map(|item| match item {
+                CompiledSurfaceItem::Root => DefaultSurfaceItem::Root,
+                CompiledSurfaceItem::Argument(index) => DefaultSurfaceItem::Argument(*index),
+            })
+            .collect();
         Some(DefaultSurfaceFrame { root: debug.source_name.clone(), items })
     }
 }
@@ -230,6 +238,12 @@ pub enum TypedCompileError {
     UnboundLocal(String),
     CyclicDefinition(Vec<SymbolId>),
     CyclicUnitDefinition(Vec<UnitId>),
+    UnknownSurfaceParameter { word: String, parameter: String },
+    DuplicateSurfaceParameter { word: String, parameter: String },
+    MissingSurfaceParameter { word: String, parameter: String },
+    InvalidSurfaceRootCount { word: String, count: usize },
+    InvalidSurfacePrecedence { word: String },
+    InvalidAssociativeSurface { word: String },
 }
 
 pub fn compile_typed_sources(
@@ -372,6 +386,7 @@ pub fn compile_typed_specifications(
         dimension_names,
         unit_names,
         debug_symbols: BTreeMap::new(),
+        surface_rules: BTreeMap::new(),
         semantic_fingerprint: String::new(),
         surface_fingerprint: String::new(),
     };
@@ -512,6 +527,7 @@ pub fn compile_typed_specifications(
                     parameters,
                     returns,
                     definition,
+                    surface,
                 } => compile_symbol(
                     &mut package,
                     name,
@@ -520,6 +536,7 @@ pub fn compile_typed_specifications(
                     parameters,
                     returns,
                     definition.as_ref(),
+                    surface.as_ref(),
                     provenance,
                     &type_arities,
                     &mut errors,
@@ -536,6 +553,7 @@ pub fn compile_typed_specifications(
                     type_parameters,
                     parameters,
                     returns,
+                    None,
                     None,
                     provenance,
                     &type_arities,
@@ -555,6 +573,7 @@ pub fn compile_typed_specifications(
                     parameters,
                     returns,
                     Some(definition),
+                    None,
                     provenance,
                     &type_arities,
                     &mut errors,
@@ -572,6 +591,7 @@ pub fn compile_typed_specifications(
                         type_parameters,
                         parameters,
                         returns,
+                        None,
                         None,
                         provenance,
                         &type_arities,
@@ -622,6 +642,7 @@ fn compile_symbol(
     parameters: &[SourceParameter],
     returns: &Type,
     definition: Option<&SourceExpr>,
+    surface: Option<&SourceSurfaceRule>,
     provenance: DeclarationProvenance,
     type_arities: &BTreeMap<String, u32>,
     errors: &mut Vec<TypedCompileError>,
@@ -685,20 +706,128 @@ fn compile_symbol(
             parameter_names: parameters.iter().map(|parameter| parameter.name.clone()).collect(),
         },
     );
+    let signature = CompiledSignature {
+        type_parameter_count: type_parameters.len() as u32,
+        parameters: parameter_types,
+        returns,
+    };
     package.symbols.insert(
         id,
         CompiledSymbol {
             id,
             kind,
-            signature: CompiledSignature {
-                type_parameter_count: type_parameters.len() as u32,
-                parameters: parameter_types,
-                returns,
-            },
+            signature: signature.clone(),
             definition,
-            provenance,
+            provenance: provenance.clone(),
         },
     );
+    if kind == CompiledSymbolKind::Word {
+        match compile_surface_rule(id, name, parameters, &signature, surface, provenance) {
+            Ok(rule) => { package.surface_rules.insert(id, rule); }
+            Err(error) => errors.push(error),
+        }
+    }
+}
+
+fn compile_surface_rule(
+    symbol: SymbolId,
+    word: &str,
+    parameters: &[SourceParameter],
+    signature: &CompiledSignature,
+    source: Option<&SourceSurfaceRule>,
+    provenance: DeclarationProvenance,
+) -> Result<CompiledSurfaceRule, TypedCompileError> {
+    let source_items = match source {
+        Some(rule) => rule.items.clone(),
+        None => {
+            let mut items = Vec::with_capacity(parameters.len() + 1);
+            if parameters.is_empty() {
+                items.push(SourceSurfaceItem::Root);
+            } else {
+                items.push(SourceSurfaceItem::Argument(parameters[0].name.clone()));
+                items.push(SourceSurfaceItem::Root);
+                items.extend(parameters.iter().skip(1).map(|parameter| {
+                    SourceSurfaceItem::Argument(parameter.name.clone())
+                }));
+            }
+            items
+        }
+    };
+
+    let parameter_indices = parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| (parameter.name.as_str(), index as u32))
+        .collect::<BTreeMap<_, _>>();
+    let mut seen_parameters = BTreeSet::new();
+    let mut root_count = 0usize;
+    let mut items = Vec::with_capacity(source_items.len());
+    for item in source_items {
+        match item {
+            SourceSurfaceItem::Root => {
+                root_count += 1;
+                items.push(CompiledSurfaceItem::Root);
+            }
+            SourceSurfaceItem::Argument(parameter) => {
+                let Some(index) = parameter_indices.get(parameter.as_str()).copied() else {
+                    return Err(TypedCompileError::UnknownSurfaceParameter {
+                        word: word.to_owned(),
+                        parameter,
+                    });
+                };
+                if !seen_parameters.insert(index) {
+                    return Err(TypedCompileError::DuplicateSurfaceParameter {
+                        word: word.to_owned(),
+                        parameter,
+                    });
+                }
+                items.push(CompiledSurfaceItem::Argument(index));
+            }
+        }
+    }
+    if root_count != 1 {
+        return Err(TypedCompileError::InvalidSurfaceRootCount {
+            word: word.to_owned(),
+            count: root_count,
+        });
+    }
+    for (index, parameter) in parameters.iter().enumerate() {
+        if !seen_parameters.contains(&(index as u32)) {
+            return Err(TypedCompileError::MissingSurfaceParameter {
+                word: word.to_owned(),
+                parameter: parameter.name.clone(),
+            });
+        }
+    }
+
+    let precedence = source.and_then(|rule| rule.precedence);
+    let associative = source.is_some_and(|rule| rule.associative);
+    if precedence.is_some() {
+        let root_index = items.iter().position(|item| matches!(item, CompiledSurfaceItem::Root));
+        if items.len() != 3 || root_index != Some(1) || signature.parameters.len() != 2 {
+            return Err(TypedCompileError::InvalidSurfacePrecedence { word: word.to_owned() });
+        }
+    }
+    if associative {
+        let Some(precedence) = precedence else {
+            return Err(TypedCompileError::InvalidAssociativeSurface { word: word.to_owned() });
+        };
+        let _ = precedence;
+        if signature.parameters.len() != 2
+            || signature.parameters[0] != signature.returns
+            || signature.parameters[1] != signature.returns
+        {
+            return Err(TypedCompileError::InvalidAssociativeSurface { word: word.to_owned() });
+        }
+    }
+
+    Ok(CompiledSurfaceRule {
+        symbol,
+        items,
+        precedence,
+        associative,
+        provenance,
+    })
 }
 
 fn resolve_type(
@@ -1250,14 +1379,28 @@ fn semantic_fingerprint(package: &TypedSemanticPackage) -> String {
 
 fn surface_fingerprint(package: &TypedSemanticPackage) -> String {
     let mut bytes = Vec::new();
-    for (name, id) in &package.symbol_names {
-        let Some(symbol) = package.symbols.get(id) else { continue; };
-        if symbol.kind != CompiledSymbolKind::Word {
-            continue;
-        }
-        bytes.extend_from_slice(name.as_bytes());
+    for (id, rule) in &package.surface_rules {
+        bytes.extend_from_slice(&id.0.to_le_bytes());
+        let root = package.source_name_for_symbol(*id).unwrap_or("");
+        bytes.extend_from_slice(root.as_bytes());
         bytes.push(0);
-        bytes.extend_from_slice(&(symbol.signature.parameters.len() as u64).to_le_bytes());
+        for item in &rule.items {
+            match item {
+                CompiledSurfaceItem::Root => bytes.push(1),
+                CompiledSurfaceItem::Argument(index) => {
+                    bytes.push(2);
+                    bytes.extend_from_slice(&index.to_le_bytes());
+                }
+            }
+        }
+        match rule.precedence {
+            Some(precedence) => {
+                bytes.push(3);
+                bytes.extend_from_slice(&precedence.to_le_bytes());
+            }
+            None => bytes.push(4),
+        }
+        bytes.push(u8::from(rule.associative));
     }
     stable_digest(&bytes)
 }
@@ -1454,6 +1597,30 @@ impl fmt::Display for TypedCompileError {
             Self::UnboundLocal(name) => write!(f, "unbound local `${name}`"),
             Self::CyclicDefinition(cycle) => write!(f, "cyclic semantic definition: {cycle:?}"),
             Self::CyclicUnitDefinition(cycle) => write!(f, "cyclic unit definition: {cycle:?}"),
+            Self::UnknownSurfaceParameter { word, parameter } => write!(
+                f,
+                "surface form for `{word}` references unknown parameter `${parameter}`",
+            ),
+            Self::DuplicateSurfaceParameter { word, parameter } => write!(
+                f,
+                "surface form for `{word}` uses parameter `${parameter}` more than once",
+            ),
+            Self::MissingSurfaceParameter { word, parameter } => write!(
+                f,
+                "surface form for `{word}` does not realize parameter `${parameter}`",
+            ),
+            Self::InvalidSurfaceRootCount { word, count } => write!(
+                f,
+                "surface form for `{word}` must contain exactly one `_` root marker, found {count}",
+            ),
+            Self::InvalidSurfacePrecedence { word } => write!(
+                f,
+                "surface precedence for `{word}` requires a binary `$left _ $right` form",
+            ),
+            Self::InvalidAssociativeSurface { word } => write!(
+                f,
+                "associative surface form `{word}` must be a precedence-bearing binary endomorphism",
+            ),
         }
     }
 }

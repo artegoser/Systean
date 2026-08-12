@@ -68,6 +68,10 @@ context now : Instant;
 intrinsic meta.resolve<T> : $T;
 intrinsic meta.hole<T>($mode: InfoMode) -> $T;
 
+primitive logic.not($value: Proposition) -> Proposition;
+primitive logic.and($left: Proposition, $right: Proposition) -> Proposition;
+primitive logic.or($left: Proposition, $right: Proposition) -> Proposition;
+
 primitive activity_of($content: Proposition) -> Activity;
 primitive assert($content: Proposition) -> Utterance;
 primitive duration_of($interval: Interval, $duration: Duration) -> Proposition;

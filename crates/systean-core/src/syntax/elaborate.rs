@@ -825,6 +825,7 @@ impl Elaborator<'_> {
             semantic,
             left_role,
             right_role,
+            ..
         } = self.lexeme(surface)?
         else {
             return Err(SurfaceElaborationError::WrongLexemeKind {

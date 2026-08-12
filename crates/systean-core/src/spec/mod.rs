@@ -16,10 +16,11 @@ pub use package::{PackageError, compile_path, compile_sources, load_specificatio
 
 
 pub use typed_ast::{
-    CompiledConstructor, CompiledContextSlot, CompiledScalar, CompiledSignature, CompiledSymbol,
-    CompiledSymbolKind, CompiledTerm, CompiledType, CompiledUnit, DataConstructorDeclaration,
-    DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem, SourceExpr, SourceParameter,
-    SourceSpan, SourceUnitDefinition, SymbolDebugInfo, TypedDeclaration,
+    CompiledConstructor, CompiledContextSlot, CompiledScalar, CompiledSignature, CompiledSurfaceItem,
+    CompiledSurfaceRule, CompiledSymbol, CompiledSymbolKind, CompiledTerm, CompiledType, CompiledUnit,
+    DataConstructorDeclaration, DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem,
+    SourceExpr, SourceParameter, SourceSpan, SourceSurfaceItem, SourceSurfaceRule, SourceUnitDefinition,
+    SymbolDebugInfo, TypedDeclaration,
     TypedSpecification,
 };
 pub use typed_compile::{

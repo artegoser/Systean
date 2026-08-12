@@ -1,6 +1,6 @@
 [meta]
-description = "Defines Phase 18 surface-syntax policies over typed Systean semantic root symbols."
-version = "1.7"
+description = "Defines Phase 19A structural syntax policies over typed Systean semantic root symbols."
+version = "1.8"
 
 [order]
 frame = "primary_predicate_rest"
@@ -15,15 +15,6 @@ quantifier_order = "appearance"
 [logic]
 flatten_same_operator = true
 
-[logic.precedence]
-va = 20
-zo = 10
-imp = 5
-hip = 5
-fok = 2
-top = 2
-kor = 1
-klar = 1
 
 [roles]
 realization = "frame_order"

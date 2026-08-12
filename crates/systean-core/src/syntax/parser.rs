@@ -674,11 +674,10 @@ impl ParserState<'_> {
 
     fn peek_infix(&self) -> Option<(String, u16)> {
         let token = self.peek()?;
-        let LexemeConfig::Infix { semantic, .. } = self.lexicon.get(token)? else {
+        let LexemeConfig::Infix { precedence, .. } = self.lexicon.get(token)? else {
             return None;
         };
-        let precedence = self.config.precedence(semantic)?;
-        Some((token.clone(), precedence))
+        Some((token.clone(), *precedence))
     }
 
     fn combine_infix(
@@ -687,7 +686,11 @@ impl ParserState<'_> {
         left: SurfaceExpr,
         right: SurfaceExpr,
     ) -> SurfaceExpr {
-        if self.config.logic.flatten_same_operator {
+        let associative = matches!(
+            self.lexicon.get(&surface),
+            Some(LexemeConfig::Infix { associative: true, .. })
+        );
+        if associative {
             let mut operands = Vec::new();
             push_flattened(&surface, left, &mut operands);
             push_flattened(&surface, right, &mut operands);

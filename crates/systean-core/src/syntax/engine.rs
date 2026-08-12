@@ -122,6 +122,7 @@ impl SyntaxEngine {
                     semantic,
                     left_role,
                     right_role,
+                    ..
                 } => {
                     validate_operator_roles(
                         environment,
@@ -129,11 +130,6 @@ impl SyntaxEngine {
                         semantic,
                         [left_role.as_str(), right_role.as_str()],
                     )?;
-                    if self.config.precedence(semantic).is_none() {
-                        return Err(SurfaceError::InvalidBinding(format!(
-                            "infix lexical root `{surface}` semantic operator `{semantic}` has no precedence"
-                        )));
-                    }
                 }
                 LexemeConfig::Quantifier {
                     semantic,

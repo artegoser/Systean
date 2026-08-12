@@ -1234,6 +1234,7 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         let LexemeConfig::Infix {
             left_role,
             right_role,
+            associative,
             ..
         } = self
             .language
@@ -1255,8 +1256,13 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             ))
         })?;
         let mut terms = Vec::new();
-        self.collect_same_infix(function, left_role, right_role, left, &mut terms);
-        self.collect_same_infix(function, left_role, right_role, right, &mut terms);
+        if *associative {
+            self.collect_same_infix(function, left_role, right_role, left, &mut terms);
+            self.collect_same_infix(function, left_role, right_role, right, &mut terms);
+        } else {
+            terms.push(left);
+            terms.push(right);
+        }
         Ok(SurfaceExpr::Infix {
             operator: surface.into(),
             operands: terms
@@ -1274,20 +1280,18 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         term: &'b Term,
         output: &mut Vec<&'b Term>,
     ) {
-        if self.language.syntax().config().logic.flatten_same_operator {
-            if let Term::Call {
-                function: nested,
-                arguments,
-            } = term
-            {
-                if nested == function {
-                    if let (Some(left), Some(right)) =
-                        (arguments.get(left_role), arguments.get(right_role))
-                    {
-                        self.collect_same_infix(function, left_role, right_role, left, output);
-                        self.collect_same_infix(function, left_role, right_role, right, output);
-                        return;
-                    }
+        if let Term::Call {
+            function: nested,
+            arguments,
+        } = term
+        {
+            if nested == function {
+                if let (Some(left), Some(right)) =
+                    (arguments.get(left_role), arguments.get(right_role))
+                {
+                    self.collect_same_infix(function, left_role, right_role, left, output);
+                    self.collect_same_infix(function, left_role, right_role, right, output);
+                    return;
                 }
             }
         }

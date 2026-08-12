@@ -66,6 +66,7 @@ pub enum QuantifierScopePolicy {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogicConfig {
     pub flatten_same_operator: bool,
+    #[serde(default)]
     pub precedence: BTreeMap<String, u16>,
 }
 

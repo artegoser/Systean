@@ -116,7 +116,13 @@ impl Generator<'_> {
                     return Ok(false);
                 }
                 match expression {
-                    SurfaceExpr::Infix { operator, .. } => Ok(operator != parent_operator),
+                    SurfaceExpr::Infix { operator, .. } if operator != parent_operator => Ok(true),
+                    SurfaceExpr::Infix { operator, .. } => {
+                        let Some(LexemeConfig::Infix { associative, .. }) = self.lexicon.get(operator) else {
+                            return Err(SurfaceGenerationError::MissingLexeme(operator.clone()));
+                        };
+                        Ok(!*associative)
+                    }
                     _ => Ok(false),
                 }
             }
@@ -126,12 +132,10 @@ impl Generator<'_> {
     fn precedence(&self, expression: &SurfaceExpr) -> Result<u16, SurfaceGenerationError> {
         match expression {
             SurfaceExpr::Infix { operator, .. } => {
-                let Some(LexemeConfig::Infix { semantic, .. }) = self.lexicon.get(operator) else {
+                let Some(LexemeConfig::Infix { precedence, .. }) = self.lexicon.get(operator) else {
                     return Err(SurfaceGenerationError::MissingLexeme(operator.clone()));
                 };
-                self.config
-                    .precedence(semantic)
-                    .ok_or_else(|| SurfaceGenerationError::MissingPrecedence(semantic.clone()))
+                Ok(*precedence)
             }
             _ => Ok(u16::MAX),
         }
