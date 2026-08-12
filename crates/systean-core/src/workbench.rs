@@ -8,7 +8,7 @@ use crate::discourse::{
     TextDocument, TextRealization, TextSessionState, TextTurn,
 };
 use crate::language::{DictionaryEntry, LanguageError, LanguagePackage};
-use crate::literals::{LiteralRealization, StructuredLiteralCodec, SurfaceLiteral};
+use crate::literals::{LiteralRealization, SurfaceLiteral};
 use crate::pragmatics::PragmaticAnalysis;
 use crate::semantics::{
     Checker, Explanation, InformationKnowerValue, InformationStatus, Literal, Origin,

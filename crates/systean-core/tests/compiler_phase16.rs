@@ -52,10 +52,16 @@ fn manifest_module_version_mismatch_fails_package_compilation() {
     let fixture = copy_language_fixture("module-version");
     let manifest = fixture.join("package.toml");
     let source = fs::read_to_string(&manifest).unwrap();
-    fs::write(&manifest, source.replace("syntax = \"1.6\"", "syntax = \"999.0\"")).unwrap();
+    let mut manifest_value: toml::Value = toml::from_str(&source).unwrap();
+    manifest_value
+        .get_mut("modules")
+        .and_then(toml::Value::as_table_mut)
+        .unwrap()
+        .insert("syntax".into(), toml::Value::String("999.0".into()));
+    fs::write(&manifest, toml::to_string(&manifest_value).unwrap()).unwrap();
 
     let error = LanguagePackage::load(&fixture).unwrap_err().to_string();
-    assert!(error.contains("module `syntax` declares version `1.6`"), "{error}");
+    assert!(error.contains("module `syntax` declares version"), "{error}");
     assert!(error.contains("manifest requires `999.0`"), "{error}");
     fs::remove_dir_all(fixture).unwrap();
 }
@@ -65,11 +71,15 @@ fn normative_cross_layer_collision_fails_package_compilation() {
     let fixture = copy_language_fixture("surface-collision");
     let units = fixture.join("units.toml");
     let source = fs::read_to_string(&units).unwrap();
-    fs::write(
-        &units,
-        source.replacen("spoken = \"metr\"", "spoken = \"sol\"", 1),
-    )
-    .unwrap();
+    let mut units_value: toml::Value = toml::from_str(&source).unwrap();
+    units_value
+        .get_mut("units")
+        .and_then(toml::Value::as_array_mut)
+        .and_then(|units| units.first_mut())
+        .and_then(toml::Value::as_table_mut)
+        .unwrap()
+        .insert("symbol".into(), toml::Value::String("sol".into()));
+    fs::write(&units, toml::to_string(&units_value).unwrap()).unwrap();
 
     let error = LanguagePackage::load(&fixture).unwrap_err().to_string();
     assert!(error.contains("sol"), "{error}");

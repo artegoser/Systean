@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::rational::ExactRational;
 use num_bigint::BigInt;
-use num_traits::{One, Signed, Zero};
+use num_traits::{One, Zero};
 
 use super::{ConstructorId, ContextSlotId, Type, UnitId};
 
