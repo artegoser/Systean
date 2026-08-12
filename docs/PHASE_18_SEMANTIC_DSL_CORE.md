@@ -151,12 +151,12 @@ Implemented tests cover:
 - [x] native and embedded/WASM packages consume the same typed source set;
 - [x] legacy semantic fields in `dictionary.toml` are rejected.
 
-Author-toolchain validation still required before marking Phase 18 **validated**:
+Author-toolchain validation status. The package check and both site gates passed on the author toolchain; the workspace suite must be rerun after repairing two Phase 16 regression fixtures that had stale assumptions about Phase 18 module/unit ownership:
 
 - [ ] `cargo test --workspace`
-- [ ] `cargo run --bin systean -- check`
-- [ ] `cd site && pnpm check`
-- [ ] `cd site && pnpm build`
+- [x] `cargo run --bin systean -- check`
+- [x] `cd site && pnpm check`
+- [x] `cd site && pnpm build`
 
 ## Deliberate Phase 19 boundary
 

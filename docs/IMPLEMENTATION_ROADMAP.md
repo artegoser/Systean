@@ -894,10 +894,10 @@ Required validation:
 - [x] Unit/dimension runtime behavior contains no English-name special cases after package-boundary resolution
 - [x] Alpha-equivalent DSL declarations produce equal canonical typed semantics/fingerprint
 - [ ] `cargo test --workspace` on the author toolchain
-- [ ] `cargo run --bin systean -- check` on the author toolchain
-- [ ] `pnpm check` and `pnpm build` for the site/WASM package
+- [x] `cargo run --bin systean -- check` on the author toolchain
+- [x] `pnpm check` and `pnpm build` for the site/WASM package
 
-Status: **implementation complete; awaiting author-toolchain validation.** The Phase 17 `Environment`/named-role surface representation now exists only as a compatibility projection generated from the typed package. Its removal belongs to Phase 19, where surface parsing/generation is compiled directly against typed IDs.
+Status: **implementation complete; package/site author-toolchain gates passed; workspace test rerun required after the Phase 16 fixture repair.** The Phase 17 `Environment`/named-role surface representation now exists only as a compatibility projection generated from the typed package. Its removal belongs to Phase 19, where surface parsing/generation is compiled directly against typed IDs.
 
 Completion result: the package has one typed semantic source of truth; English aliases and semantic JSON shapes are no longer production semantics.
 
