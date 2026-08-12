@@ -1024,6 +1024,28 @@ fn compile_effect_program(
     for directive in directives {
         let compiled = match directive {
             SourceEffectDirective::Act { kind, arguments } => {
+                let expected_arity = match kind {
+                    SourceActKind::Assertion
+                    | SourceActKind::Question
+                    | SourceActKind::Command
+                    | SourceActKind::Request
+                    | SourceActKind::Expressive
+                    | SourceActKind::Retraction => 1,
+                    SourceActKind::Focus
+                    | SourceActKind::Topic
+                    | SourceActKind::Correction
+                    | SourceActKind::Clarification => 2,
+                };
+                if arguments.len() != expected_arity {
+                    errors.push(TypedCompileError::InvalidEffect {
+                        target: target.to_owned(),
+                        message: format!(
+                            "act instruction expects {expected_arity} argument(s), found {}",
+                            arguments.len(),
+                        ),
+                    });
+                    return;
+                }
                 let arguments = match arguments.iter().map(|name| parameter(name)).collect::<Result<Vec<_>, _>>() {
                     Ok(arguments) => arguments,
                     Err(error) => { errors.push(error); return; }

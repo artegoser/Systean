@@ -143,4 +143,15 @@ fn malformed_effect_programs_fail_structurally() {
         "#.into(),
     )]).expect_err("bad effect must fail");
     assert!(errors.iter().any(|error| matches!(error, TypedCompileError::InvalidEffectParameter { .. })));
+
+    let errors = compile_typed_sources([(
+        "bad-act.semsys".into(),
+        r#"
+            type Proposition;
+            type Utterance;
+            word ask($content: Proposition) -> Utterance { form _ $content; outer; }
+            effect ask { act correction($content); }
+        "#.into(),
+    )]).expect_err("wrong act arity must fail during package compilation");
+    assert!(errors.iter().any(|error| matches!(error, TypedCompileError::InvalidEffect { .. })));
 }
