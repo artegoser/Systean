@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use systean_core::language::LanguagePackage;
-use systean_core::semantics::{Checker, Literal, Term, Type};
+use systean_core::semantics::{Checker, Literal, StructuredValue, Term, Type};
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -111,7 +111,10 @@ fn digit_and_digit_sequence_are_typed_without_coercing_to_number() {
     let written = literals.parse_complete("dig 00123").unwrap();
     let spoken = literals.parse_complete("dig nul nul uno dva tri").unwrap();
     assert_eq!(written.semantic.ty, Type::named("DigitSequence"));
-    assert_eq!(written.semantic.canonical, "00123");
+    assert!(matches!(
+        &written.semantic.value,
+        StructuredValue::DigitSequence(values) if values == &vec![0, 0, 1, 2, 3]
+    ));
     assert_eq!(written.canonical_spoken, "dig nul nul uno dva tri");
     assert_eq!(written.semantic, spoken.semantic);
     assert_eq!(literals.digit_sequence_elements("00123").unwrap().len(), 5);
@@ -167,11 +170,11 @@ fn approximation_remains_distinct_from_exact_numbers() {
     let approximate = literals.parse_complete("apro pent").unwrap();
 
     assert_eq!(exact.semantic.ty, Type::named("Number"));
-    assert_eq!(exact.semantic.family, "number");
+    assert_eq!(exact.semantic.family(), "number");
     assert_eq!(exact.canonical_written, "5");
 
     assert_eq!(approximate.semantic.ty.to_string(), "Approximate<Number>");
-    assert_eq!(approximate.semantic.family, "approximate_number");
+    assert_eq!(approximate.semantic.family(), "approximate_number");
     assert_eq!(approximate.canonical_written, "~5");
     assert_eq!(approximate.canonical_spoken, "apro pent");
     assert_ne!(exact.semantic, approximate.semantic);

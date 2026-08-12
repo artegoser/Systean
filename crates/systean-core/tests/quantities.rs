@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use systean_core::language::LanguagePackage;
-use systean_core::semantics::{Checker, Literal, Term};
+use systean_core::semantics::{Checker, Literal, StructuredValue, Term};
 
 fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -131,6 +131,10 @@ fn parsing_does_not_silently_convert_units() {
     let language = language();
     let literals = language.literals().unwrap();
     let kilometers = literals.parse_complete("1 km").unwrap();
-    assert_eq!(kilometers.semantic.canonical, "1 km");
+    assert!(matches!(
+        &kilometers.semantic.value,
+        StructuredValue::Quantity { value, approximate: false, uncertainty: None, .. }
+            if value.numer().to_string() == "1" && value.denom().to_string() == "1"
+    ));
     assert_eq!(kilometers.canonical_written, "1 km");
 }

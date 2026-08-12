@@ -49,7 +49,7 @@ fn unknown_unspecified_and_withheld_are_three_distinct_typed_values() {
         .analyze_surface_with_discourse("mi vid hid", &discourse)
         .unwrap();
 
-    assert!(unknown.canonical_semantics.contains("information<\"unknown:context:addressee\">"));
+    assert!(unknown.canonical_semantics.contains("information<\"unknown:context:@"));
     assert!(unspecified.canonical_semantics.contains("information<\"unspecified\">"));
     assert!(withheld.canonical_semantics.contains("information<\"withheld\">"));
     assert_ne!(unknown.canonical_semantics, unspecified.canonical_semantics);
@@ -74,7 +74,7 @@ fn unknown_requires_an_explicit_or_context_bound_knower() {
         .unwrap();
     assert!(named_knower
         .canonical_semantics
-        .contains("information<\"unknown:proper_name:mari\">"));
+        .contains("information<\"unknown:value:proper_name(payload = \\\"mari\\\")\">"));
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn approximate_number_is_typed_separately_from_exact_number() {
 
     assert_eq!(exact.semantic.ty.to_string(), "Number");
     assert_eq!(approximate.semantic.ty.to_string(), "Approximate<Number>");
-    assert_eq!(approximate.semantic.family, "approximate_number");
+    assert_eq!(approximate.semantic.family(), "approximate_number");
     assert_eq!(approximate.canonical_written, "~10");
     assert_eq!(spoken.semantic, approximate.semantic);
     assert_eq!(spoken.canonical_spoken, "apro dek uno");

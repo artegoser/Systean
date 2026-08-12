@@ -1,7 +1,9 @@
 use std::path::Path;
 
 use systean_core::language::{LanguagePackage, LexicalSemantic};
-use systean_core::semantics::Type;
+use systean_core::semantics::{
+    ContextSlotId, InformationKnowerValue, InformationStatus, Literal, StructuredValue, Term, Type,
+};
 use systean_core::spec::{
     CompiledScalar, CompiledSymbolKind, CompiledTerm, CompiledType, DefaultSurfaceItem,
     TypedCompileError,
@@ -200,8 +202,11 @@ fn representative_date_is_structural_in_the_new_path_and_matches_the_phase17_val
         .expect("literal engine")
         .parse_complete("2026-08-12")
         .expect("legacy date literal");
-    assert_eq!(old.semantic.family, "calendar_date");
-    assert_eq!(old.semantic.canonical, "2026-08-12");
+    assert_eq!(old.semantic.family(), "calendar_date");
+    assert!(matches!(
+        old.semantic.value,
+        StructuredValue::CalendarDate { year: 2026, month: 8, day: 12 }
+    ));
 
     let typed = compile_typed_sources([(
         "representative.semsys".to_owned(),
@@ -498,4 +503,143 @@ fn legacy_environment_still_keeps_phase17_behavior_during_dual_path_migration() 
     let package = LanguagePackage::load(repository.join("language")).expect("legacy package loads");
     assert_eq!(package.semantics().operator("see").unwrap().returns, Type::named("Proposition"));
     assert!(package.analyze("mi vid tu").is_ok());
+}
+
+
+#[test]
+fn production_structured_literals_store_typed_values_not_canonical_string_envelopes() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("language package");
+    let literals = language.literals().expect("literal engine");
+
+    let number = literals.parse_complete("10.5").expect("number");
+    assert!(matches!(number.semantic.value, StructuredValue::Number(_)));
+
+    let quantity = literals.parse_complete("1 km").expect("quantity");
+    let StructuredValue::Quantity { unit, approximate: false, .. } = quantity.semantic.value else {
+        panic!("quantity should store a typed quantity value")
+    };
+    assert_eq!(unit, literals.units().unit_by_name("kilometr").unwrap().id);
+
+    let date = literals.parse_complete("2026-08-12").expect("date");
+    assert!(matches!(
+        date.semantic.value,
+        StructuredValue::CalendarDate { year: 2026, month: 8, day: 12 }
+    ));
+
+    let duration = literals.parse_complete("PT60S").expect("duration");
+    assert!(matches!(duration.semantic.value, StructuredValue::Duration { .. }));
+
+    let interval = literals
+        .parse_complete("2026-08-12/2026-08-13")
+        .expect("interval");
+    assert!(matches!(interval.semantic.value, StructuredValue::Interval { .. }));
+}
+
+#[test]
+fn runtime_unit_ids_match_the_typed_phase18_unit_bridge() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("language package");
+    let runtime = language.literals().expect("literal engine").units();
+    let typed = compile_typed_sources([(
+        "units.semsys".to_owned(),
+        include_str!("../../../language/typed/units.semsys").to_owned(),
+    )])
+    .expect("typed unit bridge should compile");
+
+    for (legacy_name, root) in [
+        ("meter", "metr"),
+        ("kilometer", "kilometr"),
+        ("centimeter", "santimetr"),
+        ("second", "sek"),
+        ("millisecond", "milisek"),
+        ("hour", "hor"),
+        ("kilogram", "kilogram"),
+        ("gram", "gram"),
+        ("kelvin", "kelvin"),
+        ("ampere", "amper"),
+        ("mole", "mol"),
+        ("candela", "kandela"),
+    ] {
+        let runtime_unit = runtime.unit_by_name(legacy_name).unwrap_or_else(|| panic!("runtime unit {legacy_name}"));
+        let typed_id = typed.unit_id(root).unwrap_or_else(|| panic!("typed unit {root}"));
+        let typed_unit = typed.unit(typed_id).unwrap();
+        assert_eq!(runtime_unit.id, typed_id, "runtime identity drift for {root}");
+        assert_eq!(runtime_unit.dimension, typed_unit.dimension, "dimension drift for {root}");
+        assert_eq!(runtime_unit.scale.numer().to_string(), typed_unit.scale_numerator.to_string());
+        assert_eq!(runtime_unit.scale.denom().to_string(), typed_unit.scale_denominator.to_string());
+    }
+}
+
+#[test]
+fn information_context_is_structural_before_discourse_resolution() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("language package");
+    let syntax = language.syntax().parse("na artemi vid unk tu").expect("surface parse");
+    let typed = language
+        .syntax()
+        .elaborate(&syntax, language.semantics())
+        .expect("surface elaboration");
+    let information = find_information(&typed.template).expect("information value");
+    let StructuredValue::Information { mode, status, knower } = information else {
+        unreachable!()
+    };
+    let typed = compile_typed_sources([(
+        "representative.semsys".to_owned(),
+        representative_source().to_owned(),
+    )])
+    .expect("typed representative package");
+    assert_eq!(*mode, typed.constructor_id("InfoMode.unknown").unwrap());
+    assert_eq!(*status, InformationStatus::Unknown);
+    assert_eq!(
+        knower.as_ref(),
+        Some(&InformationKnowerValue::Context(ContextSlotId::from_source(
+            "context",
+            "addressee",
+        ))),
+    );
+    assert!(!format!("{information:?}").contains("unknown:context:"));
+}
+
+
+#[test]
+fn phase18b1_typed_bridge_is_not_yet_normative_package_provenance() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let language = LanguagePackage::load(repository.join("language")).expect("language package");
+    assert!(language
+        .provenance()
+        .sources
+        .iter()
+        .all(|source| !source.path.starts_with("typed/")));
+}
+
+#[test]
+fn phase18b1_runtime_has_no_structured_value_string_reparse_or_duration_name_hardcode() {
+    let literals = include_str!("../src/literals/mod.rs");
+    let pragmatics = include_str!("../src/pragmatics.rs");
+    let workbench = include_str!("../src/workbench.rs");
+
+    for source in [literals, pragmatics, workbench] {
+        assert!(!source.contains(".canonical.split"));
+        assert!(!source.contains("canonical.splitn"));
+        assert!(!source.contains("semantic.canonical"));
+    }
+    assert!(!literals.contains("unit.dimension != \"time\""));
+    assert!(!literals.contains("unit_by_id(\"second\")"));
+}
+
+fn find_information(term: &Term) -> Option<&StructuredValue> {
+    match term {
+        Term::Literal(Literal::Structured(literal))
+            if matches!(&literal.value, StructuredValue::Information { .. }) =>
+        {
+            Some(&literal.value)
+        }
+        Term::Call { arguments, .. } | Term::Record(arguments) => {
+            arguments.values().find_map(find_information)
+        }
+        Term::Bind { body, .. } => find_information(body),
+        Term::Field { record, .. } => find_information(record),
+        _ => None,
+    }
 }

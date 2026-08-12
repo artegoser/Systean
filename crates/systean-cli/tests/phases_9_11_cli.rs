@@ -63,7 +63,7 @@ fn playground_exposes_information_statuses_without_guessing() {
 
     assert!(success);
     assert!(stderr.is_empty(), "{stderr}");
-    assert!(stdout.contains("information<\"unknown:context:addressee\">"));
+    assert!(stdout.contains("information<\"unknown:context:@"));
     assert!(stdout.contains("information<\"unspecified\">"));
     assert!(stdout.contains("information<\"withheld\">"));
 }

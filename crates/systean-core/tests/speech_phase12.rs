@@ -57,7 +57,7 @@ fn value_question_is_recovered_from_explicit_typed_unknown_slot() {
     };
     assert_eq!(requested.len(), 1);
     assert_eq!(requested[0].ty, Type::named("Entity"));
-    assert!(requested[0].status.starts_with("unknown:"));
+    assert_eq!(requested[0].status, "unknown");
 }
 
 #[test]
