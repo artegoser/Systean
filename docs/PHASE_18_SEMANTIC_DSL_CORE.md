@@ -1,6 +1,6 @@
 # Phase 18 — Typed semantic identity and DSL core migration
 
-Status: **in progress — first half (18A typed core) implemented; runtime cutover and full value migration remain**
+Status: **in progress — 18A and 18B1 implemented; final lexical/package cutover remains 18B2**
 Architecture: [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
 
 ## Goal
@@ -10,7 +10,7 @@ Replace the stringly semantic core and duplicated lexical/operator ownership wit
 This phase intentionally does **not** attempt the complete declarative surface/pragmatics migration. It establishes the new semantic foundation first so later migrations do not mix architecture changes with grammar changes.
 
 
-## Phase 18A / 18B implementation boundary
+## Phase 18A / 18B1 / 18B2 implementation boundary
 
 Phase 18 is intentionally split at a compiler boundary rather than by raw checkbox count. This keeps the repository usable after the first half and avoids a half-migrated production semantic IR.
 
@@ -26,16 +26,26 @@ Phase 18 is intentionally split at a compiler boundary rather than by raw checkb
 - representative dual-path migration coverage for `vid`, `per`, `viv`, `mi`, `tu`, `unk`, `vak`, `hid`, an exact `Time` unit family, and one calendar date value;
 - Phase 17 `LanguagePackage` remains the behavior oracle while the new compiler is exercised in parallel.
 
-**Phase 18B — deliberately not performed yet:**
+**Phase 18B1 — implemented in this delivery:**
 
-- production `LanguagePackage` cutover to the typed package as the single source of truth;
-- migration of every lexical root out of `dictionary.toml` and duplicated legacy `.semsys` signatures;
-- replacement of all production `StructuredLiteral` paths for numbers, quantities, dates, times, durations, and intervals;
-- conversion runtime cutover from string unit/dimension identifiers to `UnitId`/`DimensionId`;
-- deletion of old `unknown:...` parsing and other string semantic branches after corpus parity;
-- full compatibility-corpus parity and author-toolchain validation before Phase 18 is marked complete.
+- production structured literals now store typed `StructuredValue` variants instead of a `family/canonical` string envelope;
+- numbers, approximate numbers, digits, digit sequences, quantities, dates, times, time zones, instants, durations, and intervals keep their semantic payload structurally;
+- information values now carry a typed status, constructor identity, and resolved `ContextSlotId`/value knower instead of the `unknown:context:...` mini-language;
+- runtime unit/dimension identity is `UnitId`/`DimensionId`; legacy English unit IDs are compatibility lookup aliases only;
+- duration semantics resolve their base unit from package configuration and derive the dimension from that unit, removing engine checks against `"time"`/`"second"`;
+- `language/typed/units.semsys` is a typed migration bridge whose IDs/dimensions/exact scales are regression-checked against the current runtime registry;
+- renderers may still produce canonical human strings, but later semantic layers never reparse those strings to recover meaning.
 
-The first-half compiler is therefore not allowed to silently become a second production semantic implementation. It is a migration compiler whose output must replace the legacy path only after 18B proves full parity.
+**Phase 18B2 — deliberately left for the final quarter:**
+
+- cut production `LanguagePackage` lexical/semantic ownership over to the typed package as the single source of truth;
+- migrate every lexical root out of `dictionary.toml` and duplicated legacy `.semsys` signatures;
+- make typed unit declarations, rather than the transitional `units.toml` adapter, the production ownership source;
+- replace remaining runtime named-role/source-name maps at the lexical boundary;
+- delete legacy `LexicalSemantic` status/context/operator string adapters and the old semantic environment path after parity;
+- run full compatibility-corpus/native/WASM/site parity and author-toolchain validation before Phase 18 is marked complete.
+
+18B1 intentionally cuts over the **value/runtime boundary** without cutting over lexical ownership. That preserves the Phase 17 grammar and dictionary as the behavior oracle while ensuring the last quarter no longer has to migrate structured values and lexical identity simultaneously.
 
 ## Scope
 
@@ -66,18 +76,18 @@ The first-half compiler is therefore not allowed to silently become a second pro
 
 ### Structured semantic values
 
-- [ ] Replace `StructuredLiteral { family: String, canonical: String, ... }` with typed algebraic/scalar terms.
-- [ ] Migrate information status away from `unknown:...`, `withheld`, and similar string encodings.
-- [ ] Represent unknown/unspecified/withheld as typed structures.
-- [ ] Make context-backed unknown values contain resolved context references rather than encoded strings.
-- [ ] Migrate number/quantity/date/time/duration/interval canonical representations to typed terms without changing accepted Systean surface forms.
+- [x] Replace `StructuredLiteral { family: String, canonical: String, ... }` with typed algebraic/scalar runtime values.
+- [x] Migrate runtime information status away from `unknown:...`, `withheld`, and similar string encodings; the legacy lexical declaration remains an 18B2 source adapter.
+- [x] Represent unknown/unspecified/withheld as typed structures.
+- [x] Make context-backed unknown values contain resolved `ContextSlotId` references rather than encoded strings.
+- [x] Migrate number/quantity/date/time/duration/interval runtime semantic representations to typed values without changing accepted Systean surface forms.
 
 ### Dimensions and units
 
 - [x] Compile dimensions and units to IDs in the new package model; production conversion cutover remains 18B.
-- [ ] Remove runtime checks against source names such as `"time"` and `"second"`.
-- [ ] Preserve exact rational conversion and dimension compatibility.
-- [ ] Make base-unit relationships declarations rather than engine string conventions.
+- [x] Remove runtime checks against source names such as `"time"` and `"second"`.
+- [x] Preserve exact rational conversion and dimension compatibility through resolved IDs.
+- [x] Remove engine base-unit string conventions; typed base-unit declarations exist and are parity-checked, while production declaration ownership moves from TOML to `.semsys` in 18B2.
 
 ### Compatibility/fingerprints
 
@@ -99,14 +109,14 @@ The first-half compiler is therefore not allowed to silently become a second pro
 
 ## Required tests
 
-- [ ] Source symbol names resolve to stable IDs and no runtime semantic branch needs their strings.
+- [ ] Source symbol names resolve to stable IDs and no runtime semantic branch needs their strings. Value/unit runtime is ID-based in 18B1; lexical/operator branches remain for 18B2.
 - [x] Renaming a local parameter/binder leaves canonical terms and semantic fingerprint unchanged.
 - [x] Changing an English/comment label leaves semantic/surface fingerprints unchanged.
 - [x] Changing a word signature changes semantic compatibility.
 - [x] Ordinary new lexical word requires one declaration and no Rust code in the typed compiler.
 - [x] `hid`/`unk`/`vak` produce typed structures with no colon-delimited mini-language in the typed compiler.
-- [ ] Dates, durations, quantities, and intervals round-trip as typed values without parsing a canonical string in later semantic layers.
-- [ ] Unit conversion contains no source-name special cases.
+- [x] Dates, durations, quantities, and intervals round-trip as typed values without parsing a canonical string in later semantic layers.
+- [x] Unit conversion contains no source-name special cases after the package boundary resolves IDs.
 - [ ] Existing Phase 2–17 behavioral tests remain green or are migrated to equivalent structural assertions.
 - [ ] Full compatibility corpus preserves Phase 17 parse/meaning unless an explicitly approved semantic migration says otherwise.
 

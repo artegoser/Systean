@@ -865,12 +865,12 @@ Lexical ownership:
 
 Typed values:
 
-- [ ] Replace `StructuredLiteral { family: String, canonical: String }` with typed algebraic/scalar terms
-- [ ] Remove `unknown:context:speaker` and other string-encoded semantic mini-languages
-- [ ] Represent unknown/unspecified/withheld information structurally
-- [ ] Migrate numbers, quantities, dates, times, durations, and intervals to typed canonical values
-- [ ] Replace string-identified unit/dimension semantics with compiled IDs
-- [ ] Remove engine special cases keyed by names such as `"time"` or `"second"`
+- [x] Replace `StructuredLiteral { family: String, canonical: String }` with typed algebraic/scalar runtime values
+- [x] Remove `unknown:context:speaker` and other string-encoded runtime semantic mini-languages
+- [x] Represent unknown/unspecified/withheld information structurally
+- [x] Migrate numbers, quantities, dates, times, durations, and intervals to typed runtime semantic values
+- [x] Replace runtime string-identified unit/dimension semantics with `UnitId`/`DimensionId`
+- [x] Remove engine special cases keyed by names such as `"time"` or `"second"`
 
 Compatibility:
 
@@ -884,12 +884,12 @@ Required validation:
 
 - [ ] Canonical semantic IR contains no human semantic identity strings
 - [ ] Ordinary lexical growth needs no Rust code
-- [ ] Structured values never require a later layer to parse their canonical string representation
-- [ ] Unit/dimension behavior contains no English-name special cases
+- [x] Structured values never require a later layer to parse their canonical string representation
+- [x] Unit/dimension runtime behavior contains no English-name special cases after package-boundary resolution
 - [ ] Alpha-equivalent DSL declarations produce equal canonical semantics/fingerprint
 - [ ] Existing behavioral, compatibility, ambiguity, native, and WASM suites remain green
 
-Status: **in progress — Phase 18A typed compiler implemented in parallel with the Phase 17 runtime; full lexical/value migration and runtime cutover remain Phase 18B.**
+Status: **in progress — Phase 18A typed compiler and Phase 18B1 structured-value/unit runtime cutover implemented; final lexical ownership/package cutover remains Phase 18B2.**
 
 Completion result: the core has one typed semantic identity model and no longer uses English/source strings as hidden semantics.
 
