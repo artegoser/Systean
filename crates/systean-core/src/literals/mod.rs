@@ -12,7 +12,7 @@ pub use config::{CalendarConfig, LiteralConfig, LiteralConfigError, NumberConfig
 pub use number::{ExactNumber, NumberParse, canonical_spoken as canonical_spoken_number, integer_to_spoken, parse_spoken_integer, parse_spoken_number};
 pub use time::TemporalLiteralValue;
 
-use crate::semantics::{StructuredLiteral, Type};
+use crate::semantics::{DimensionId, StructuredLiteral, StructuredValue, Type, UnitId};
 use crate::spec::parse_type;
 use crate::units::{QuantityValue, UnitRegistry};
 
@@ -55,6 +55,8 @@ pub struct LiteralEngine {
     interval_type: Type,
     duration_type: Type,
     timezone_type: Type,
+    duration_base_unit: UnitId,
+    duration_dimension: DimensionId,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -95,6 +97,14 @@ impl LiteralEngine {
         let interval_type = parse_config_type(&config.calendar.interval_type)?;
         let duration_type = parse_config_type(&config.calendar.duration_type)?;
         let timezone_type = parse_config_type(&config.calendar.timezone_type)?;
+        let duration_base_unit = units.unit_id_by_name(&config.calendar.duration_base_unit)
+            .ok_or_else(|| LiteralError(format!(
+                "duration base unit `{}` is not declared by the resolved unit registry",
+                config.calendar.duration_base_unit
+            )))?;
+        let duration_dimension = units.unit_by_id(duration_base_unit)
+            .map(|unit| unit.dimension)
+            .ok_or_else(|| LiteralError("duration base unit was not resolved".into()))?;
         let literal_forms = config.reserved_forms().into_iter().collect::<BTreeSet<_>>();
         for unit in &units.config().units {
             if literal_forms.contains(unit.spoken.as_str()) {
@@ -119,6 +129,8 @@ impl LiteralEngine {
             interval_type,
             duration_type,
             timezone_type,
+            duration_base_unit,
+            duration_dimension,
         })
     }
 
@@ -131,7 +143,7 @@ impl LiteralEngine {
         if digit > 9 {
             return Err(LiteralError(format!("digit {digit} is outside 0..9")));
         }
-        Ok(StructuredLiteral::new("digit", digit.to_string(), self.digit_type.clone()))
+        Ok(StructuredLiteral::new(StructuredValue::Digit(digit), self.digit_type.clone()))
     }
 
     pub fn digit_sequence_elements(&self, digits: &str) -> Result<Vec<StructuredLiteral>, LiteralError> {
@@ -170,22 +182,19 @@ impl LiteralEngine {
         literal: &StructuredLiteral,
         target_unit: &str,
     ) -> Result<SurfaceLiteral, LiteralError> {
-        if !matches!(literal.family.as_str(), "quantity" | "approximate_quantity") {
+        let StructuredValue::Quantity { value, unit, approximate, uncertainty } = &literal.value else {
             return Err(LiteralError(format!(
                 "cannot convert structured literal family `{}` as a quantity",
-                literal.family
+                literal.family()
             )));
-        }
-        let source_tokens = literal
-            .canonical
-            .split_whitespace()
-            .map(str::to_lowercase)
-            .collect::<Vec<_>>();
-        let source = self
-            .parse_written_quantity(&source_tokens, 0)?
-            .ok_or_else(|| LiteralError(format!("invalid canonical quantity `{}`", literal.canonical)))?;
-        let quantity = self.quantity_value_from_canonical(&source.literal.semantic.canonical)?;
-        let converted = self.units.convert(&quantity, target_unit).map_err(LiteralError)?;
+        };
+        let quantity = QuantityValue {
+            value: ExactNumber(value.clone()),
+            unit_id: *unit,
+            approximate: *approximate,
+            uncertainty: uncertainty.clone().map(ExactNumber),
+        };
+        let converted = self.units.convert_to_name(&quantity, target_unit).map_err(LiteralError)?;
         self.quantity_match(converted, 0, LiteralRealization::Written)
             .map(|matched| matched.literal)
     }
@@ -201,7 +210,7 @@ impl LiteralEngine {
     pub fn parse_at(&self, tokens: &[String], start: usize) -> Result<Option<LiteralMatch>, LiteralError> {
         if start >= tokens.len() { return Ok(None); }
 
-        if let Some(value) = time::parse_written_temporal(&tokens[start]).map_err(LiteralError)? {
+        if let Some(value) = time::parse_written_temporal(&tokens[start], self.config.number.max_explicit_exponent).map_err(LiteralError)? {
             return self.temporal_match(value, 1, LiteralRealization::Written).map(Some);
         }
 
@@ -267,51 +276,89 @@ impl LiteralEngine {
     }
 
     pub fn render_written(&self, literal: &StructuredLiteral) -> Result<String, LiteralError> {
-        match literal.family.as_str() {
-            "number" | "approximate_number" => Ok(literal.canonical.clone()),
-            "digit_sequence" => Ok(format!("{} {}", self.config.number.digit_sequence_marker, literal.canonical)),
-            "unit" => self.units.unit_by_id(&literal.canonical)
+        match &literal.value {
+            StructuredValue::Number(value) => Ok(ExactNumber(value.clone()).canonical_written()),
+            StructuredValue::ApproximateNumber { value, tolerance } => {
+                let value = ExactNumber(value.clone()).canonical_written();
+                Ok(match tolerance {
+                    Some(tolerance) => format!("{value}±{}", ExactNumber(tolerance.clone()).canonical_written()),
+                    None => format!("~{value}"),
+                })
+            }
+            StructuredValue::Digit(value) => Ok(value.to_string()),
+            StructuredValue::DigitSequence(values) => Ok(format!(
+                "{} {}",
+                self.config.number.digit_sequence_marker,
+                values.iter().map(u8::to_string).collect::<String>()
+            )),
+            StructuredValue::Unit(id) => self.units.unit_by_id(*id)
                 .map(|unit| unit.symbol.clone())
-                .ok_or_else(|| LiteralError(format!("unknown unit `{}`", literal.canonical))),
-            "quantity" | "approximate_quantity" => Ok(literal.canonical.clone()),
-            "calendar_date" | "time_of_day" | "timezone" | "instant" | "duration" | "interval" => Ok(literal.canonical.clone()),
-            family => Err(LiteralError(format!("no structured-literal renderer for family `{family}`"))),
+                .ok_or_else(|| LiteralError(format!("unknown unit `{id}`"))),
+            StructuredValue::Quantity { value, unit, approximate, uncertainty } => {
+                let unit = self.units.unit_by_id(*unit)
+                    .ok_or_else(|| LiteralError(format!("unknown unit `{unit}`")))?;
+                let value = ExactNumber(value.clone()).canonical_written();
+                Ok(match uncertainty {
+                    Some(uncertainty) => format!("{value}±{} {}", ExactNumber(uncertainty.clone()).canonical_written(), unit.symbol),
+                    None if *approximate => format!("~{value} {}", unit.symbol),
+                    None => format!("{value} {}", unit.symbol),
+                })
+            }
+            value @ (
+                StructuredValue::CalendarDate { .. }
+                | StructuredValue::TimeOfDay { .. }
+                | StructuredValue::TimeZone { .. }
+                | StructuredValue::Instant { .. }
+                | StructuredValue::Duration { .. }
+                | StructuredValue::Interval { .. }
+            ) => temporal_written(value),
+            StructuredValue::Information { .. } => Err(LiteralError(
+                "information values are semantic slot values, not standalone structured-literal surfaces".into()
+            )),
         }
     }
 
     pub fn render_spoken(&self, literal: &StructuredLiteral) -> Result<String, LiteralError> {
-        match literal.family.as_str() {
-            "number" => {
-                let value = ExactNumber::parse_written(&literal.canonical, self.config.number.max_explicit_exponent).map_err(LiteralError)?;
-                Ok(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?.join(" "))
+        match &literal.value {
+            StructuredValue::Number(value) => Ok(canonical_spoken_number(
+                &ExactNumber(value.clone()),
+                &self.config.number,
+                &self.scope_open,
+                &self.scope_close,
+            ).map_err(LiteralError)?.join(" ")),
+            StructuredValue::ApproximateNumber { value, tolerance } => {
+                self.render_approximate_number_value(value, tolerance.as_ref())
             }
-            "approximate_number" => self.render_approximate_number_spoken(&literal.canonical),
-            "digit_sequence" => {
+            StructuredValue::Digit(value) => Ok(self.digit_surface(*value)?.to_owned()),
+            StructuredValue::DigitSequence(values) => {
                 let mut tokens = vec![self.config.number.digit_sequence_marker.clone()];
-                for digit in literal.canonical.chars() {
-                    let value = digit.to_digit(10).ok_or_else(|| LiteralError("invalid canonical digit sequence".into()))? as u8;
-                    tokens.push(self.digit_surface(value)?.to_owned());
+                for digit in values {
+                    tokens.push(self.digit_surface(*digit)?.to_owned());
                 }
                 Ok(tokens.join(" "))
             }
-            "unit" => self.units.unit_by_id(&literal.canonical)
+            StructuredValue::Unit(id) => self.units.unit_by_id(*id)
                 .map(|unit| unit.spoken.clone())
-                .ok_or_else(|| LiteralError(format!("unknown unit `{}`", literal.canonical))),
-            "quantity" | "approximate_quantity" => self.render_quantity_spoken(&literal.canonical),
-            "calendar_date" | "time_of_day" | "timezone" | "instant" | "interval" => {
-                let value = time::parse_written_temporal(&literal.canonical).map_err(LiteralError)?
-                    .ok_or_else(|| LiteralError(format!("invalid canonical temporal literal `{}`", literal.canonical)))?;
-                Ok(time::canonical_spoken_temporal(
-                    &value,
-                    &self.config.number,
-                    &self.config.calendar.date_marker,
-                    &self.config.calendar.timezone_marker,
-                    &self.scope_open,
-                    &self.scope_close,
-                ).map_err(LiteralError)?.join(" "))
+                .ok_or_else(|| LiteralError(format!("unknown unit `{id}`"))),
+            StructuredValue::Quantity { value, unit, approximate, uncertainty } => {
+                self.quantity_to_spoken(&QuantityValue {
+                    value: ExactNumber(value.clone()),
+                    unit_id: *unit,
+                    approximate: *approximate,
+                    uncertainty: uncertainty.clone().map(ExactNumber),
+                })
             }
-            "duration" => self.render_duration_spoken(&literal.canonical),
-            family => Err(LiteralError(format!("no structured-literal spoken renderer for family `{family}`"))),
+            StructuredValue::Duration { seconds } => self.render_duration_spoken_value(seconds),
+            value @ (
+                StructuredValue::CalendarDate { .. }
+                | StructuredValue::TimeOfDay { .. }
+                | StructuredValue::TimeZone { .. }
+                | StructuredValue::Instant { .. }
+                | StructuredValue::Interval { .. }
+            ) => self.render_temporal_spoken(value),
+            StructuredValue::Information { .. } => Err(LiteralError(
+                "information values are semantic slot values, not standalone structured-literal surfaces".into()
+            )),
         }
     }
 
@@ -409,8 +456,10 @@ impl LiteralEngine {
         Ok(LiteralMatch {
             literal: SurfaceLiteral {
                 semantic: StructuredLiteral::new(
-                    "approximate_number",
-                    canonical_written.clone(),
+                    StructuredValue::ApproximateNumber {
+                        value: value.0.clone(),
+                        tolerance: tolerance.as_ref().map(|value| value.0.clone()),
+                    },
                     self.approximate_number_type.clone(),
                 ),
                 canonical_written,
@@ -421,11 +470,29 @@ impl LiteralEngine {
         })
     }
 
-    fn render_approximate_number_spoken(&self, canonical: &str) -> Result<String, LiteralError> {
-        let tokens = vec![canonical.to_lowercase()];
-        self.parse_approximate_number(&tokens, 0)?
-            .map(|matched| matched.literal.canonical_spoken)
-            .ok_or_else(|| LiteralError(format!("invalid canonical approximate number `{canonical}`")))
+    fn render_approximate_number_value(
+        &self,
+        value: &crate::rational::ExactRational,
+        tolerance: Option<&crate::rational::ExactRational>,
+    ) -> Result<String, LiteralError> {
+        let value = ExactNumber(value.clone());
+        let tolerance = tolerance.cloned().map(ExactNumber);
+        Ok(match tolerance.as_ref() {
+            Some(tolerance) => {
+                let mut out = vec![self.config.number.approximation.clone(), self.scope_open.clone()];
+                out.extend(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.push(self.scope_close.clone());
+                out.push(self.scope_open.clone());
+                out.extend(canonical_spoken_number(tolerance, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.push(self.scope_close.clone());
+                out.join(" ")
+            }
+            None => {
+                let mut out = vec![self.config.number.approximation.clone()];
+                out.extend(canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?);
+                out.join(" ")
+            }
+        })
     }
 
     fn number_match(&self, value: ExactNumber, consumed: usize, realization: LiteralRealization) -> Result<LiteralMatch, LiteralError> {
@@ -433,7 +500,7 @@ impl LiteralEngine {
         let canonical_spoken = canonical_spoken_number(&value, &self.config.number, &self.scope_open, &self.scope_close).map_err(LiteralError)?.join(" ");
         Ok(LiteralMatch {
             literal: SurfaceLiteral {
-                semantic: StructuredLiteral::new("number", canonical_written.clone(), self.number_type.clone()),
+                semantic: StructuredLiteral::new(StructuredValue::Number(value.0.clone()), self.number_type.clone()),
                 canonical_written,
                 canonical_spoken,
                 realization,
@@ -458,8 +525,7 @@ impl LiteralEngine {
             return Ok(LiteralMatch {
                 literal: SurfaceLiteral {
                     semantic: StructuredLiteral::new(
-                        "digit_sequence",
-                        first.clone(),
+                        StructuredValue::DigitSequence(first.chars().map(|value| value.to_digit(10).expect("ASCII digit") as u8).collect()),
                         self.digit_sequence_type.clone(),
                     ),
                     canonical_written: format!("{} {}", self.config.number.digit_sequence_marker, first),
@@ -487,7 +553,7 @@ impl LiteralEngine {
         values.extend(tokens[start + 1..index].iter().cloned());
         Ok(LiteralMatch {
             literal: SurfaceLiteral {
-                semantic: StructuredLiteral::new("digit_sequence", digits.clone(), self.digit_sequence_type.clone()),
+                semantic: StructuredLiteral::new(StructuredValue::DigitSequence(digits.chars().map(|value| value.to_digit(10).expect("digit") as u8).collect()), self.digit_sequence_type.clone()),
                 canonical_written: format!("{} {}", self.config.number.digit_sequence_marker, digits),
                 canonical_spoken: values.join(" "),
                 realization: LiteralRealization::Spoken,
@@ -506,7 +572,7 @@ impl LiteralEngine {
         };
         Ok(Some(LiteralMatch {
             literal: SurfaceLiteral {
-                semantic: StructuredLiteral::new("unit", unit.id.clone(), self.units.unit_type(unit)),
+                semantic: StructuredLiteral::new(StructuredValue::Unit(unit.id), self.units.unit_type(unit)),
                 canonical_written: unit.symbol.clone(),
                 canonical_spoken: unit.spoken.clone(),
                 realization,
@@ -601,44 +667,11 @@ impl LiteralEngine {
         .map(Some)
     }
 
-    fn quantity_value_from_canonical(&self, canonical: &str) -> Result<QuantityValue, LiteralError> {
-        let tokens = canonical
-            .split_whitespace()
-            .map(str::to_lowercase)
-            .collect::<Vec<_>>();
-        let matched = self
-            .parse_written_quantity(&tokens, 0)?
-            .ok_or_else(|| LiteralError(format!("invalid canonical quantity `{canonical}`")))?;
-        let value_token = tokens.first().expect("parsed quantity has value");
-        let unit_token = tokens.get(1).expect("parsed quantity has unit");
-        let unit = self.units.unit_by_symbol(unit_token)
-            .ok_or_else(|| LiteralError(format!("unknown written quantity unit `{unit_token}`")))?;
-        let (value_source, approximate, uncertainty_source) = if let Some(value) = value_token.strip_prefix('~') {
-            (value, true, None)
-        } else if let Some((value, uncertainty)) = value_token.split_once('±') {
-            (value, true, Some(uncertainty))
-        } else {
-            (value_token.as_str(), false, None)
-        };
-        let value = ExactNumber::parse_written(value_source, self.config.number.max_explicit_exponent)
-            .map_err(LiteralError)?;
-        let uncertainty = uncertainty_source
-            .map(|source| ExactNumber::parse_written(source, self.config.number.max_explicit_exponent).map_err(LiteralError))
-            .transpose()?;
-        debug_assert_eq!(matched.literal.semantic.family == "approximate_quantity", approximate);
-        Ok(QuantityValue {
-            value,
-            unit_id: unit.id.clone(),
-            approximate,
-            uncertainty,
-        })
-    }
-
     fn quantity_match(&self, quantity: QuantityValue, consumed: usize, realization: LiteralRealization) -> Result<LiteralMatch, LiteralError> {
         if quantity.uncertainty.as_ref().is_some_and(|value| value.0.is_negative()) {
             return Err(LiteralError("measurement uncertainty cannot be negative".into()));
         }
-        let unit = self.units.unit_by_id(&quantity.unit_id)
+        let unit = self.units.unit_by_id(quantity.unit_id)
             .ok_or_else(|| LiteralError(format!("unknown unit `{}`", quantity.unit_id)))?;
         let canonical_written = if let Some(uncertainty) = &quantity.uncertainty {
             format!("{}±{} {}", quantity.value.canonical_written(), uncertainty.canonical_written(), unit.symbol)
@@ -648,10 +681,17 @@ impl LiteralEngine {
             format!("{} {}", quantity.value.canonical_written(), unit.symbol)
         };
         let canonical_spoken = self.quantity_to_spoken(&quantity)?;
-        let family = if quantity.approximate { "approximate_quantity" } else { "quantity" };
         Ok(LiteralMatch {
             literal: SurfaceLiteral {
-                semantic: StructuredLiteral::new(family, canonical_written.clone(), self.units.quantity_type(unit, quantity.approximate)),
+                semantic: StructuredLiteral::new(
+                    StructuredValue::Quantity {
+                        value: quantity.value.0.clone(),
+                        unit: quantity.unit_id,
+                        approximate: quantity.approximate,
+                        uncertainty: quantity.uncertainty.as_ref().map(|value| value.0.clone()),
+                    },
+                    self.units.quantity_type(unit, quantity.approximate),
+                ),
                 canonical_written,
                 canonical_spoken,
                 realization,
@@ -661,7 +701,7 @@ impl LiteralEngine {
     }
 
     fn quantity_to_spoken(&self, quantity: &QuantityValue) -> Result<String, LiteralError> {
-        let unit = self.units.unit_by_id(&quantity.unit_id)
+        let unit = self.units.unit_by_id(quantity.unit_id)
             .ok_or_else(|| LiteralError(format!("unknown unit `{}`", quantity.unit_id)))?;
         if let Some(uncertainty) = &quantity.uncertainty {
             let mut out = vec![self.config.number.approximation.clone(), self.scope_open.clone()];
@@ -680,49 +720,23 @@ impl LiteralEngine {
         Ok(out.join(" "))
     }
 
-    fn render_quantity_spoken(&self, canonical: &str) -> Result<String, LiteralError> {
-        let tokens = canonical.split_whitespace().map(str::to_lowercase).collect::<Vec<_>>();
-        self.parse_written_quantity(&tokens, 0)?
-            .map(|matched| matched.literal.canonical_spoken)
-            .ok_or_else(|| LiteralError(format!("invalid canonical quantity `{canonical}`")))
-    }
-
     fn temporal_match(&self, value: TemporalLiteralValue, consumed: usize, realization: LiteralRealization) -> Result<LiteralMatch, LiteralError> {
-        let value = match value {
-            TemporalLiteralValue::DurationSeconds { seconds_canonical } => {
-                let seconds = ExactNumber::parse_written(
-                    &seconds_canonical,
-                    self.config.number.max_explicit_exponent,
-                )
-                .map_err(LiteralError)?;
-                if seconds.0.is_negative() {
-                    return Err(LiteralError("duration cannot be negative".into()));
-                }
-                TemporalLiteralValue::DurationSeconds {
-                    seconds_canonical: seconds.canonical_written(),
-                }
-            }
-            other => other,
+        let structured = temporal_to_structured(&value);
+        let ty = match &structured {
+            StructuredValue::CalendarDate { .. } => self.date_type.clone(),
+            StructuredValue::TimeOfDay { .. } => self.time_of_day_type.clone(),
+            StructuredValue::TimeZone { .. } => self.timezone_type.clone(),
+            StructuredValue::Instant { .. } => self.instant_type.clone(),
+            StructuredValue::Duration { .. } => self.duration_type.clone(),
+            StructuredValue::Interval { .. } => self.interval_type.clone(),
+            _ => unreachable!("temporal parser produced a non-temporal semantic value"),
         };
-        let (family, ty) = match value {
-            TemporalLiteralValue::CalendarDate { .. } => ("calendar_date", self.date_type.clone()),
-            TemporalLiteralValue::TimeOfDay { .. } => ("time_of_day", self.time_of_day_type.clone()),
-            TemporalLiteralValue::TimeZone { .. } => ("timezone", self.timezone_type.clone()),
-            TemporalLiteralValue::Instant { .. } => ("instant", self.instant_type.clone()),
-            TemporalLiteralValue::DurationSeconds { .. } => ("duration", self.duration_type.clone()),
-            TemporalLiteralValue::Interval { .. } => ("interval", self.interval_type.clone()),
-        };
-        let canonical_written = value.canonical_written();
-        let canonical_spoken = match &value {
-            TemporalLiteralValue::DurationSeconds { .. } => self.render_duration_spoken(&canonical_written)?,
-            _ => time::canonical_spoken_temporal(
-                &value, &self.config.number, &self.config.calendar.date_marker, &self.config.calendar.timezone_marker,
-                &self.scope_open, &self.scope_close
-            ).map_err(LiteralError)?.join(" "),
-        };
+        let semantic = StructuredLiteral::new(structured, ty);
+        let canonical_written = self.render_written(&semantic)?;
+        let canonical_spoken = self.render_spoken(&semantic)?;
         Ok(LiteralMatch {
             literal: SurfaceLiteral {
-                semantic: StructuredLiteral::new(family, canonical_written.clone(), ty),
+                semantic,
                 canonical_written,
                 canonical_spoken,
                 realization,
@@ -790,9 +804,11 @@ impl LiteralEngine {
         if left.consumed != left_tokens.len() || right.consumed != right_tokens.len() {
             return Err(LiteralError("interval instant scopes contain trailing tokens".into()));
         }
+        let left_value = structured_to_temporal(&left.literal.semantic.value)?;
+        let right_value = structured_to_temporal(&right.literal.semantic.value)?;
         let value = TemporalLiteralValue::Interval {
-            start: left.literal.canonical_written,
-            end: right.literal.canonical_written,
+            start: Box::new(left_value),
+            end: Box::new(right_value),
         };
         self.temporal_match(value, index - start, LiteralRealization::Spoken).map(Some)
     }
@@ -823,20 +839,19 @@ impl LiteralEngine {
         }
         let zone = self.parse_spoken_timezone(tokens, index)?
             .ok_or_else(|| LiteralError("invalid instant timezone".into()))?;
-        let zone_written = zone.literal.canonical_written;
+        let StructuredValue::TimeZone { offset_minutes } = &zone.literal.semantic.value else {
+            return Err(LiteralError("spoken instant timezone did not produce a typed timezone value".into()));
+        };
         index += zone.consumed;
-        let written = format!(
-            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}{}",
-            to_i32(&fields[0], "year")?,
-            to_u8(&fields[1], "month")?,
-            to_u8(&fields[2], "day")?,
-            to_u8(&fields[3], "hour")?,
-            to_u8(&fields[4], "minute")?,
-            to_u8(&fields[5], "second")?,
-            zone_written,
-        );
-        let value = time::parse_written_temporal(&written).map_err(LiteralError)?
-            .ok_or_else(|| LiteralError("constructed instant is invalid".into()))?;
+        let value = TemporalLiteralValue::Instant {
+            year: to_i32(&fields[0], "year")?,
+            month: to_u8(&fields[1], "month")?,
+            day: to_u8(&fields[2], "day")?,
+            hour: to_u8(&fields[3], "hour")?,
+            minute: to_u8(&fields[4], "minute")?,
+            second: to_u8(&fields[5], "second")?,
+            offset_minutes: *offset_minutes,
+        };
         self.temporal_match(value, index - start, LiteralRealization::Spoken).map(Some)
     }
 
@@ -848,54 +863,42 @@ impl LiteralEngine {
         if tokens.get(index).is_none_or(|token| token != &self.scope_close) { return Ok(None); }
         index += 1;
         let Some(unit) = tokens.get(index).and_then(|surface| self.units.unit_by_spoken(surface)) else { return Ok(None) };
-        if unit.dimension != "time" { return Ok(None); }
+        if unit.dimension != self.duration_dimension { return Ok(None); }
         index += 1;
         let seconds = self.units.convert(
-            &QuantityValue { value: number.value, unit_id: unit.id.clone(), approximate: false, uncertainty: None },
-            "second",
+            &QuantityValue { value: number.value, unit_id: unit.id, approximate: false, uncertainty: None },
+            self.duration_base_unit,
         ).map_err(LiteralError)?.value;
         if seconds.0.is_negative() {
             return Err(LiteralError("duration cannot be negative".into()));
         }
-        let canonical = format!("PT{}S", seconds.canonical_written());
-        let literal = SurfaceLiteral {
-            semantic: StructuredLiteral::new("duration", canonical.clone(), self.duration_type.clone()),
-            canonical_written: canonical.clone(),
-            canonical_spoken: self.render_duration_spoken(&canonical)?,
-            realization: LiteralRealization::Spoken,
-        };
+        let semantic = StructuredLiteral::new(
+            StructuredValue::Duration { seconds: seconds.0.clone() },
+            self.duration_type.clone(),
+        );
+        let canonical_written = self.render_written(&semantic)?;
+        let canonical_spoken = self.render_spoken(&semantic)?;
+        let literal = SurfaceLiteral { semantic, canonical_written, canonical_spoken, realization: LiteralRealization::Spoken };
         Ok(Some(LiteralMatch { literal, consumed: index - start }))
     }
 
-    fn render_duration_spoken(&self, canonical: &str) -> Result<String, LiteralError> {
-        if !canonical.starts_with("PT") || !canonical.ends_with('S') {
-            return Err(LiteralError(format!("invalid canonical duration `{canonical}`")));
-        }
-        let seconds = ExactNumber::parse_written(
-            &canonical[2..canonical.len() - 1],
-            self.config.number.max_explicit_exponent,
-        ).map_err(LiteralError)?;
+    fn render_duration_spoken_value(&self, seconds: &crate::rational::ExactRational) -> Result<String, LiteralError> {
         let source = QuantityValue {
-            value: seconds,
-            unit_id: "second".into(),
+            value: ExactNumber(seconds.clone()),
+            unit_id: self.duration_base_unit,
             approximate: false,
             uncertainty: None,
         };
-        if self.units.unit_by_id("second").is_none() {
-            return Err(LiteralError("units package lacks canonical `second` unit".into()));
-        }
-
         let mut candidates = Vec::new();
-        for unit in self.units.config().units.iter().filter(|unit| unit.dimension == "time") {
-            let converted = self.units.convert(&source, &unit.id).map_err(LiteralError)?;
+        for unit in self.units.units().filter(|unit| unit.dimension == self.duration_dimension) {
+            let converted = self.units.convert(&source, unit.id).map_err(LiteralError)?;
             let number_tokens = canonical_spoken_number(
                 &converted.value,
                 &self.config.number,
                 &self.scope_open,
                 &self.scope_close,
             ).map_err(LiteralError)?;
-            let scale = unit.scale().map_err(|error| LiteralError(error.to_string()))?;
-            candidates.push((number_tokens.len(), scale, unit.id.clone(), number_tokens, unit.spoken.clone()));
+            candidates.push((number_tokens.len(), unit.scale.clone(), unit.id, number_tokens, unit.spoken.clone()));
         }
         candidates.sort_by(|left, right| {
             left.0
@@ -904,13 +907,25 @@ impl LiteralEngine {
                 .then_with(|| left.2.cmp(&right.2))
         });
         let Some((_, _, _, number_tokens, unit_spoken)) = candidates.into_iter().next() else {
-            return Err(LiteralError("units package has no time units".into()));
+            return Err(LiteralError("units package has no units in the duration dimension".into()));
         };
         let mut out = vec![self.config.calendar.date_marker.clone(), self.scope_open.clone()];
         out.extend(number_tokens);
         out.push(self.scope_close.clone());
         out.push(unit_spoken);
         Ok(out.join(" "))
+    }
+
+    fn render_temporal_spoken(&self, value: &StructuredValue) -> Result<String, LiteralError> {
+        let temporal = structured_to_temporal(value)?;
+        Ok(time::canonical_spoken_temporal(
+            &temporal,
+            &self.config.number,
+            &self.config.calendar.date_marker,
+            &self.config.calendar.timezone_marker,
+            &self.scope_open,
+            &self.scope_close,
+        ).map_err(LiteralError)?.join(" "))
     }
 
     fn digit_surface(&self, digit: u8) -> Result<&str, LiteralError> {
@@ -932,6 +947,87 @@ impl StructuredLiteralCodec for LiteralEngine {
     fn render_spoken(&self, literal: &StructuredLiteral) -> Result<String, LiteralError> {
         LiteralEngine::render_spoken(self, literal)
     }
+}
+
+
+fn temporal_to_structured(value: &TemporalLiteralValue) -> StructuredValue {
+    match value {
+        TemporalLiteralValue::CalendarDate { year, month, day } => StructuredValue::CalendarDate {
+            year: *year,
+            month: *month,
+            day: *day,
+        },
+        TemporalLiteralValue::TimeOfDay { hour, minute, second } => StructuredValue::TimeOfDay {
+            hour: *hour,
+            minute: *minute,
+            second: *second,
+        },
+        TemporalLiteralValue::TimeZone { offset_minutes } => StructuredValue::TimeZone {
+            offset_minutes: *offset_minutes,
+        },
+        TemporalLiteralValue::Instant {
+            year, month, day, hour, minute, second, offset_minutes,
+        } => StructuredValue::Instant {
+            year: *year,
+            month: *month,
+            day: *day,
+            hour: *hour,
+            minute: *minute,
+            second: *second,
+            offset_minutes: *offset_minutes,
+        },
+        TemporalLiteralValue::DurationSeconds { seconds } => StructuredValue::Duration {
+            seconds: seconds.0.clone(),
+        },
+        TemporalLiteralValue::Interval { start, end } => StructuredValue::Interval {
+            start: Box::new(temporal_to_structured(start)),
+            end: Box::new(temporal_to_structured(end)),
+        },
+    }
+}
+
+fn structured_to_temporal(value: &StructuredValue) -> Result<TemporalLiteralValue, LiteralError> {
+    Ok(match value {
+        StructuredValue::CalendarDate { year, month, day } => TemporalLiteralValue::CalendarDate {
+            year: *year,
+            month: *month,
+            day: *day,
+        },
+        StructuredValue::TimeOfDay { hour, minute, second } => TemporalLiteralValue::TimeOfDay {
+            hour: *hour,
+            minute: *minute,
+            second: *second,
+        },
+        StructuredValue::TimeZone { offset_minutes } => TemporalLiteralValue::TimeZone {
+            offset_minutes: *offset_minutes,
+        },
+        StructuredValue::Instant {
+            year, month, day, hour, minute, second, offset_minutes,
+        } => TemporalLiteralValue::Instant {
+            year: *year,
+            month: *month,
+            day: *day,
+            hour: *hour,
+            minute: *minute,
+            second: *second,
+            offset_minutes: *offset_minutes,
+        },
+        StructuredValue::Duration { seconds } => TemporalLiteralValue::DurationSeconds {
+            seconds: ExactNumber(seconds.clone()),
+        },
+        StructuredValue::Interval { start, end } => TemporalLiteralValue::Interval {
+            start: Box::new(structured_to_temporal(start)?),
+            end: Box::new(structured_to_temporal(end)?),
+        },
+        other => return Err(LiteralError(format!(
+            "structured value family `{}` is not temporal",
+            other.family()
+        ))),
+    })
+}
+
+fn temporal_written(value: &StructuredValue) -> Result<String, LiteralError> {
+    Ok(structured_to_temporal(value)?.canonical_written())
 }
 
 fn parse_config_type(source: &str) -> Result<Type, LiteralError> {

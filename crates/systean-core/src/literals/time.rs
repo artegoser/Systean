@@ -1,7 +1,7 @@
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
 
-use super::{integer_to_spoken, parse_spoken_integer, NumberConfig};
+use super::{ExactNumber, integer_to_spoken, parse_spoken_integer, NumberConfig};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TemporalLiteralValue {
@@ -17,8 +17,8 @@ pub enum TemporalLiteralValue {
         second: u8,
         offset_minutes: i16,
     },
-    DurationSeconds { seconds_canonical: String },
-    Interval { start: String, end: String },
+    DurationSeconds { seconds: ExactNumber },
+    Interval { start: Box<TemporalLiteralValue>, end: Box<TemporalLiteralValue> },
 }
 
 impl TemporalLiteralValue {
@@ -31,13 +31,13 @@ impl TemporalLiteralValue {
                 "{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}{}",
                 format_timezone(*offset_minutes)
             ),
-            Self::DurationSeconds { seconds_canonical } => format!("PT{seconds_canonical}S"),
-            Self::Interval { start, end } => format!("{start}/{end}"),
+            Self::DurationSeconds { seconds } => format!("PT{}S", seconds.canonical_written()),
+            Self::Interval { start, end } => format!("{}/{}", start.canonical_written(), end.canonical_written()),
         }
     }
 }
 
-pub fn parse_written_temporal(token: &str) -> Result<Option<TemporalLiteralValue>, String> {
+pub fn parse_written_temporal(token: &str, max_explicit_exponent: u32) -> Result<Option<TemporalLiteralValue>, String> {
     if token.len() >= 4
         && token.get(..2).is_some_and(|prefix| prefix.eq_ignore_ascii_case("PT"))
         && token.chars().last().is_some_and(|last| matches!(last, 'S' | 's'))
@@ -46,17 +46,19 @@ pub fn parse_written_temporal(token: &str) -> Result<Option<TemporalLiteralValue
         if value.is_empty() {
             return Err("duration literal requires a numeric seconds value".into());
         }
-        return Ok(Some(TemporalLiteralValue::DurationSeconds {
-            seconds_canonical: value.to_owned(),
-        }));
+        let seconds = ExactNumber::parse_written(value, max_explicit_exponent)?;
+        if seconds.0.is_negative() {
+            return Err("duration cannot be negative".into());
+        }
+        return Ok(Some(TemporalLiteralValue::DurationSeconds { seconds }));
     }
     if let Some((left, right)) = token.split_once('/') {
         let left_value = parse_written_instant(left)?;
         let right_value = parse_written_instant(right)?;
         if let (Some(left_value), Some(right_value)) = (left_value, right_value) {
             return Ok(Some(TemporalLiteralValue::Interval {
-                start: left_value.canonical_written(),
-                end: right_value.canonical_written(),
+                start: Box::new(left_value),
+                end: Box::new(right_value),
             }));
         }
     }
@@ -212,25 +214,21 @@ pub fn canonical_spoken_temporal(
             )?);
             Ok(out)
         }
-        TemporalLiteralValue::DurationSeconds { seconds_canonical } => Ok(vec![
-            date_marker.to_owned(),
-            scope_open.to_owned(),
-            seconds_canonical.clone(),
-            scope_close.to_owned(),
-        ]),
+        TemporalLiteralValue::DurationSeconds { seconds } => {
+            let mut out = vec![date_marker.to_owned(), scope_open.to_owned()];
+            out.extend(super::canonical_spoken_number(seconds, number, scope_open, scope_close)?);
+            out.push(scope_close.to_owned());
+            Ok(out)
+        },
         TemporalLiteralValue::Interval { start, end } => {
-            let start_value = parse_written_instant(start)?
-                .ok_or_else(|| "interval start is not a canonical instant".to_owned())?;
-            let end_value = parse_written_instant(end)?
-                .ok_or_else(|| "interval end is not a canonical instant".to_owned())?;
             let mut out = vec![date_marker.to_owned(), scope_open.to_owned()];
             out.extend(canonical_spoken_temporal(
-                &start_value, number, date_marker, timezone_marker, scope_open, scope_close,
+                start, number, date_marker, timezone_marker, scope_open, scope_close,
             )?);
             out.push(scope_close.to_owned());
             out.push(scope_open.to_owned());
             out.extend(canonical_spoken_temporal(
-                &end_value, number, date_marker, timezone_marker, scope_open, scope_close,
+                end, number, date_marker, timezone_marker, scope_open, scope_close,
             )?);
             out.push(scope_close.to_owned());
             Ok(out)

@@ -15,5 +15,5 @@ pub use identity::{ConstructorId, ContextSlotId, DimensionId, FieldId, Intrinsic
 pub use normalize::canonicalize;
 pub use origin::Origin;
 pub use signature::{Parameter, Signature};
-pub use term::{Literal, StructuredLiteral, Term};
+pub use term::{InformationKnowerValue, InformationStatus, Literal, StructuredLiteral, StructuredValue, Term};
 pub use types::{FunctionParameter, Type};

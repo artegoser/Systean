@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::semantics::{Checker, Environment, Literal, StructuredLiteral, Term, Type};
+use crate::semantics::{
+    Checker, ConstructorId, ContextSlotId, Environment, InformationKnowerValue,
+    InformationStatus, Literal, StructuredLiteral, StructuredValue, Term, Type,
+};
 use crate::spec::parse_type;
 
 use super::{Argument, Clause, InformationKnower, LexemeConfig, SurfaceExpr, SurfaceLexicon};
@@ -468,8 +471,17 @@ impl Elaborator<'_> {
                     .as_deref()
                     .map(|source| self.parse_declared_type(source))
                     .transpose()?;
-                let canonical = match knower {
-                    None => status.clone(),
+                let status_value = match status.as_str() {
+                    "unknown" => InformationStatus::Unknown,
+                    "unspecified" => InformationStatus::Unspecified,
+                    "withheld" => InformationStatus::Withheld,
+                    other => return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                        "unknown information status `{other}`"
+                    ))),
+                };
+                let mode = ConstructorId::from_source("constructor", &format!("InfoMode.{status}"));
+                let knower = match knower {
+                    None => None,
                     Some(InformationKnower::Context(surface)) => {
                         let LexemeConfig::Context { key, ty } = self.lexeme(surface)? else {
                             return Err(SurfaceElaborationError::WrongLexemeKind {
@@ -487,17 +499,17 @@ impl Elaborator<'_> {
                                 "information knower",
                             )?;
                         }
-                        format!("{status}:context:{key}")
+                        Some(InformationKnowerValue::Context(ContextSlotId::from_source("context", key)))
                     }
                     Some(InformationKnower::Name { marker: name_marker, payload }) => {
-                        let LexemeConfig::Name { semantic, role: name_role } = self.lexeme(name_marker)? else {
+                        let LexemeConfig::Name { role: name_role, .. } = self.lexeme(name_marker)? else {
                             return Err(SurfaceElaborationError::WrongLexemeKind {
                                 surface: name_marker.clone(),
                                 expected: "proper-name knower",
                             });
                         };
+                        let name_term = self.lower_name(name_marker, payload)?;
                         if let Some(expected_knower) = &declared_knower_type {
-                            let name_term = self.lower_name(name_marker, payload)?;
                             let actual_knower = Checker::new(self.environment)
                                 .infer(&name_term)
                                 .map_err(|error| SurfaceElaborationError::InvalidSemanticTerm(error.to_string()))?;
@@ -509,13 +521,12 @@ impl Elaborator<'_> {
                                 name_role,
                             )?;
                         }
-                        format!("{status}:{semantic}:{payload}")
+                        Some(InformationKnowerValue::Value(Box::new(name_term)))
                     }
                 };
                 Ok((
                     Term::Literal(Literal::Structured(StructuredLiteral::new(
-                        "information",
-                        canonical,
+                        StructuredValue::Information { mode, status: status_value, knower },
                         concrete,
                     ))),
                     None,

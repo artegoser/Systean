@@ -1,0 +1,26 @@
+// Phase 18B1 typed unit/dimension identity bridge.
+// Runtime identity follows Systean unit roots; legacy units.toml names are compatibility aliases only.
+
+dimension length;
+dimension time;
+dimension mass;
+dimension temperature;
+dimension current;
+dimension amount;
+dimension luminous_intensity;
+
+unit metr : length;
+unit kilometr : length = 1000/1 * metr;
+unit santimetr : length = 1/100 * metr;
+
+unit sek : time;
+unit milisek : time = 1/1000 * sek;
+unit hor : time = 3600/1 * sek;
+
+unit kilogram : mass;
+unit gram : mass = 1/1000 * kilogram;
+
+unit kelvin : temperature;
+unit amper : current;
+unit mol : amount;
+unit kandela : luminous_intensity;

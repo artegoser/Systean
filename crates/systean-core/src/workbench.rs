@@ -10,7 +10,10 @@ use crate::discourse::{
 use crate::language::{DictionaryEntry, LanguageError, LanguagePackage, LexicalSemantic};
 use crate::literals::{LiteralRealization, StructuredLiteralCodec, SurfaceLiteral};
 use crate::pragmatics::PragmaticAnalysis;
-use crate::semantics::{Checker, Explanation, Literal, Origin, Term, canonicalize};
+use crate::semantics::{
+    Checker, ContextSlotId, Explanation, InformationKnowerValue, InformationStatus, Literal, Origin,
+    StructuredValue, Term, canonicalize,
+};
 use crate::spec::{lower_term, parse_term, parse_type};
 use crate::syntax::{Argument, Clause, InformationKnower, LexemeConfig, SurfaceExpr, TypedSurfaceAst};
 
@@ -505,9 +508,9 @@ pub fn analyze_literal(
     })?;
     Ok(LiteralWorkbenchAnalysis {
         source: source.into(),
-        family: literal.semantic.family,
+        family: literal.semantic.family().into(),
         ty: literal.semantic.ty.to_string(),
-        semantic_canonical: literal.semantic.canonical,
+        semantic_canonical: literal.semantic.value.to_string(),
         canonical_written: literal.canonical_written,
         canonical_spoken: literal.canonical_spoken,
         realization: match literal.realization {
@@ -1311,8 +1314,8 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     "semantic constant `{name}` has no argument surface atom"
                 ))),
             Term::Literal(Literal::String(payload)) => Ok(Argument::Quote(payload.clone())),
-            Term::Literal(Literal::Structured(value)) if value.family == "information" => {
-                self.information_argument(&value.canonical)
+            Term::Literal(Literal::Structured(value)) if matches!(&value.value, StructuredValue::Information { .. }) => {
+                self.information_argument(&value.value)
             }
             Term::Literal(literal) => Ok(Argument::Literal(self.literal_surface(literal)?)),
             Term::Call {
@@ -1357,19 +1360,23 @@ impl<'a> SemanticSurfaceGenerator<'a> {
 
     fn information_argument(
         &self,
-        canonical: &str,
+        value: &StructuredValue,
     ) -> Result<Argument, WorkbenchDiagnostic> {
-        let mut parts = canonical.splitn(3, ':');
-        let status = parts.next().unwrap_or_default();
-        let knower_kind = parts.next();
-        let knower_value = parts.next();
+        let StructuredValue::Information { status, knower, .. } = value else {
+            return Err(WorkbenchDiagnostic::generation("expected a typed information value"));
+        };
+        let status_name = match status {
+            InformationStatus::Unknown => "unknown",
+            InformationStatus::Unspecified => "unspecified",
+            InformationStatus::Withheld => "withheld",
+        };
         let marker = self
             .find_lexeme(|lexeme| {
-                matches!(lexeme, LexemeConfig::Information { status: candidate, .. } if candidate == status)
+                matches!(lexeme, LexemeConfig::Information { status: candidate, .. } if candidate == status_name)
             })
             .ok_or_else(|| {
                 WorkbenchDiagnostic::generation(format!(
-                    "information status `{status}` has no canonical surface marker"
+                    "information status `{status_name}` has no canonical surface marker"
                 ))
             })?;
         let LexemeConfig::Information { knower_type, .. } = self
@@ -1381,38 +1388,55 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         else {
             unreachable!();
         };
-        let knower = match (knower_type, knower_kind, knower_value) {
-            (None, None, None) => None,
-            (Some(_), Some("context"), Some(key)) => {
+        let knower = match (knower_type, knower) {
+            (None, None) => None,
+            (Some(_), Some(InformationKnowerValue::Context(slot))) => {
                 let surface = self
                     .find_lexeme(|lexeme| {
-                        matches!(lexeme, LexemeConfig::Context { key: candidate, .. } if candidate == key)
+                        matches!(lexeme, LexemeConfig::Context { key, .. }
+                            if ContextSlotId::from_source("context", key) == *slot)
                     })
                     .ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "information knower context `{key}` has no canonical surface marker"
+                            "information knower context `{slot}` has no canonical surface marker"
                         ))
                     })?;
                 Some(InformationKnower::Context(surface))
             }
-            (Some(_), Some(semantic), Some(payload)) => {
+            (Some(_), Some(InformationKnowerValue::Value(value))) => {
+                let Term::Call { function, arguments } = value.as_ref() else {
+                    return Err(WorkbenchDiagnostic::generation(
+                        "typed information knower value has no canonical proper-name realization"
+                    ));
+                };
                 let surface = self
                     .find_lexeme(|lexeme| {
-                        matches!(lexeme, LexemeConfig::Name { semantic: candidate, .. } if candidate == semantic)
+                        matches!(lexeme, LexemeConfig::Name { semantic: candidate, .. } if candidate == function)
                     })
                     .ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "information knower semantic `{semantic}` has no canonical name marker"
+                            "information knower operator `{function}` has no canonical name marker"
                         ))
                     })?;
-                Some(InformationKnower::Name {
-                    marker: surface,
-                    payload: payload.into(),
-                })
+                let LexemeConfig::Name { role, .. } = self
+                    .language
+                    .syntax()
+                    .lexicon()
+                    .get(&surface)
+                    .expect("surface came from lexicon")
+                else {
+                    unreachable!();
+                };
+                let Some(Term::Literal(Literal::String(payload))) = arguments.get(role) else {
+                    return Err(WorkbenchDiagnostic::generation(
+                        "information knower proper name lacks its text payload"
+                    ));
+                };
+                Some(InformationKnower::Name { marker: surface, payload: payload.clone() })
             }
             _ => {
                 return Err(WorkbenchDiagnostic::generation(format!(
-                    "information literal `{canonical}` does not match the declared knower shape for `{marker}`"
+                    "typed information value does not match the declared knower shape for `{marker}`"
                 )));
             }
         };

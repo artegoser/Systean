@@ -47,6 +47,7 @@ pub struct CalendarConfig {
     pub interval_type: String,
     pub duration_type: String,
     pub timezone_type: String,
+    pub duration_base_unit: String,
     pub date_marker: String,
     pub timezone_marker: String,
 }

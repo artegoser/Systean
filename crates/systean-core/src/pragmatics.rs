@@ -1,6 +1,10 @@
 use std::fmt;
 
-use crate::semantics::{Checker, Environment, Literal, Term, Type, canonicalize};
+use num_traits::ToPrimitive;
+
+use crate::semantics::{
+    Checker, Environment, InformationStatus, Literal, StructuredValue, Term, Type, canonicalize,
+};
 use crate::syntax::PragmaticsConfig;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -200,7 +204,7 @@ pub fn interpret_pragmatics(
 
     let act = if function == &config.question_operator {
         let content = role(arguments, function, &config.question_content_role)?.clone();
-        let requested = requested_values(&content, config);
+        let requested = requested_values(&content);
         let choice = is_call(&content, &config.disjunction_operator);
         if !requested.is_empty() && choice {
             return Err(PragmaticError::MixedQuestionStructure);
@@ -292,38 +296,29 @@ fn is_call(term: &Term, operator: &str) -> bool {
     matches!(term, Term::Call { function, .. } if function == operator)
 }
 
-fn requested_values(term: &Term, config: &PragmaticsConfig) -> Vec<RequestedValue> {
+fn requested_values(term: &Term) -> Vec<RequestedValue> {
     let mut output = Vec::new();
-    collect_requested_values(term, config, &mut output);
+    collect_requested_values(term, &mut output);
     output
 }
 
-fn collect_requested_values(
-    term: &Term,
-    config: &PragmaticsConfig,
-    output: &mut Vec<RequestedValue>,
-) {
+fn collect_requested_values(term: &Term, output: &mut Vec<RequestedValue>) {
     match term {
-        Term::Literal(Literal::Structured(value))
-            if value.family == config.information_family
-                && (value.canonical == config.unknown_status
-                    || value
-                        .canonical
-                        .strip_prefix(config.unknown_status.as_str())
-                        .is_some_and(|suffix| suffix.starts_with(':'))) =>
-        {
-            output.push(RequestedValue {
-                ty: value.ty.clone(),
-                status: value.canonical.clone(),
-            });
+        Term::Literal(Literal::Structured(value)) => {
+            if let StructuredValue::Information { status: InformationStatus::Unknown, .. } = &value.value {
+                output.push(RequestedValue {
+                    ty: value.ty.clone(),
+                    status: "unknown".into(),
+                });
+            }
         }
         Term::Call { arguments, .. } | Term::Record(arguments) => {
             for value in arguments.values() {
-                collect_requested_values(value, config, output);
+                collect_requested_values(value, output);
             }
         }
-        Term::Bind { body, .. } => collect_requested_values(body, config, output),
-        Term::Field { record, .. } => collect_requested_values(record, config, output),
+        Term::Bind { body, .. } => collect_requested_values(body, output),
+        Term::Field { record, .. } => collect_requested_values(record, output),
         Term::Const(_) | Term::Var(_) | Term::Literal(_) => {}
     }
 }
@@ -378,7 +373,12 @@ fn repair_target_id(operator: &str, term: &Term) -> Result<u64, PragmaticError> 
     let value = match term {
         Term::Literal(Literal::Integer(value)) if *value > 0 => u64::try_from(*value).ok(),
         Term::Literal(Literal::Structured(value)) if value.ty == Type::named("Number") => {
-            value.canonical.parse::<u64>().ok().filter(|value| *value > 0)
+            match &value.value {
+                StructuredValue::Number(number) if number.denom() == &num_bigint::BigInt::from(1u8) => {
+                    number.numer().to_u64().filter(|value| *value > 0)
+                }
+                _ => None,
+            }
         }
         _ => None,
     };

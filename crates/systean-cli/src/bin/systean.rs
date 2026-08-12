@@ -379,7 +379,7 @@ fn literals(language_path: &Path, mut args: Vec<String>) -> ExitCode {
             }
             match engine.parse_complete(&source) {
                 Ok(literal) => {
-                    println!("family: {}", literal.semantic.family);
+                    println!("family: {}", literal.semantic.family());
                     println!("type: {}", literal.semantic.ty);
                     println!("canonical written: {}", literal.canonical_written);
                     println!("canonical spoken: {}", literal.canonical_spoken);
