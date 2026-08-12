@@ -1394,12 +1394,13 @@ fn locate_declaration_spans(
                     continue;
                 }
                 let after_keyword = after_keyword.trim_start();
-                if after_keyword == name
-                    || after_keyword.starts_with(&format!("{name} "))
-                    || after_keyword.starts_with(&format!("{name}<"))
-                    || after_keyword.starts_with(&format!("{name}("))
-                    || after_keyword.starts_with(&format!("{name}:"))
-                {
+                let matches_name = after_keyword.strip_prefix(name).is_some_and(|rest| {
+                    rest.is_empty()
+                        || rest.chars().next().is_some_and(|ch| {
+                            ch.is_whitespace() || matches!(ch, ';' | '<' | '(' | ':' | '{')
+                        })
+                });
+                if matches_name {
                     let column = line.len() - trimmed.len() + 1;
                     found = Some(SourceSpan { line: index + 1, column });
                     start_line = index;

@@ -557,7 +557,7 @@ fn production_structured_literals_store_typed_values_not_canonical_string_envelo
     assert!(matches!(duration.semantic.value, StructuredValue::Duration { .. }));
 
     let interval = literals
-        .parse_complete("2026-08-12/2026-08-13")
+        .parse_complete("2026-08-12T00:00:00Z/2026-08-13T00:00:00Z")
         .expect("interval");
     assert!(matches!(interval.semantic.value, StructuredValue::Interval { .. }));
 }
