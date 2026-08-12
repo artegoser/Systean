@@ -38,6 +38,7 @@ language/typed/
   core.semsys
   lexicon.semsys
   units.semsys
+  effects.semsys
 
 language/legacy/semantics/
   ... Phase 17 migration snapshots only ...
@@ -45,7 +46,7 @@ language/legacy/semantics/
 
 The typed semantic specification frontend is implemented with `chumsky = 0.13.0` (pinned exactly in `Cargo.toml`). It compiles source declarations to stable typed IDs and ordered parameter slots. Source parameter names exist for authoring, diagnostics, and the temporary Phase 17 checker projection; they are not part of typed semantic identity.
 
-The old named-role `Environment`/`Term` representation still exists as a generated compatibility projection for the current surface parser/checker. It is no longer loaded from an independent semantic package and is scheduled for removal in Phase 19 when declarative surface rules consume typed IDs directly.
+The old named-argument `Environment`/`Term` representation still exists as a generated checker/public-output compatibility projection. Phase 19 removed it from surface ownership: declarative surface rules compile to `SymbolId` references and numeric argument slots, and translate to source/debug names only at the final compatibility boundary. It is not loaded from an independent semantic package and does not decide Systean grammar or discourse behavior.
 
 For example, these are the same semantic call:
 

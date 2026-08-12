@@ -225,7 +225,7 @@ Likewise, relations/modifiers must structurally identify their target. Systean w
 
 ## 12. Typed-word surface lexicon
 
-Phase 19A moves ordinary lexical surface ownership into the same typed package that already owns semantic identity. `dictionary.toml` is learning/documentation metadata and no longer declares class, predicate, prefix, or infix frames. Three outer-only speech-act overlays remain temporarily only as backend placement categories; their root/argument order is already owned and validated by typed `form` rules. The category carries a restriction that an unrestricted prefix projection would lose.
+Phase 19 makes the typed package the only owner of lexical surface realization. `dictionary.toml` is learning/documentation metadata and contains no syntax declarations. The compiled surface backend is derived from typed `CompiledSurfaceRule` values and stores semantic references as `SymbolId` plus numeric parameter slots.
 
 An ordinary typed word uses its compiler-derived default frame:
 
@@ -239,7 +239,7 @@ which compiles to the indexed reversible rule:
 $0 vid $1
 ```
 
-Source parameter names (`$observer`, `$observed`) remain useful diagnostics/documentation labels, but the compiled surface rule stores numeric argument slots. Renaming them does not change the surface fingerprint.
+Source parameter names remain useful diagnostics/documentation labels, but they are not compiled surface identity. Renaming them does not change the surface fingerprint.
 
 A non-default realization is declared beside the word:
 
@@ -255,15 +255,34 @@ word va($left: Proposition, $right: Proposition) -> Proposition = logic.and($lef
 }
 ```
 
-`_` denotes the lexical root. Every parameter must occur exactly once and the root exactly once. Invalid/missing/duplicate holes fail typed-package compilation. Infix precedence and associativity are properties of this rule; `syntax.toml` no longer owns an operator precedence table. Canonical parsing and linearization receive the same compiled rule metadata.
+`_` denotes the lexical root. Every ordinary direct parameter occurs exactly once and the root exactly once. Invalid/missing/duplicate holes fail typed-package compilation. Infix precedence and associativity are properties of the same rule; `syntax.toml` has no lexical precedence table. Parsing and canonical linearization consume that single compiled rule.
 
-For Phase 19A the current Phase 17 `SurfaceExpr` parser remains a generated backend projection. It can project default frames, prefix forms, and binary infix forms from typed rules. Outer-only speech acts get their root/argument order from typed rules too, but still use a compatibility backend category until the generic Phase 19B parser can enforce the same placement constraint directly. This is a compatibility implementation detail, not a second authoring source.
+Phase 19B adds three generic construction properties instead of root-specific categories:
 
-Exactly nine dictionary overlays remain until Phase 19B: `na`, `ra`, `mu`, `rov`, `mini`, `maks`, `ke`, `da`, and `me`. The three speech-act overlays preserve only the current outer-expression placement rule; their `form _ $content` order already lives in typed DSL. Treating them as unrestricted Phase 17 prefixes would incorrectly accept forms such as `mi ke viv`. The name/quantifier overlays require generic construction parsing; the three speech-act overlays require generic typed placement/effect handling. Phase 19B removes both classes of adapter. No migrated ordinary root may reintroduce a `syntax = ...` overlay.
+```text
+word na($payload: Text) -> Entity {
+    form _ $payload;
+    capture $payload bare;
+}
 
-The Systean roots `ne`, `va`, and `zo` are additionally defined over abstract typed primitives (`logic.not`, `logic.and`, `logic.or`), so their concrete roots and their abstract compositional semantics are no longer the same accidental symbol.
+word ra($predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ @restriction;
+    bind $predicate using imp;
+}
 
-At package load time the whole-language compiler still enforces exact dictionary↔typed-word coverage, root legality/phonology/reserved-token ownership, and surface-rule validity.
+word ke($content: Proposition) -> Utterance {
+    form _ $content;
+    outer;
+}
+```
+
+`capture` marks a typed slot whose concrete value is one bare surface token. `@restriction` plus `bind` declares one scoped function-valued parameter and the typed combiner used to construct its body. `outer` is a generic placement constraint for utterance-level forms; it rejects embedded forms such as `mi ke viv` without a `ke`-specific parser rule. Counted quantifiers use the same binder rule plus ordinary direct arguments.
+
+The internal parser backend still has compiled shape variants such as atom/prefix/infix/binder/capture because those are execution forms, but they are not author-facing grammar declarations and contain no Systean-root-specific semantic behavior. The package compiler derives them from typed rules.
+
+The roots `ne`, `va`, and `zo` are additionally defined over abstract typed primitives (`logic.not`, `logic.and`, `logic.or`), so concrete Systean realization and abstract compositional semantics are separate.
+
+At package load time the whole-language compiler enforces exact dictionary↔typed-word coverage, root legality/phonology/reserved-token ownership, surface-rule validity, and ambiguity invariants.
 
 ## 13. Parser and generator invariants
 

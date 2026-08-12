@@ -1,109 +1,275 @@
 # Phase 19 — Declarative surface grammar and discourse effects
 
-Status: **in progress — Phase 19A implemented; Phase 19B remains**
+Status: **implementation complete; author-toolchain validation pending**
 Depends on: Phase 18
 Architecture: [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
 
 ## Goal
 
-Finish the architectural migration by making ordinary Systean syntax and language-specific discourse/pragmatic behavior package-declared over the typed Phase 18 IR rather than encoded as growing Rust special cases.
+Finish the pre-1.0 package architecture so Systean-specific surface realization and discourse behavior are declarations over the typed Phase 18 package rather than independent TOML tables or source-name switches in Rust.
 
-## Phase split
+Phase 19 deliberately keeps the existing legacy `Term`/`Environment` representation only as a checker/public-output compatibility boundary. Surface ownership no longer depends on it: compiled surface bindings use typed `SymbolId` values and numeric parameter slots, and only translate to legacy names at the final compatibility boundary.
 
-### Phase 19A — typed surface ownership and reversible lexical forms
+## Result
 
-Implemented in the first half of Phase 19:
+The normative language package now owns four distinct layers:
 
-- typed `word { form ... }` declarations are compiled into one `CompiledSurfaceRule` owned by the typed package;
-- source parameter names in forms resolve to numeric argument slots, so binder/role spelling is not canonical surface identity;
-- ordinary arity-shaped words receive the same compiled surface-rule representation automatically;
-- prefix, infix, class and predicate realizations are projected from those rules into the Phase 17 parser backend; outer-only speech acts already take their token order from typed `form` rules, while a temporary compatibility category preserves their outer-expression placement until 19B can enforce that constraint generically;
-- precedence and associativity belong to the typed surface rule rather than `syntax.toml`;
-- parser and canonical linearizer consume the same projected rule metadata;
-- the ordinary-word surface overlays were removed from `dictionary.toml`; only `na`, `ra`, `mu`, `rov`, `mini`, `maks`, `ke`, `da`, and `me` remain as explicit Phase 19B compatibility overlays;
-- `ne`, `va`, and `zo` now have abstract typed definitions through `logic.not`, `logic.and`, and `logic.or`, separating Systean realization from abstract semantic composition;
-- context/reference/information ownership remains the structural Phase 18 model and is not moved back into surface TOML.
+```text
+typed semantic declarations
+        ↓
+typed reversible surface rules
+        ↓
+typed discourse effect programs
+        ↓
+generic parser / linearizer / effect runtime
+```
 
-The existing `SurfaceExpr`/`LexemeConfig` parser is deliberately still a backend adapter in 19A. The important ownership cutover is already complete for representable ordinary lexical forms: it cannot invent or override a form independently of the typed package. Phase 19B removes the remaining quantifier/name compatibility branches and the Systean-specific discourse/effect machinery.
+Human dictionary metadata, API aliases, and structured-literal codec spellings do not own semantic or grammatical identity.
 
-### Phase 19B — generic higher-order constructions, effects, and adapter removal
+## Phase 19A — reversible lexical surface rules
 
-Still required:
+Completed in the first half:
 
-- compile `na`, `ra`, `mu`, and counted quantifiers directly as generic typed constructions;
-- make function-valued arguments/type-directed candidate elimination part of the production surface compiler rather than a quantifier-specific branch;
-- introduce the generic discourse effect instruction set;
-- package-declare assertion/question/request/command/focus/topic/repair effects;
-- remove remaining Systean-specific communicative-act/source-name decisions from Rust;
-- remove the obsolete `SurfaceFormConfig`/named-role compatibility adapter and fake policy alternatives.
+- `word { form ... }` compiles to one `CompiledSurfaceRule` used by parsing and canonical linearization;
+- source parameter names resolve to numeric parameter slots;
+- ordinary unary/binary/n-ary frames are derived from typed arity;
+- precedence and associativity moved out of `syntax.toml` and into each typed rule;
+- `dictionary.toml` stopped owning ordinary class/predicate/prefix/infix forms;
+- `ne`, `va`, and `zo` became Systean realizations over abstract `logic.not`, `logic.and`, and `logic.or` symbols;
+- structural markers such as `ki ... ku`, quotation boundaries, and text boundaries remained explicit engine-level grammar mechanisms.
 
-## Surface-rule model
+## Phase 19B — generic constructions and effects
 
-- [x] Implement typed `form` declarations that compile to both parsing and canonical linearization.
-- [x] Define a generic representation for lexical root position, typed argument holes, grouping through precedence, precedence, associativity, and function-valued typed signatures.
-- [x] Make default ordinary word frames compiler-derived from typed arity.
-- [x] Migrate prefix/infix/class/predicate special cases to generic forms where semantics permits.
-- [x] Express `ne`, `va`, `zo` through declarative forms and semantic definitions/bindings.
-- [ ] Express `ra`/`mu` through typed higher-order predicate arguments rather than a quantifier-specific parser branch where possible.
-- [ ] Finish migration of counted quantifiers and the remaining non-generic construction adapters. Focus/topic and aspect wrappers are already sourced from typed forms in 19A; outer-only speech acts already own their reversible token order in typed forms, but retain a 19B compatibility placement category because the old backend would otherwise broaden where that form may occur.
-- [x] Keep `ki ... ku`, quotation boundaries, utterance boundaries, and other genuinely structural markers explicit where a generic lexical form is not the right abstraction.
+Completed in the second half:
 
-## Type-directed elaboration
+- `@restriction` plus `bind $parameter using symbol;` expresses scoped higher-order constructions;
+- `ra`, `mu`, `rov`, `mini`, and `maks` use the same generic binder representation;
+- binder restrictions are accepted only when the compiled surface candidate is a unary predicate of the declared bound value type;
+- `capture $payload bare;` expresses `na` without a dedicated name AST/category;
+- `outer;` expresses outer-only utterance constructions such as `ke`, `da`, `me`, `emo`, focus/topic, and repairs;
+- all dictionary syntax overlays were removed;
+- the old author-facing `LexemeConfig`/`SurfaceFormConfig` model was removed; the internal compiled backend stores typed IDs and numeric slots;
+- unsupported/fake syntax policy alternatives were removed from `syntax.toml` and `SyntaxConfig`;
+- unit dimension/type ownership is entirely typed; `units.toml` retains only user/API aliases and spellings;
+- typed `effect` declarations now own Systean-specific communicative behavior;
+- `ConversationState` consumes generic discourse effects instead of branching on Systean roots.
 
-- [ ] Allow a parsed root to denote a first-class typed function in the production surface compiler where required by higher-order constructions.
-- [ ] Use expected types to reject impossible candidates, never to probabilistically rank multiple valid ones.
-- [ ] If two fully typed complete analyses remain, report ambiguity and fail package/runtime analysis.
-- [ ] Preserve full candidate provenance for workbench diagnostics.
+## Surface DSL
 
-The typed IR already supports higher-order values and invocation from Phase 18; these items specifically refer to replacing the current quantifier-specific **surface parser path** in Phase 19B.
+### Ordinary frame
 
-## Context/reference/omission
+```text
+word vid($observer: Entity, $observed: Entity) -> Proposition;
+```
 
-These invariants were structurally completed in Phase 18 and remain the production path during 19A:
+The compiler derives the reversible form:
 
-- [x] Compile `mi`, `tu`, and future context words through declared `ContextSlotId` values.
-- [x] Compile `ref<T>` to one typed generic resolution request.
-- [x] Elaborate safe omitted arguments to the same underlying typed resolver request with different provenance.
-- [x] Keep 0/1/many resolution semantics unchanged.
-- [x] Keep exact alias resolution separate from generic shorthand search.
+```text
+$0 vid $1
+```
 
-## Discourse/pragmatic effects
+Parameter names are retained for source diagnostics only. The compiled surface binding uses slots `0` and `1`.
 
-- [ ] Define a minimal stable generic effect instruction set.
-- [ ] Express assertion/question/request/command/focus/topic/repair bindings as package declarations over typed semantics/effects.
-- [ ] Remove Systean-specific communicative-act decisions keyed by source names from Rust.
-- [ ] Preserve deterministic history, commitment, repair, frame, reference, and alias behavior through the effect cutover.
-- [ ] Keep effects inspectable in the workbench so a user/developer can see why a word changed discourse state.
+### Infix
 
-## Remove fake configurability
+```text
+word va($left: Proposition, $right: Proposition) -> Proposition =
+    logic.and($left, $right)
+{
+    form $left _ $right;
+    precedence 20;
+    associative;
+}
+```
 
-- [ ] Audit all syntax/policy enums whose values are parsed/serialized but rejected by validation.
-- [ ] Remove unsupported alternatives from the public package schema unless they are implemented in this phase.
-- [ ] Keep only capabilities that the compiler can actually compile and validate.
-- [ ] Document extension points explicitly rather than advertising unimplemented enum variants.
+The same compiled rule controls both parse grouping and canonical linearization.
 
-Phase 19A has already removed the global precedence table as a source of truth. The remaining global `flatten_same_operator` compatibility setting is no longer consulted by parsing/linearization; deleting the obsolete public setting belongs to the 19B schema cleanup rather than silently changing the API halfway through the phase.
+### Scoped higher-order binder
 
-## Remove obsolete ownership
+```text
+word ra($predicate: fn(value: Entity) -> Proposition) -> Proposition
+{
+    form _ @restriction;
+    bind $predicate using imp;
+}
+```
 
-- [x] Eliminate ordinary lexical surface-form ownership from `dictionary.toml`; only nine Phase 19B compatibility overlays remain.
-- [x] Eliminate precedence ownership from `syntax.toml`; precedence/associativity are compiled from typed forms.
-- [ ] Eliminate the remaining quantifier/name form overlays and the generated named-role surface adapter.
-- [ ] Finish eliminating `units.toml`/`literals.toml` compatibility type/name adapters where the Phase 19 typed checker makes them unnecessary.
-- [ ] Move/delete any remaining old files only after no active runtime path consumes them.
-- [ ] Ensure no active rule depends on `language/legacy/`.
+`ra per viv` introduces one bound `Entity`, realizes `per` as the unary restriction over that value, and applies the same generic scoped argument mechanism to the body. `mu` and counted quantifiers differ only in their typed signatures/direct arguments and declared combiner.
+
+There is no `ra`-specific parser branch and no source-name check for quantifier behavior.
+
+### Bare capture
+
+```text
+word na($payload: Text) -> Entity
+{
+    form _ $payload;
+    capture $payload bare;
+}
+```
+
+The generic capture backend receives the declared argument slot and capture kind. `na` is not a Rust `Name` construction.
+
+### Outer-only construction
+
+```text
+word ke($content: Proposition) -> Utterance
+{
+    form _ $content;
+    outer;
+}
+```
+
+`outer` is a generic placement property. It preserves the rule that `ke P` is an utterance-level construction while forms such as `mi ke viv` are rejected.
+
+## Type-directed construction selection
+
+The production parser does not rank candidates probabilistically.
+
+For higher-order restrictions the compiled binder declares:
+
+- the function-valued parameter slot;
+- its bound value type;
+- the combiner `SymbolId`;
+- the direct surface argument slots.
+
+A restriction candidate must have the required unary-predicate shape. Impossible candidates are rejected. If a future grammar extension leaves more than one complete fully typed analysis, whole-language ambiguity validation must reject the package/analysis rather than select by parser branch order.
+
+The existing Phase 16 ambiguity corpus remains the global invariant for this rule.
+
+## Discourse effect DSL
+
+Language-specific communicative behavior lives in `language/typed/effects.semsys`.
+
+Example:
+
+```text
+default effect assert;
+
+effect assert {
+    act assertion($content);
+    commit $content;
+}
+
+effect ke {
+    act question($content);
+    choice zo;
+}
+
+effect kor {
+    act correction($target, $replacement);
+    repair replace $target $replacement;
+}
+```
+
+The compiled generic instruction set is deliberately small:
+
+- `Act` — classify/report the communicative act and its typed argument slots;
+- `Commit` — add propositional content to the commitment state;
+- `RequireContains` — require one declared target to occur structurally inside another argument;
+- `Choice` — identify the declared top-level choice constructor for question classification;
+- `Repair::Retract`;
+- `Repair::Replace`;
+- `Repair::Clarify`.
+
+Rust implements what these generic instructions do. Rust does **not** know that `ke` means question or that `kor` means correction. Adding a new root with an existing surface/effect shape requires package declarations only.
+
+`CommunicativeAct` remains an output/reporting structure for API compatibility and workbench presentation. It is no longer the switch that decides conversation-state behavior.
+
+## Conversation-state mutation
+
+`ConversationState::apply` now consumes `DiscourseEffect` values only:
+
+- `Commit` inserts a commitment;
+- `Retract` deactivates the resolved target commitment;
+- `Replace` supersedes the target and inserts the replacement;
+- `Clarify` records the clarification content.
+
+Target existence/active-commitment validation remains deterministic and unchanged. The Phase 14 repair behavior is therefore preserved without Systean-root-specific branches in the conversation state machine.
+
+## Schema cleanup
+
+`language/syntax.toml` now contains only implemented engine-level structural policy:
+
+- frame order;
+- scope markers;
+- omission policy;
+- discourse structural markers;
+- quote markers;
+- text/utterance boundaries.
+
+Removed public fake/obsolete policy tables include global lexical precedence, lexical roles, question/command realization switches, focus-reordering policy, traditional-POS policy, and Systean-specific pragmatics root mappings.
+
+`language/dictionary.toml` contains metadata only. It has zero `syntax = ...` or semantic binding fields.
+
+`language/units.toml` contains only external/user-facing aliases and surface spellings. Dimension identity, dimension value type, base relations, and exact scales belong to `typed/units.semsys`.
+
+`language/literals.toml` remains a codec configuration because it declares the concrete written/spoken notation understood by the generic structured-literal engine. Its remaining type bindings are codec contracts, not an independent lexical/semantic registry.
+
+## Compatibility boundary that intentionally remains
+
+The old semantic checker/public `Term` representation still uses source/debug names and named argument maps. Phase 18 already made it a generated projection of the typed package. Phase 19 removes it from **surface ownership**: `CompiledSurfaceBinding` stores `SymbolId` and numeric slots and resolves a debug source name only when entering that legacy checker/output representation.
+
+Deleting the legacy `Term`/`Environment` API itself is not required to make language syntax/effects declarative and would be a separate semantic-IR/API migration. No language rule is read from `language/legacy/`.
+
+## Implementation checklist
+
+Surface rules:
+
+- [x] Compile typed `form` declarations to parsing and canonical linearization.
+- [x] Derive ordinary frames from typed arity.
+- [x] Compile precedence and associativity per rule.
+- [x] Compile `na` through generic bare capture.
+- [x] Compile `ra`/`mu` through generic higher-order scoped binders.
+- [x] Compile counted quantifiers through the same binder path plus direct arguments.
+- [x] Compile utterance-level placement through generic `outer` metadata.
+- [x] Keep genuinely structural scope/quotation/text markers explicit.
+
+Type-directed behavior:
+
+- [x] Represent binder parameters as typed function-valued slots.
+- [x] Reject impossible restriction candidates by compiled predicate shape/type.
+- [x] Preserve the no-ranking ambiguity invariant.
+- [x] Preserve surface/declaration provenance in the typed package and workbench package reports.
+
+Effects:
+
+- [x] Define the generic effect instruction set.
+- [x] Package-declare assertion/question/request/command/expressive/focus/topic/repair behavior.
+- [x] Remove Systean-root-specific conversation-state mutation.
+- [x] Expose executed effects in workbench pragmatic output.
+
+Ownership/schema:
+
+- [x] Remove all dictionary surface overlays.
+- [x] Remove the author-facing `LexemeConfig`/`SurfaceFormConfig` ownership model.
+- [x] Store compiled surface semantic references as `SymbolId` and arguments as numeric slots.
+- [x] Remove the global precedence table and unsupported/fake syntax policy alternatives.
+- [x] Move unit dimension/value-type ownership into typed DSL.
+- [x] Ensure no active runtime rule consumes `language/legacy/`.
 
 ## Required validation
 
-- [x] Adding an ordinary primitive word with the default frame requires one DSL declaration and no Rust changes.
-- [x] Adding a defined unary/binary operator with an existing generic surface shape requires no Rust changes.
-- [ ] Adding a new Systean question/repair root using existing semantic/effect primitives requires no Rust changes.
-- [x] Parser and generator are derived from the same typed surface rule metadata and round-trip canonically for the migrated construction set.
-- [ ] `ra per viv` and the complete quantifier corpus preserve canonical meaning without the quantifier-specific compatibility branch.
-- [x] Existing precedence/grouping behavior is driven by per-rule precedence/associativity rather than parser implementation order or a global TOML table.
-- [ ] No parser implementation order can silently select one fully typed analysis over another after the type-directed production cutover.
-- [ ] `cargo test --workspace`, whole-language check, compatibility corpus, adversarial ambiguity corpus, and WASM package compilation are green on the author toolchain for the 19A checkpoint.
+Implemented regressions cover:
+
+- [x] ordinary words and explicit forms sharing one compiled rule model;
+- [x] alpha-renamed surface parameter names producing identical compiled slots/fingerprints;
+- [x] malformed/non-invertible forms failing structurally;
+- [x] parser/linearizer round trips for ordinary, infix, outer, binder, counted-binder, and capture constructions;
+- [x] `ra per viv` using the generic binder path;
+- [x] invalid binder restriction `ra sol viv` being rejected instead of accepted by parser order;
+- [x] package-only addition of a new question root with no Rust change;
+- [x] package-only addition of a new repair root with no Rust change;
+- [x] generic effect runtime preserving assertion/question/focus and existing repair semantics;
+- [x] native and WASM packages loading the same typed effects source and package fingerprint path.
+
+Author-toolchain gates still required before Phase 19 is marked validated:
+
+- [ ] `cargo test --workspace`
+- [ ] `cargo run --bin systean -- check`
+- [ ] `cd site && pnpm check`
+- [ ] `cd site && pnpm build`
 
 ## Completion result
 
-After 19B, Systean-specific language growth is primarily package authoring. Rust owns a generic typed compiler/runtime, not an ever-growing list of Systean words and grammar constructions.
+After Phase 19, adding an ordinary word, reversible construction, question marker, or repair marker within the existing generic primitives is package work. Rust owns typed compilation, generic surface execution, generic resolution, and generic discourse effects rather than an expanding catalog of Systean roots.

@@ -122,7 +122,7 @@ Morphology v1 is intentionally minimal: a lexical word is exactly its declared r
 cargo run --bin systean -- syntax check
 ```
 
-The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. Every lexical root is owned by `language/typed/lexicon.semsys`; `dictionary.toml` must cover those roots exactly and contributes human definitions plus temporary Phase 18 surface metadata. No semantic binding is duplicated in TOML. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
+The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, typed scoped binders, outer-only utterance constructions, and package-declared precedence/associativity. Every lexical root and reversible lexical form is owned by `language/typed/lexicon.semsys`; `dictionary.toml` must cover those roots exactly and contributes human definitions only. Systean-specific discourse behavior is declared in `language/typed/effects.semsys`. No semantic or lexical surface binding is duplicated in TOML.
 
 ### Semantic IR
 
@@ -144,7 +144,6 @@ cargo run --bin systean -- workbench word vid
 cargo run --bin systean -- workbench surface 'na artemi vid na mari'
 cargo run --bin systean -- workbench text written 'na artemi viv. ke na artemi viv.'
 cargo run --bin systean -- workbench literal '2000-12-31'
-cargo run --bin systean -- workbench generate 'see(observed = proper_name(payload = "mari"), observer = proper_name(payload = "artemi"))'
 ```
 
 Reports include the package fingerprint and provenance. Workbench failures are layer-classified diagnostics; ambiguous references preserve their candidate set.
@@ -167,12 +166,12 @@ pnpm dev
 Current engine-backed pages:
 
 - `/alphabet` — alphabet and arbitrary pronunciation;
-- `/dictionary` — searchable dictionary with semantic bindings and canonical surface frames;
+- `/dictionary` — searchable dictionary backed by typed word reports and canonical surface information;
 - `/analyzer` — unified package/word/surface/discourse/generator/literal workbench with scope, reference and provenance visualization.
 
 ## Design status
 
-Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit. Phase 18 implementation is now complete: `language/typed/*.semsys` is the normative semantic owner, all 175 lexical roots use Systean-root semantic identities, structured values and unit/dimension relations are typed, and the old Phase 17 semantic sources are archival migration evidence only. Full Phase 18 author-toolchain validation is still pending. The remaining generated `Environment`/named-role surface adapter is intentionally removed in Phase 19 together with the declarative surface-grammar migration.
+Phases 2–18 are implemented, with the Phase 18 typed semantic ownership migration exercised by the workspace regression suite during the Phase 19 work. Phase 17 workbench productization remains the public inspection layer. Phase 19 implementation is now complete: typed `.semsys` owns reversible lexical forms, higher-order binders, capture/outer placement, precedence and Systean-specific discourse effect programs; `dictionary.toml` is metadata-only and `syntax.toml` contains only real structural engine policy. Phase 19 author-toolchain validation is still pending.
 
 Before the 1.0 freeze, the accepted roadmap now includes a deliberate architecture cleanup:
 
@@ -182,4 +181,4 @@ Before the 1.0 freeze, the accepted roadmap now includes a deliberate architectu
 - Phase 21 — user-facing learning site and interactive contextual analyzer;
 - Phase 22 — Systean 1.0 language freeze.
 
-The target model is specified in `docs/SEMANTIC_DSL_ARCHITECTURE.md`. `dictionary.toml` now contains documentation and temporary Phase 18 surface metadata only; semantic identity/signatures are owned by the typed DSL. Vocabulary remains manually authored.
+The target model is specified in `docs/SEMANTIC_DSL_ARCHITECTURE.md`. `dictionary.toml` is documentation metadata only; semantic identity, signatures, lexical surface rules and discourse effects are owned by the typed DSL. Vocabulary remains manually authored.

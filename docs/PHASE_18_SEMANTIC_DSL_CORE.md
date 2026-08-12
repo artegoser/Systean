@@ -160,10 +160,10 @@ Author-toolchain validation status. The package check and both site gates passed
 
 ## Deliberate Phase 19 boundary
 
-Phase 18 does **not** pretend the Phase 17 surface implementation has disappeared. `SurfaceFormConfig`, syntax named-role labels, and the compatibility `Environment` remain as generated adapters so the accepted grammar continues to run while semantic ownership changes underneath it.
+At the end of Phase 18, `SurfaceFormConfig`, syntax named-role labels, and the compatibility `Environment` were intentionally left as generated adapters so the accepted grammar could continue to run while semantic ownership changed underneath it.
 
-Phase 19 removes those adapters by compiling declarative typed `form` rules and discourse effects directly against the Phase 18 IDs. No semantic declaration may move back into TOML or into Rust to make that migration easier.
+Phase 19 resolves that boundary: declarative typed `form` rules compile against Phase 18 IDs, compiled surface bindings use numeric parameter slots, and Systean-specific discourse behavior lives in typed effect programs. The legacy `Environment`/named-argument `Term` representation remains only as a checker/public-output compatibility boundary and is not a source of surface ownership.
 
 ## Completion result
 
-The language package now has one normative typed semantic owner. Systean lexical roots no longer route through English semantic identifiers, TOML no longer carries semantic JSON shapes, structured values no longer hide meaning in canonical strings, and units/dimensions use resolved identities and exact typed relations. The remaining string/named-role surface compatibility layer is explicitly a Phase 19 concern rather than a second semantic source of truth.
+The language package has one normative typed semantic owner. Systean lexical roots do not route through English semantic identifiers, TOML does not carry semantic JSON shapes, structured values do not hide meaning in canonical strings, and units/dimensions use resolved identities and exact typed relations. Phase 19 subsequently removed the remaining author-facing surface/named-role ownership layer.
