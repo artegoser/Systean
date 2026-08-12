@@ -151,7 +151,7 @@ Implemented tests cover:
 - [x] native and embedded/WASM packages consume the same typed source set;
 - [x] legacy semantic fields in `dictionary.toml` are rejected.
 
-Author-toolchain validation status. The package check and both site gates passed on the author toolchain; the workspace suite must be rerun after repairing two Phase 16 regression fixtures that had stale assumptions about Phase 18 module/unit ownership:
+Author-toolchain validation status. The package check and both site gates passed on the author toolchain. A subsequent workspace rerun passed the repaired Phase 16 regressions and reached the Phase 18 suite, where it exposed two final Phase 18 regressions: source-span detection did not recognize semicolon-terminated declarations, and one interval test used a date/date form outside the frozen instant/instant interval grammar. Both are repaired; the complete workspace suite must now be rerun from the beginning:
 
 - [ ] `cargo test --workspace`
 - [x] `cargo run --bin systean -- check`
