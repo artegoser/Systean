@@ -88,10 +88,14 @@ fn canonical_language_package_loads_as_one_validated_unit() {
     assert!(language
         .semantics()
         .is_assignable(&Type::named("SubjectiveEvent"), &Type::named("Event")));
+    let va = language.typed_semantics().symbol_id("va").unwrap();
+    let zo = language.typed_semantics().symbol_id("zo").unwrap();
     assert!(
-        language.syntax().config().logic.precedence["va"]
-            > language.syntax().config().logic.precedence["zo"]
+        language.typed_semantics().surface_rule(va).unwrap().precedence
+            > language.typed_semantics().surface_rule(zo).unwrap().precedence
     );
+    assert!(language.typed_semantics().surface_rule(va).unwrap().associative);
+    assert!(language.typed_semantics().surface_rule(zo).unwrap().associative);
     assert_eq!(language.syntax().lexicon().len(), language.roots().roots().len());
 }
 

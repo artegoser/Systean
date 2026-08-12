@@ -118,7 +118,6 @@ fn opaque_quote_can_fill_a_typed_text_slot_without_parsing_payload_roots() {
         r#"
 [govtest]
 definition = "Fixture text-taking predicate."
-syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"] }
 "#,
     );
     let core = fs::read_to_string(repo.join("language/typed/core.semsys")).unwrap();

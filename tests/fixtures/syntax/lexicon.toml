@@ -6,16 +6,12 @@ definition = "Fixture entity Mary."
 
 [pe]
 definition = "Fixture class of persons."
-syntax = { kind = "class", role = "entity" }
 
 [kan]
 definition = "Fixture class of dogs."
-syntax = { kind = "class", role = "entity" }
 
 [vi]
 definition = "Fixture relation of seeing."
-syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
 
 [si]
 definition = "Fixture relation of sleeping."
-syntax = { kind = "predicate", primary_role = "sleeper", rest_roles = [] }
