@@ -10,12 +10,14 @@ use crate::compiler::{
     PackageValidationReport, WholeLanguageCompiler, validate_compiled_package,
     validate_corpus_sources, validate_declared_corpora,
 };
+use crate::documentation::DocumentationPackage;
 use crate::discourse::{
     ConversationError, ConversationState, DiscourseFrameId, DiscourseGenerationError,
     DiscourseResolutionError, DiscourseState, ReferentId, ResolvedSurfaceAst, SectionId,
     TextDocument, TextRealization, TextSessionState, TextStreamItem, TextStructureError, TextTurn,
     UtteranceId, materialize_resolved_surface, parse_text_turn, resolve_surface,
 };
+use crate::english::{EnglishRenderError, EnglishRenderer, EnglishRendering};
 use crate::literals::{LiteralConfig, LiteralConfigError, LiteralEngine, LiteralError};
 use crate::morphology::{
     MorphologyAnalysis, MorphologyConfig, MorphologyConfigError, MorphologyEngine, MorphologyError,
@@ -341,6 +343,7 @@ pub struct LanguagePackage {
     roots: RootInventory,
     semantics: Environment,
     typed_semantics: TypedSemanticPackage,
+    documentation: DocumentationPackage,
     manifest: PackageManifest,
     provenance: PackageProvenance,
     validation: PackageValidationReport,
@@ -427,6 +430,8 @@ pub enum LanguageError {
     Dictionary(String),
     RootInventory(String),
     TypedSemantics(Vec<TypedCompileError>),
+    Documentation(String),
+    English(EnglishRenderError),
     PackageManifest(PackageManifestError),
     Package(Vec<PackageInvariantError>),
     SemanticExpression(String),
@@ -451,7 +456,7 @@ impl LanguagePackage {
         let literals = read(path.join("literals.toml"))?;
         let units = read(path.join("units.toml"))?;
         let typed_semantics = compile_typed_directory(path.join("typed"))?;
-        Self::from_parts(
+        let mut package = Self::from_parts(
             &alphabet,
             &phonology,
             &morphology,
@@ -462,7 +467,16 @@ impl LanguagePackage {
             manifest,
             provenance,
             Some(path),
-        )
+        )?;
+        let documentation = crate::documentation::compile_directory(
+            &path.join("docs"),
+            package.typed_semantics(),
+            &package,
+        )?;
+        package.documentation = documentation;
+        let finalized = package.documentation.clone().finalize_examples(&package)?;
+        package.documentation = finalized;
+        Ok(package)
     }
 
     pub fn from_sources(
@@ -690,6 +704,7 @@ impl LanguagePackage {
             roots,
             semantics,
             typed_semantics,
+            documentation: DocumentationPackage::empty(),
             manifest,
             provenance,
             validation: PackageValidationReport::empty(),
@@ -738,6 +753,10 @@ impl LanguagePackage {
         self.typed_semantics.surface_fingerprint()
     }
 
+    pub fn documentation_fingerprint(&self) -> &str {
+        self.documentation.fingerprint()
+    }
+
     pub fn phonology(&self) -> &PhonologyConfig {
         &self.phonology
     }
@@ -768,6 +787,50 @@ impl LanguagePackage {
 
     pub fn typed_semantics(&self) -> &TypedSemanticPackage {
         &self.typed_semantics
+    }
+
+    pub fn documentation(&self) -> &DocumentationPackage {
+        &self.documentation
+    }
+
+    pub fn with_documentation_sources(
+        mut self,
+        sources: &[(&str, &str)],
+    ) -> Result<Self, LanguageError> {
+        let documentation = crate::documentation::compile_sources(
+            sources
+                .iter()
+                .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
+            &self.typed_semantics,
+            &self,
+        )?;
+        self.documentation = documentation;
+        let finalized = self.documentation.clone().finalize_examples(&self)?;
+        self.documentation = finalized;
+        Ok(self)
+    }
+
+    pub fn render_english_term(&self, term: &Term) -> Result<EnglishRendering, EnglishRenderError> {
+        EnglishRenderer::new(
+            &self.documentation,
+            &self.typed_semantics,
+            self.literals().map(|literals| literals.units()),
+        )
+        .render(term)
+    }
+
+    pub fn render_english(&self, expression: &str) -> Result<EnglishRendering, LanguageError> {
+        self.render_english_with_discourse(expression, &DiscourseState::new())
+    }
+
+    pub fn render_english_with_discourse(
+        &self,
+        expression: &str,
+        discourse: &DiscourseState,
+    ) -> Result<EnglishRendering, LanguageError> {
+        let analysis = self.analyze_surface_with_discourse(expression, discourse)?;
+        self.render_english_term(&analysis.resolved.term)
+            .map_err(LanguageError::English)
     }
 
     pub fn analyze_word(&self, word: &str) -> Result<LexicalWordAnalysis, LanguageError> {
@@ -1479,6 +1542,8 @@ impl fmt::Display for LanguageError {
                 }
                 Ok(())
             }
+            Self::Documentation(error) => write!(f, "documentation: {error}"),
+            Self::English(error) => write!(f, "English rendering: {error}"),
             Self::PackageManifest(error) => write!(f, "package manifest: {error}"),
             Self::Package(errors) => {
                 for (index, error) in errors.iter().enumerate() {

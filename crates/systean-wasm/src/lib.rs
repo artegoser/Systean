@@ -19,6 +19,7 @@ const TYPED_CORE: &str = include_str!("../../../language/typed/core.semsys");
 const TYPED_LEXICON: &str = include_str!("../../../language/typed/lexicon.semsys");
 const TYPED_EFFECTS: &str = include_str!("../../../language/typed/effects.semsys");
 const TYPED_UNITS: &str = include_str!("../../../language/typed/units.semsys");
+const ENGLISH_DOCS: &str = include_str!("../../../language/docs/en.sydoc");
 
 static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
 
@@ -42,6 +43,9 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             COMPATIBILITY_CORPUS,
             ADVERSARIAL_CORPUS,
         )
+        .and_then(|language| {
+            language.with_documentation_sources(&[("docs/en.sydoc", ENGLISH_DOCS)])
+        })
         .map_err(|error| error.to_string())
     }) {
         Ok(language) => Ok(language),
@@ -76,6 +80,21 @@ pub fn alphabet_json() -> Result<String, JsValue> {
 pub fn dictionary_json() -> Result<String, JsValue> {
     let language = language()?;
     serde_json::to_string(language.dictionary())
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn documentation_json() -> Result<String, JsValue> {
+    serde_json::to_string(&language()?.documentation().search_index())
+        .map_err(|error| JsValue::from_str(&error.to_string()))
+}
+
+#[wasm_bindgen]
+pub fn english_json(expression: &str) -> Result<String, JsValue> {
+    let rendering = language()?
+        .render_english(expression)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    serde_json::to_string(&rendering)
         .map_err(|error| JsValue::from_str(&error.to_string()))
 }
 

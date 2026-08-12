@@ -3,10 +3,12 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::compiler::{PackageManifest, PackageProvenance, PackageValidationReport};
+use crate::documentation::DocumentationEntry;
 use crate::discourse::{
     ConversationState, DiscourseError, DiscourseResolutionError, DiscourseState, IntroductionOrigin,
     TextDocument, TextRealization, TextSessionState, TextTurn,
 };
+use crate::english::EnglishRendering;
 use crate::language::{DictionaryEntry, LanguageError, LanguagePackage};
 use crate::literals::{LiteralRealization, SurfaceLiteral};
 use crate::pragmatics::{DiscourseEffect, PragmaticAnalysis};
@@ -65,6 +67,7 @@ pub struct PackageWorkbenchInfo {
     pub provenance: PackageProvenance,
     pub semantic_fingerprint: String,
     pub surface_fingerprint: String,
+    pub documentation_fingerprint: String,
     pub validation: PackageValidationReport,
 }
 
@@ -75,6 +78,7 @@ impl PackageWorkbenchInfo {
             provenance: language.provenance().clone(),
             semantic_fingerprint: language.semantic_fingerprint().to_owned(),
             surface_fingerprint: language.surface_fingerprint().to_owned(),
+            documentation_fingerprint: language.documentation_fingerprint().to_owned(),
             validation: language.validation_report().clone(),
         }
     }
@@ -103,6 +107,7 @@ pub struct WordWorkbenchAnalysis {
     pub root: String,
     pub definition: String,
     pub dictionary_entry: DictionaryEntry,
+    pub documentation: Option<DocumentationEntry>,
     pub semantic_origin: Option<String>,
     pub pronunciation: String,
     pub stressed_pronunciation: String,
@@ -191,6 +196,7 @@ pub struct SurfaceWorkbenchAnalysis {
     pub semantic_ir: String,
     pub canonical_semantic_ir: String,
     pub semantic_explanation: SemanticNodeView,
+    pub english: EnglishRendering,
     pub package_fingerprint: String,
 }
 
@@ -333,11 +339,13 @@ pub fn analyze_word(
             candidates: Vec::new(),
         })?;
     let semantic_origin = lexical_origin(language, &entry).map(|origin| origin.to_string());
+    let documentation = language.documentation().entry(&analysis.morphology.root).cloned();
     Ok(WordWorkbenchAnalysis {
         source: source.to_owned(),
         root: analysis.morphology.root.clone(),
         definition: entry.definition.clone(),
         dictionary_entry: entry,
+        documentation,
         semantic_origin,
         pronunciation: analysis.phonology.pronunciation,
         stressed_pronunciation: analysis.phonology.stressed_pronunciation,
@@ -383,6 +391,13 @@ pub fn analyze_surface(
             message: error.to_string(),
             candidates: Vec::new(),
         })?;
+    let english = language
+        .render_english_term(&analysis.resolved.term)
+        .map_err(|error| WorkbenchDiagnostic {
+            layer: DiagnosticLayer::Semantics,
+            message: error.to_string(),
+            candidates: Vec::new(),
+        })?;
     Ok(SurfaceWorkbenchAnalysis {
         source: source.to_owned(),
         canonical_surface: analysis.canonical_surface,
@@ -397,6 +412,7 @@ pub fn analyze_surface(
         semantic_ir: analysis.resolved.term.to_string(),
         canonical_semantic_ir: analysis.canonical_semantics,
         semantic_explanation: explanation_view(&explanation),
+        english,
         package_fingerprint: language.package_fingerprint().to_owned(),
     })
 }
@@ -606,6 +622,7 @@ pub fn diagnostic_from_language_error(error: LanguageError) -> WorkbenchDiagnost
         LanguageError::Io { .. }
         | LanguageError::PackageManifest(_)
         | LanguageError::Package(_)
+        | LanguageError::Documentation(_)
         | LanguageError::TypedSemantics(_) => DiagnosticLayer::Package,
         LanguageError::Phonology(_) | LanguageError::RootInventory(_) => DiagnosticLayer::Phonology,
         LanguageError::MorphologyConfig(_) | LanguageError::Morphology(_) => DiagnosticLayer::Morphology,
@@ -635,7 +652,7 @@ pub fn diagnostic_from_language_error(error: LanguageError) -> WorkbenchDiagnost
         LanguageError::DiscourseGenerate(_) => DiagnosticLayer::Generation,
         LanguageError::Pragmatics(_) | LanguageError::Conversation(_) => DiagnosticLayer::Pragmatics,
         LanguageError::TextStructure(_) => DiagnosticLayer::TextStructure,
-        LanguageError::SemanticExpression(_) => DiagnosticLayer::Semantics,
+        LanguageError::SemanticExpression(_) | LanguageError::English(_) => DiagnosticLayer::Semantics,
     };
     WorkbenchDiagnostic {
         layer,
@@ -656,6 +673,13 @@ fn surface_workbench_from_analysis(
             message: error.to_string(),
             candidates: Vec::new(),
         })?;
+    let english = language
+        .render_english_term(&analysis.resolved.term)
+        .map_err(|error| WorkbenchDiagnostic {
+            layer: DiagnosticLayer::Semantics,
+            message: error.to_string(),
+            candidates: Vec::new(),
+        })?;
     Ok(SurfaceWorkbenchAnalysis {
         source: source.into(),
         canonical_surface: analysis.canonical_surface.clone(),
@@ -670,6 +694,7 @@ fn surface_workbench_from_analysis(
         semantic_ir: analysis.resolved.term.to_string(),
         canonical_semantic_ir: analysis.canonical_semantics.clone(),
         semantic_explanation: explanation_view(&explanation),
+        english,
         package_fingerprint: language.package_fingerprint().into(),
     })
 }

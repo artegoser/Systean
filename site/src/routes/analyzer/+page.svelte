@@ -125,6 +125,7 @@
 				<div class="font-mono text-sm">{packageInfo.manifest.package.name} {packageInfo.manifest.package.version} · rev {packageInfo.manifest.package.revision}</div>
 			</div>
 			<div class="font-mono text-sm mt-2 break-all">fingerprint: {packageInfo.provenance.fingerprint}</div>
+			<div class="font-mono text-sm break-all">documentation: {packageInfo.documentation_fingerprint}</div>
 			<div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-3 text-sm">
 				<div>owned forms <strong>{packageInfo.validation.owned_forms}</strong></div>
 				<div>generated surfaces <strong>{packageInfo.validation.generated_surfaces}</strong></div>
@@ -154,7 +155,13 @@
 			<div class="mt-3 grid md:grid-cols-2 gap-4">
 				<div>
 					<div class="text-3xl font-black">{wordAnalysis.root}</div>
-					<div class="mt-2">{wordAnalysis.definition}</div>
+					{#if wordAnalysis.documentation}
+						<div class="text-xl font-bold mt-1">{wordAnalysis.documentation.gloss}</div>
+						<div class="mt-2">{wordAnalysis.documentation.explain}</div>
+						<div class="font-mono text-sm mt-2">{wordAnalysis.documentation.signature}</div>
+					{:else}
+						<div class="mt-2">{wordAnalysis.definition}</div>
+					{/if}
 					<div class="font-mono text-sm mt-3">/{wordAnalysis.pronunciation}/ → /{wordAnalysis.stressed_pronunciation}/</div>
 					<div class="font-mono text-sm">morphology: {wordAnalysis.morphemes.map((part) => `${part.kind}:${part.spelling}`).join(' + ')}</div>
 					<div class="mt-2 flex flex-wrap gap-2">
@@ -183,6 +190,11 @@
 				{/if}
 			</div>
 		{:else if surfaceAnalysis}
+			<div class="mt-3 rounded-xl bg-black/10 p-3">
+				<div class="font-black">English rendering</div>
+				<div class="mt-1 text-lg">{surfaceAnalysis.english.text}</div>
+				<div class="small-text text-left mt-1">Deterministic rendering prioritizing semantic fidelity over idiomatic phrasing.</div>
+			</div>
 			<div class="grid lg:grid-cols-2 gap-4 mt-3">
 				<div class="grid gap-2">
 					<div><strong>canonical surface:</strong> <span class="font-mono">{surfaceAnalysis.canonical_surface}</span></div>

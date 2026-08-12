@@ -25,10 +25,11 @@ fn workbench_cli_exposes_package_and_unified_word_report_as_json() {
     let (package, stderr, success) = run(&["package"]);
     assert!(success, "{stderr}");
     let package: serde_json::Value = serde_json::from_str(&package).unwrap();
-    assert_eq!(package["manifest"]["package"]["version"], "0.19.0");
+    assert_eq!(package["manifest"]["package"]["version"], "0.20.0");
     assert!(package["provenance"]["fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
     assert!(package["semantic_fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
     assert!(package["surface_fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
+    assert!(package["documentation_fingerprint"].as_str().unwrap().starts_with("fnv1a64:"));
 
     let (word, stderr, success) = run(&["word", "vid"]);
     assert!(success, "{stderr}");
@@ -36,6 +37,7 @@ fn workbench_cli_exposes_package_and_unified_word_report_as_json() {
     assert_eq!(word["root"], "vid");
     assert_eq!(word["dictionary_entry"]["root"], "vid");
     assert!(word["semantic_origin"].as_str().is_some());
+    assert_eq!(word["documentation"]["gloss"], "see");
     assert!(word["package"]["provenance"]["sources"].as_array().unwrap().len() > 7);
 }
 

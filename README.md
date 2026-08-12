@@ -134,6 +134,16 @@ cargo run --bin systean -- explain 'equal(left = 1, right = 1)'
 
 The parser validates structure and types; it does not validate truth, plausibility, speaker knowledge or world state.
 
+### English reference
+
+Phase 20 compiles `language/docs/*.sydoc` against the public typed vocabulary and exposes deterministic English rendering without making English part of semantic identity:
+
+```bash
+cargo run --bin systean -- english 'na artemi vid na mari'
+```
+
+Documentation examples pin their expected canonical semantics and are revalidated through the real parser/discourse pipeline when the package loads.
+
 ### Workbench
 
 The Phase 17 workbench exposes the same structured reports through native CLI and WASM:
@@ -171,7 +181,7 @@ Current engine-backed pages:
 
 ## Design status
 
-Phases 2–18 are implemented, with the Phase 18 typed semantic ownership migration exercised by the workspace regression suite during the Phase 19 work. Phase 17 workbench productization remains the public inspection layer. Phase 19 implementation is now complete: typed `.semsys` owns reversible lexical forms, higher-order binders, capture/outer placement, precedence and Systean-specific discourse effect programs; `dictionary.toml` is metadata-only and `syntax.toml` contains only real structural engine policy. Phase 19 author-toolchain validation is still pending.
+Phases 2–20 are implemented. Phase 17 workbench productization remains the public inspection layer. Phase 19 moved reversible lexical forms, higher-order binders, capture/outer placement, precedence and Systean-specific discourse effect programs into typed `.semsys`; `dictionary.toml` is metadata-only and `syntax.toml` contains only real structural engine policy. Phase 20 adds complete compiled English documentation for all public roots, an independent documentation fingerprint, and deterministic controlled-English rendering exposed through native, CLI, WASM and workbench APIs. Rust author-toolchain validation for the latest phases is still pending.
 
 Before the 1.0 freeze, the accepted roadmap now includes a deliberate architecture cleanup:
 

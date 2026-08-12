@@ -1,0 +1,2101 @@
+# Phase 20 English reference. Human-facing only; semantic identity remains in typed/*.semsys.
+
+word sol {
+  gloss "Sun";
+  explain """
+    The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit.
+  """;
+  tag "general";
+  example "sol";
+  expect_semantics """
+    sol
+  """;
+}
+
+word ref {
+  gloss "reference";
+  explain """
+    Universal typed shorthand reference. It resolves only to one accessible discourse referent compatible with the slot type; it introduces no new entity and never guesses from lexical similarity. Ordinary `ref` is distinct from the fixed context words `mi`, `tu`, and `nau`.
+  """;
+  tag "reference";
+  example "sol vid ref";
+  expect_semantics """
+    vid(observed = sol, observer = sol)
+  """;
+}
+
+word mi {
+  gloss "speaker";
+  explain """
+    The current discourse speaker supplied by the explicit runtime context. It does not infer a speaker from nearby names, conversation history, or host identity.
+  """;
+  tag "reference";
+  example "mi";
+  expect_semantics """
+    sol
+  """;
+}
+
+word tu {
+  gloss "addressee";
+  explain """
+    The current discourse addressee supplied by the explicit runtime context. It does not infer an addressee from nearby names or conversation history.
+  """;
+  tag "reference";
+  example "tu";
+  expect_semantics """
+    sol
+  """;
+}
+
+word na {
+  gloss "proper name";
+  explain """
+    Marks the following canonical Systean name payload as one proper-name-denoting entity; no source-language pronunciation is inferred.
+  """;
+  tag "general";
+  example "na artemi";
+  expect_semantics """
+    na(payload = "artemi")
+  """;
+}
+
+word ke {
+  gloss "question";
+  explain """
+    Marks the following proposition as the content of a truth-question utterance. It is outer-only: its communicative effect scopes over the complete proposition that follows rather than becoming an ordinary predicate inside it.
+  """;
+  tag "discourse";
+  example "ke sol viv";
+  expect_semantics """
+    ke(content = viv(entity = sol))
+  """;
+}
+
+word ne {
+  gloss "not";
+  explain """
+    Logical negation of exactly one propositional value. Parenthesized or quantifier structure determines what is negated. It differs from `fal`, which explicitly presents a proposition as false rather than serving as the logical scope operator.
+  """;
+  tag "logic";
+  example "ne sol viv";
+  expect_semantics """
+    ne(value = viv(entity = sol))
+  """;
+}
+
+word va {
+  gloss "and";
+  explain """
+    Logical conjunction of the left and right propositions: both must hold. It is an infix scope operator and binds more tightly than `zo`; explicit scope markers remain available when the intended grouping differs.
+  """;
+  tag "logic";
+  example "prop va prop";
+  expect_semantics """
+    va(left = viv(entity = sol), right = viv(entity = sol))
+  """;
+}
+
+word zo {
+  gloss "or";
+  explain """
+    Logical disjunction of the left and right propositions: at least one holds. It is an infix scope operator with lower precedence than `va`, so explicit grouping is required when that default attachment is not intended.
+  """;
+  tag "logic";
+  example "prop zo prop";
+  expect_semantics """
+    zo(left = viv(entity = sol), right = viv(entity = sol))
+  """;
+}
+
+word ra {
+  gloss "every";
+  explain """
+    Universal quantification. It binds one entity variable, applies the stated class/restriction to that variable, and requires the quantified body for every matching entity. Its body has explicit syntactic scope; it does not quantify unrelated material outside that scope.
+  """;
+  tag "logic";
+  example "ra per viv";
+  expect_semantics """
+    ra(predicate = bind v0: Entity => imp(condition = per(entity = v0), consequence = viv(entity = v0)))
+  """;
+}
+
+word mu {
+  gloss "some";
+  explain """
+    Existential quantification. It binds one entity variable and states that at least one entity satisfies both the stated restriction and quantified body. Its body has explicit syntactic scope and is distinct from universal `ra`.
+  """;
+  tag "logic";
+  example "mu per viv";
+  expect_semantics """
+    mu(predicate = bind v0: Entity => va(left = per(entity = v0), right = viv(entity = v0)))
+  """;
+}
+
+word da {
+  gloss "command";
+  explain """
+    Marks the following proposition as the content of a command utterance. It is outer-only and contributes a communicative command effect; it does not change the proposition into a factual assertion.
+  """;
+  tag "discourse";
+  example "da sol viv";
+  expect_semantics """
+    da(content = viv(entity = sol))
+  """;
+}
+
+word me {
+  gloss "request";
+  explain """
+    Marks the following proposition as the content of a request utterance. It is outer-only and contributes a communicative request effect; it is distinct from the command marker `da`.
+  """;
+  tag "discourse";
+  example "me sol viv";
+  expect_semantics """
+    me(content = viv(entity = sol))
+  """;
+}
+
+word per {
+  gloss "person";
+  explain """
+    A human person; as a class predicate, the value is human.
+  """;
+  tag "general";
+  example "sol per";
+  expect_semantics """
+    per(entity = sol)
+  """;
+}
+
+word anim {
+  gloss "animal";
+  explain """
+    An animal; as a class predicate, the value is an animal.
+  """;
+  tag "general";
+  example "sol anim";
+  expect_semantics """
+    anim(entity = sol)
+  """;
+}
+
+word lok {
+  gloss "location";
+  explain """
+    A spatial location; as a class predicate, the value functions as a location.
+  """;
+  tag "general";
+  example "sol lok";
+  expect_semantics """
+    lok(entity = sol)
+  """;
+}
+
+word obj {
+  gloss "physical object";
+  explain """
+    A physical object; as a class predicate, the value is materially instantiated.
+  """;
+  tag "general";
+  example "sol obj";
+  expect_semantics """
+    obj(entity = sol)
+  """;
+}
+
+word vid {
+  gloss "see";
+  explain """
+    Visual perception relation. `observer` is the entity doing the seeing and `observed` is the entity visually perceived. The word does not by itself imply recognition, belief, attention, visibility duration, or knowledge of what was seen.
+  """;
+  tag "general";
+  example "sol vid sol";
+  expect_semantics """
+    vid(observed = sol, observer = sol)
+  """;
+}
+
+word aud {
+  gloss "hear";
+  explain """
+    Auditory perception relation. `observer` is the hearer and `heard` is the heard entity or sound-source entity. The word does not itself imply recognition, understanding, belief, or duration.
+  """;
+  tag "general";
+  example "sol aud sol";
+  expect_semantics """
+    aud(heard = sol, observer = sol)
+  """;
+}
+
+word mov {
+  gloss "move";
+  explain """
+    Physical movement of `mover`. No destination, arrival, path, duration, or completion is implied. Use `vad` when a destination is explicit and `ven` when arrival at a target is asserted.
+  """;
+  tag "general";
+  example "sol mov";
+  expect_semantics """
+    mov(mover = sol)
+  """;
+}
+
+word ven {
+  gloss "arrive at";
+  explain """
+    Arrival relation between `mover` and explicit `target`. Unlike generic `mov`, it asserts reaching the target; unlike `vad`, it is not merely directed movement toward it.
+  """;
+  tag "general";
+  example "sol ven sol";
+  expect_semantics """
+    ven(mover = sol, target = sol)
+  """;
+}
+
+word vad {
+  gloss "move toward";
+  explain """
+    Directed movement relation between `mover` and explicit `destination`. It states motion toward that destination but does not imply arrival; use `ven` for arrival.
+  """;
+  tag "general";
+  example "sol vad sol";
+  expect_semantics """
+    vad(destination = sol, mover = sol)
+  """;
+}
+
+word don {
+  gloss "give";
+  explain """
+    Intentional transfer of one item from an explicit giver to an explicit recipient.
+  """;
+  tag "general";
+  example "sol don sol sol";
+  expect_semantics """
+    don(giver = sol, item = sol, recipient = sol)
+  """;
+}
+
+word ten {
+  gloss "hold";
+  explain """
+    Physical holding relation between a holder and the held entity.
+  """;
+  tag "general";
+  example "sol ten sol";
+  expect_semantics """
+    ten(held = sol, holder = sol)
+  """;
+}
+
+word hab {
+  gloss "possess";
+  explain """
+    Possession relation between an explicit possessor and possessed entity.
+  """;
+  tag "general";
+  example "sol hab sol";
+  expect_semantics """
+    hab(possessed = sol, possessor = sol)
+  """;
+}
+
+word fak {
+  gloss "create";
+  explain """
+    Intentional creation in which an explicit creator brings an explicit product into existence.
+  """;
+  tag "general";
+  example "sol fak sol";
+  expect_semantics """
+    fak(creator = sol, product = sol)
+  """;
+}
+
+word viv {
+  gloss "alive";
+  explain """
+    The explicit entity is alive.
+  """;
+  tag "general";
+  example "sol viv";
+  expect_semantics """
+    viv(entity = sol)
+  """;
+}
+
+word mor {
+  gloss "die";
+  explain """
+    The explicit entity dies; this root states the death relation without inferring time or aspect.
+  """;
+  tag "general";
+  example "sol mor";
+  expect_semantics """
+    mor(entity = sol)
+  """;
+}
+
+word nov {
+  gloss "new";
+  explain """
+    The explicit value is new relative to an explicitly supplied comparison standard.
+  """;
+  tag "general";
+  example "sol nov sol";
+  expect_semantics """
+    nov(standard = sol, value = sol)
+  """;
+}
+
+word vet {
+  gloss "old";
+  explain """
+    The explicit value is old relative to an explicitly supplied comparison standard.
+  """;
+  tag "general";
+  example "sol vet sol";
+  expect_semantics """
+    vet(standard = sol, value = sol)
+  """;
+}
+
+word bon {
+  gloss "good";
+  explain """
+    Positive evaluation of a value by an explicitly supplied criterion.
+  """;
+  tag "general";
+  example "sol bon sol";
+  expect_semantics """
+    bon(criterion = sol, value = sol)
+  """;
+}
+
+word mal {
+  gloss "bad";
+  explain """
+    Negative evaluation of a value by an explicitly supplied criterion.
+  """;
+  tag "general";
+  example "sol mal sol";
+  expect_semantics """
+    mal(criterion = sol, value = sol)
+  """;
+}
+
+word ver {
+  gloss "true";
+  explain """
+    Explicitly presents propositional content as true without adding world-state inference to parsing.
+  """;
+  tag "general";
+  example "ver sol viv";
+  expect_semantics """
+    ver(value = viv(entity = sol))
+  """;
+}
+
+word fal {
+  gloss "false";
+  explain """
+    Explicitly presents propositional content as false; it is a distinct lexical identity from logical negation.
+  """;
+  tag "general";
+  example "fal sol viv";
+  expect_semantics """
+    fal(value = viv(entity = sol))
+  """;
+}
+
+word sim {
+  gloss "similar";
+  explain """
+    Similarity between two explicit values along one explicitly supplied comparison dimension.
+  """;
+  tag "general";
+  example "sol sim sol sol";
+  expect_semantics """
+    sim(dimension = sol, left = sol, right = sol)
+  """;
+}
+
+word dif {
+  gloss "different";
+  explain """
+    Difference between two explicit values along one explicitly supplied comparison dimension.
+  """;
+  tag "general";
+  example "sol dif sol sol";
+  expect_semantics """
+    dif(dimension = sol, left = sol, right = sol)
+  """;
+}
+
+word par {
+  gloss "equal";
+  explain """
+    Equality between two explicit values along one explicitly supplied comparison dimension.
+  """;
+  tag "general";
+  example "sol par sol sol";
+  expect_semantics """
+    par(dimension = sol, left = sol, right = sol)
+  """;
+}
+
+word mag {
+  gloss "greater than";
+  explain """
+    The left value is greater than the right value along one explicitly supplied comparison dimension.
+  """;
+  tag "general";
+  example "sol mag sol sol";
+  expect_semantics """
+    mag(dimension = sol, left = sol, right = sol)
+  """;
+}
+
+word min {
+  gloss "less than";
+  explain """
+    The left value is less than the right value along one explicitly supplied comparison dimension.
+  """;
+  tag "general";
+  example "sol min sol sol";
+  expect_semantics """
+    min(dimension = sol, left = sol, right = sol)
+  """;
+}
+
+word in {
+  gloss "inside";
+  explain """
+    Spatial relation in which one value is inside an explicit container.
+  """;
+  tag "general";
+  example "sol in sol";
+  expect_semantics """
+    in(container = sol, value = sol)
+  """;
+}
+
+word sur {
+  gloss "above";
+  explain """
+    Spatial relation in which one value is above an explicit reference entity.
+  """;
+  tag "general";
+  example "sol sur sol";
+  expect_semantics """
+    sur(reference = sol, value = sol)
+  """;
+}
+
+word sub {
+  gloss "below";
+  explain """
+    Spatial relation in which one value is below an explicit reference entity.
+  """;
+  tag "general";
+  example "sol sub sol";
+  expect_semantics """
+    sub(reference = sol, value = sol)
+  """;
+}
+
+word prok {
+  gloss "near";
+  explain """
+    Spatial nearness relative to both an explicit reference entity and an explicit distance standard.
+  """;
+  tag "general";
+  example "sol prok sol sol";
+  expect_semantics """
+    prok(reference = sol, standard = sol, value = sol)
+  """;
+}
+
+word dist {
+  gloss "far";
+  explain """
+    Spatial farness relative to both an explicit reference entity and an explicit distance standard.
+  """;
+  tag "general";
+  example "sol dist sol sol";
+  expect_semantics """
+    dist(reference = sol, standard = sol, value = sol)
+  """;
+}
+
+word zna {
+  gloss "know";
+  explain """
+    Knowledge relation between an explicit knower and explicit propositional content.
+  """;
+  tag "general";
+  example "sol zna prop";
+  expect_semantics """
+    zna(content = viv(entity = sol), knower = sol)
+  """;
+}
+
+word bel {
+  gloss "believe";
+  explain """
+    Belief relation between an explicit believer and explicit propositional content.
+  """;
+  tag "general";
+  example "sol bel prop";
+  expect_semantics """
+    bel(believer = sol, content = viv(entity = sol))
+  """;
+}
+
+word mem {
+  gloss "remember";
+  explain """
+    Remembering relation between an explicit rememberer and explicit propositional content.
+  """;
+  tag "general";
+  example "sol mem prop";
+  expect_semantics """
+    mem(content = viv(entity = sol), rememberer = sol)
+  """;
+}
+
+word dum {
+  gloss "think";
+  explain """
+    Thinking or considering relation between an explicit thinker and explicit propositional content.
+  """;
+  tag "general";
+  example "sol dum prop";
+  expect_semantics """
+    dum(content = viv(entity = sol), thinker = sol)
+  """;
+}
+
+word nom {
+  gloss "name";
+  explain """
+    A textual value functioning as a name; this lexical concept is distinct from the proper-name marker `na`.
+  """;
+  tag "general";
+  example "sit hello tis nom";
+  expect_semantics """
+    nom(value = "hello")
+  """;
+}
+
+word tekst {
+  gloss "text";
+  explain """
+    A textual value.
+  """;
+  tag "general";
+  example "sit hello tis tekst";
+  expect_semantics """
+    tekst(value = "hello")
+  """;
+}
+
+word ling {
+  gloss "language";
+  explain """
+    A language as an explicit entity.
+  """;
+  tag "general";
+  example "sol ling";
+  expect_semantics """
+    ling(entity = sol)
+  """;
+}
+
+word gov {
+  gloss "say";
+  explain """
+    Speech or utterance by an explicit speaker of explicit textual content.
+  """;
+  tag "general";
+  example "sol gov sit hello tis";
+  expect_semantics """
+    gov(content = "hello", speaker = sol)
+  """;
+}
+
+word skrib {
+  gloss "write";
+  explain """
+    Writing or symbolic encoding by an explicit writer of explicit textual content.
+  """;
+  tag "general";
+  example "sol skrib sit hello tis";
+  expect_semantics """
+    skrib(content = "hello", writer = sol)
+  """;
+}
+
+word nau {
+  gloss "now";
+  explain """
+    The current instant supplied by the explicit runtime `now` context. Parsing never reads the host clock or invents a time when that context is absent.
+  """;
+  tag "time";
+  example "nau";
+  expect_semantics """
+    instant<"2026-08-12T00:00:00Z">
+  """;
+}
+
+word ante {
+  gloss "before";
+  explain """
+    Temporal relation stating that the left temporal value is before the right temporal value.
+  """;
+  tag "time";
+  example "2026-08-11 ante 2026-08-12";
+  expect_semantics """
+    ante(left = calendar_date<"2026-08-11">, right = calendar_date<"2026-08-12">)
+  """;
+}
+
+word aft {
+  gloss "after";
+  explain """
+    Temporal relation stating that the left temporal value is after the right temporal value.
+  """;
+  tag "time";
+  example "2026-08-11 aft 2026-08-11";
+  expect_semantics """
+    aft(left = calendar_date<"2026-08-11">, right = calendar_date<"2026-08-11">)
+  """;
+}
+
+word pot {
+  gloss "during";
+  explain """
+    Temporal relation stating that an explicit temporal value occurs during an explicit interval.
+  """;
+  tag "time";
+  example "2026-08-11 pot 2026-08-11T12:00:00Z/2026-08-11T13:00:00Z";
+  expect_semantics """
+    pot(interval = interval<"2026-08-11T12:00:00Z/2026-08-11T13:00:00Z">, value = calendar_date<"2026-08-11">)
+  """;
+}
+
+word temp {
+  gloss "temporal value";
+  explain """
+    An explicit temporal value: an instant, interval, calendar date, or time of day.
+  """;
+  tag "time";
+  example "2026-08-11 temp";
+  expect_semantics """
+    temp(value = calendar_date<"2026-08-11">)
+  """;
+}
+
+word sta {
+  gloss "start";
+  explain """
+    Starts one explicit occurrence `target`. It does not infer that the target previously existed, that starting succeeds, or that the occurrence later completes. Contrast `dur`, `stop`, `fin`, and `rup`.
+  """;
+  tag "general";
+  example "sta prun";
+  expect_semantics """
+    sta(target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word stop {
+  gloss "stop";
+  explain """
+    Ceases one explicit occurrence `target`. Cessation does not imply completion and does not imply that recurrence is impossible. Use `fin` when completion is the intended relation.
+  """;
+  tag "general";
+  example "stop prun";
+  expect_semantics """
+    stop(target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word dur {
+  gloss "continue";
+  explain """
+    Continues one explicit occurrence `target`. It asserts continuation only; it does not encode start, completion, interruption, or habitual recurrence.
+  """;
+  tag "general";
+  example "dur prun";
+  expect_semantics """
+    dur(target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word fin {
+  gloss "finish";
+  explain """
+    Finishes one explicit occurrence `target`. Completion is asserted and is intentionally distinct from generic cessation `stop` and interruption `rup`.
+  """;
+  tag "general";
+  example "fin prun";
+  expect_semantics """
+    fin(target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word rup {
+  gloss "interrupt";
+  explain """
+    Interrupts one explicit occurrence `target`. It asserts interruption without asserting completion or permanent cessation.
+  """;
+  tag "general";
+  example "rup prun";
+  expect_semantics """
+    rup(target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word reg {
+  gloss "habitual";
+  explain """
+    Constructs a habitual/recurrent Activity from one explicit occurrence `activity`. It changes the semantic target from a particular occurrence to a recurring activity and is therefore not interchangeable with the original occurrence.
+  """;
+  tag "general";
+  example "reg prun";
+  expect_semantics """
+    reg(activity = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word rep {
+  gloss "repeat";
+  explain """
+    Constructs an Activity consisting of an explicit occurrence `target` repeated an exact numeric `count`. The count is literal semantic data; no frequency or time interval is inferred.
+  """;
+  tag "general";
+  example "prun rep tri";
+  expect_semantics """
+    rep(count = number<"3">, target = process_of(content = mov(mover = sol)))
+  """;
+}
+
+word unk {
+  gloss "unknown to";
+  explain """
+    A typed information hole explicitly unknown to `knower`. The missing value remains absent; the renderer must not invent it. Contrast `vak`, which is merely unspecified, and `hid`, which is intentionally withheld.
+  """;
+  tag "reference";
+  example "sol vid unk na artemi";
+  expect_semantics """
+    vid(observed = information(status = unknown, knower = na(payload = "artemi")), observer = sol)
+  """;
+}
+
+word vak {
+  gloss "unspecified";
+  explain """
+    A typed information hole deliberately left unspecified by the utterance. It does not assert that anyone lacks the information and does not imply intentional concealment; contrast `unk` and `hid`.
+  """;
+  tag "reference";
+  example "sol vid vak";
+  expect_semantics """
+    vid(observed = information(status = unspecified), observer = sol)
+  """;
+}
+
+word hid {
+  gloss "withheld";
+  explain """
+    A typed information hole intentionally withheld. The missing value remains absent and must not be reconstructed by rendering. It differs from unknown `unk` and merely unspecified `vak`.
+  """;
+  tag "reference";
+  example "sol vid hid";
+  expect_semantics """
+    vid(observed = information(status = withheld), observer = sol)
+  """;
+}
+
+word rov {
+  gloss "exactly";
+  explain """
+    Counted quantification: exactly `count` entities satisfying the stated restriction satisfy the quantified body. The count and binder scope are explicit; it is distinct from lower-bound `mini` and upper-bound `maks`.
+  """;
+  tag "logic";
+  example "rov tri per viv";
+  expect_semantics """
+    rov(count = number<"3">, predicate = bind v0: Entity => va(left = per(entity = v0), right = viv(entity = v0)))
+  """;
+}
+
+word mini {
+  gloss "at least";
+  explain """
+    Counted quantification: at least `count` entities satisfying the stated restriction satisfy the quantified body. It states a lower bound, not an exact count; contrast `rov` and `maks`.
+  """;
+  tag "logic";
+  example "mini tri per viv";
+  expect_semantics """
+    mini(count = number<"3">, predicate = bind v0: Entity => va(left = per(entity = v0), right = viv(entity = v0)))
+  """;
+}
+
+word maks {
+  gloss "at most";
+  explain """
+    Counted quantification: at most `count` entities satisfying the stated restriction satisfy the quantified body. It states an upper bound, not an exact count; contrast `rov` and `mini`.
+  """;
+  tag "logic";
+  example "maks tri per viv";
+  expect_semantics """
+    maks(count = number<"3">, predicate = bind v0: Entity => va(left = per(entity = v0), right = viv(entity = v0)))
+  """;
+}
+
+word set {
+  gloss "set";
+  explain """
+    An unordered collection identity constructed from two explicit entity members; larger sets are nested compositionally.
+  """;
+  tag "general";
+  example "sol set sol";
+  expect_semantics """
+    set(left = sol, right = sol)
+  """;
+}
+
+word list {
+  gloss "list";
+  explain """
+    An ordered collection identity constructed from two explicit entity members; larger lists are nested compositionally.
+  """;
+  tag "general";
+  example "sol list sol";
+  expect_semantics """
+    list(first = sol, second = sol)
+  """;
+}
+
+word grup {
+  gloss "group";
+  explain """
+    A collective group entity constructed from two explicit entity members.
+  """;
+  tag "general";
+  example "sol grup sol";
+  expect_semantics """
+    grup(left = sol, right = sol)
+  """;
+}
+
+word kol {
+  gloss "collectively";
+  explain """
+    Marks complete propositional `content` for collective interpretation. It does not reorder semantic roles or distribute the proposition over individual members; contrast distributive `dis`.
+  """;
+  tag "general";
+  example "kol sol viv";
+  expect_semantics """
+    kol(content = viv(entity = sol))
+  """;
+}
+
+word dis {
+  gloss "distributively";
+  explain """
+    Marks complete propositional `content` for distributive interpretation. It does not reorder semantic roles or assert a collective reading; contrast collective `kol`.
+  """;
+  tag "general";
+  example "dis sol viv";
+  expect_semantics """
+    dis(content = viv(entity = sol))
+  """;
+}
+
+word aso {
+  gloss "associated with";
+  explain """
+    States an explicitly underspecified association between two entities without guessing a more specific relation.
+  """;
+  tag "general";
+  example "sol aso sol";
+  expect_semantics """
+    aso(left = sol, right = sol)
+  """;
+}
+
+word imp {
+  gloss "if";
+  explain """
+    Material/logical implication from explicit propositional `condition` to explicit propositional `consequence`. It is an infix scope operator and does not itself assert a causal or counterfactual relation; contrast `hip`.
+  """;
+  tag "logic";
+  example "prop imp prop";
+  expect_semantics """
+    imp(condition = viv(entity = sol), consequence = viv(entity = sol))
+  """;
+}
+
+word hip {
+  gloss "counterfactually if";
+  explain """
+    Counterfactual causal relation from explicit antecedent `condition` to explicit `consequence`. It is semantically distinct from material implication `imp`; the renderer must preserve that distinction.
+  """;
+  tag "logic";
+  example "prop hip prop";
+  expect_semantics """
+    hip(condition = viv(entity = sol), consequence = viv(entity = sol))
+  """;
+}
+
+word tip {
+  gloss "typical";
+  explain """
+    Typical/normal-case claim over explicit `domain`, explicit `measure`, and numeric `standard`. It is not universal quantification and does not by itself specify an observed statistical frequency.
+  """;
+  tag "general";
+  example "sol tip sol tri";
+  expect_semantics """
+    tip(domain = sol, measure = sol, standard = number<"3">)
+  """;
+}
+
+word stat {
+  gloss "statistical";
+  explain """
+    Statistical claim over explicit `domain` and `measure` with numeric `value`. The number is stated data; the word does not reinterpret it as a universal or merely typical claim.
+  """;
+  tag "general";
+  example "sol stat sol tri";
+  expect_semantics """
+    stat(domain = sol, measure = sol, value = number<"3">)
+  """;
+}
+
+word prob {
+  gloss "probability";
+  explain """
+    Assigns explicit numeric probability `value` to explicit propositional `claim`. The proposition and number are both required semantic arguments; no probability is inferred from wording.
+  """;
+  tag "general";
+  example "prop prob tri";
+  expect_semantics """
+    prob(claim = viv(entity = sol), value = number<"3">)
+  """;
+}
+
+word frek {
+  gloss "frequency";
+  explain """
+    States explicit numeric `value` for an Activity under explicit `measure`. It does not infer a time unit, period, or repeated occurrence target that was not supplied.
+  """;
+  tag "general";
+  example "habit frek sol tri";
+  expect_semantics """
+    frek(activity = activity_of(content = mov(mover = sol)), measure = sol, value = number<"3">)
+  """;
+}
+
+word emo {
+  gloss "express";
+  explain """
+    Contributes a communicative effect that explicitly expresses the supplied subjective-state proposition. It never infers affect from prosody and does not alter the literal subjective state or its intensity.
+  """;
+  tag "discourse";
+  example "emo sol felis 0.8";
+  expect_semantics """
+    emo(state = felis(experiencer = sol, intensity = number<"0.8">))
+  """;
+}
+
+word fok {
+  gloss "focus";
+  explain """
+    Marks explicit semantic `value` as focus within propositional `content`. Focus is a discourse effect: semantic argument roles and quantifier scope remain unchanged.
+  """;
+  tag "discourse";
+  example "sol fok sol viv";
+  expect_semantics """
+    fok(content = viv(entity = sol), target = sol)
+  """;
+}
+
+word top {
+  gloss "topic";
+  explain """
+    Marks explicit semantic `value` as topic within propositional `content`. Topic is a discourse effect: semantic roles and quantifier scope remain unchanged; it is distinct from focus `fok`.
+  """;
+  tag "discourse";
+  example "sol top sol viv";
+  expect_semantics """
+    top(content = viv(entity = sol), target = sol)
+  """;
+}
+
+word ret {
+  gloss "retract";
+  explain """
+    Repair utterance that retracts the uniquely identified prior discourse commitment `target`. It acts on discourse history rather than asserting a new proposition about the target number.
+  """;
+  tag "discourse";
+  example "ret uno";
+  expect_semantics """
+    ret(target = number<"1">)
+  """;
+}
+
+word kor {
+  gloss "correct";
+  explain """
+    Repair utterance that identifies prior discourse entry `target` and replaces it with propositional `replacement`. The repair effect and replacement content remain distinct in controlled rendering.
+  """;
+  tag "discourse";
+  example "uno kor sol viv";
+  expect_semantics """
+    kor(replacement = viv(entity = sol), target = number<"1">)
+  """;
+}
+
+word klar {
+  gloss "clarify";
+  explain """
+    Repair utterance that identifies prior discourse entry `target` and adds propositional `clarification`. It supplements the prior entry rather than replacing it as `kor` does.
+  """;
+  tag "discourse";
+  example "uno klar sol viv";
+  expect_semantics """
+    klar(content = viv(entity = sol), target = number<"1">)
+  """;
+}
+
+word felis {
+  gloss "Joy";
+  explain """
+    Joy; a general positive affective state; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol felis tri";
+  expect_semantics """
+    felis(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word satis {
+  gloss "Satisfaction";
+  explain """
+    Satisfaction; positive response to an achieved or sufficient state; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol satis prop tri";
+  expect_semantics """
+    satis(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word seren {
+  gloss "Calm";
+  explain """
+    Calm; low affective tension; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol seren tri";
+  expect_semantics """
+    seren(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word amuz {
+  gloss "Amusement";
+  explain """
+    Amusement; pleasure from something perceived as funny or entertaining; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol amuz prop tri";
+  expect_semantics """
+    amuz(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word entuz {
+  gloss "Excitement/enthusiasm";
+  explain """
+    Excitement/enthusiasm; high-activation positive affect; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol entuz prop tri";
+  expect_semantics """
+    entuz(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word inter {
+  gloss "Interest";
+  explain """
+    Interest; sustained affective engagement with an object/topic; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol inter sol tri";
+  expect_semantics """
+    inter(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word kuri {
+  gloss "Curiosity";
+  explain """
+    Curiosity; motivation to obtain currently unknown information; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol kuri sol tri";
+  expect_semantics """
+    kuri(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word esper {
+  gloss "Hope";
+  explain """
+    Hope; positive anticipation of a desired possible future outcome; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol esper prop tri";
+  expect_semantics """
+    esper(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word relif {
+  gloss "Relief";
+  explain """
+    Relief; positive response to removal or reduction of a threat/burden; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol relif prop tri";
+  expect_semantics """
+    relif(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word grati {
+  gloss "Gratitude";
+  explain """
+    Gratitude; positive affect toward the source of a received benefit; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol grati sol tri";
+  expect_semantics """
+    grati(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word admir {
+  gloss "Admiration";
+  explain """
+    Admiration; strong positive evaluation of another's qualities/actions; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol admir sol tri";
+  expect_semantics """
+    admir(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word majes {
+  gloss "Awe";
+  explain """
+    Awe; affective response to exceptional scale, grandeur, or perceived magnitude; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol majes sol tri";
+  expect_semantics """
+    majes(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word tenda {
+  gloss "Tenderness";
+  explain """
+    Tenderness; gentle caring positive affect; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol tenda sol tri";
+  expect_semantics """
+    tenda(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word afek {
+  gloss "Affection";
+  explain """
+    Affection; stable positive emotional attachment; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol afek sol tri";
+  expect_semantics """
+    afek(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word amori {
+  gloss "Love";
+  explain """
+    Love; strong stable love without mandatory romantic or sexual content; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol amori sol tri";
+  expect_semantics """
+    amori(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word simpat {
+  gloss "Liking/sympathy";
+  explain """
+    Liking/sympathy; positive personal disposition toward another; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol simpat sol tri";
+  expect_semantics """
+    simpat(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word kompa {
+  gloss "Compassion";
+  explain """
+    Compassion; affective concern for another's suffering; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol kompa sol tri";
+  expect_semantics """
+    kompa(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word piti {
+  gloss "Pity";
+  explain """
+    Pity; negative affect about another's adverse condition; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol piti sol tri";
+  expect_semantics """
+    piti(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word empati {
+  gloss "Empathy";
+  explain """
+    Empathy; affective experiencing/modeling of another's emotional state; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol empati sol tri";
+  expect_semantics """
+    empati(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word prid {
+  gloss "Ordinary pride";
+  explain """
+    Ordinary pride; positive affect concerning an achievement/quality of self or an associated target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol prid sol tri";
+  expect_semantics """
+    prid(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word trium {
+  gloss "Triumph";
+  explain """
+    Triumph; positive response to victory or successful overcoming; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol trium sol tri";
+  expect_semantics """
+    trium(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word fidu {
+  gloss "Trust";
+  explain """
+    Trust; subjective readiness to rely on a specific agent/system; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol fidu sol tri";
+  expect_semantics """
+    fidu(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word unita {
+  gloss "Belonging";
+  explain """
+    Belonging; subjective experience of inclusion in a group/relationship; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol unita sol tri";
+  expect_semantics """
+    unita(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word sekur {
+  gloss "Felt safety";
+  explain """
+    Felt safety; subjective experience of absence of significant threat; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol sekur tri";
+  expect_semantics """
+    sekur(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word trist {
+  gloss "Sadness";
+  explain """
+    Sadness; general low-activation negative affect; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol trist tri";
+  expect_semantics """
+    trist(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word grif {
+  gloss "Grief";
+  explain """
+    Grief; affective response to a significant loss; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol grif sol tri";
+  expect_semantics """
+    grif(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word timor {
+  gloss "Fear";
+  explain """
+    Fear; response to a perceived threat; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol timor sol tri";
+  expect_semantics """
+    timor(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word anks {
+  gloss "Anxiety";
+  explain """
+    Anxiety; negative anticipation of an uncertain threat; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol anks tri";
+  expect_semantics """
+    anks(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word dred {
+  gloss "Dread";
+  explain """
+    Dread; fear directed toward an anticipated future event; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol dred prop tri";
+  expect_semantics """
+    dred(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word panik {
+  gloss "Panic";
+  explain """
+    Panic; acute high-intensity threat response with felt loss of control; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol panik tri";
+  expect_semantics """
+    panik(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word furor {
+  gloss "Anger/wrath";
+  explain """
+    Anger/wrath; negative response to perceived harm or violation; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol furor sol tri";
+  expect_semantics """
+    furor(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word irit {
+  gloss "Irritation";
+  explain """
+    Irritation; negative response to a recurring or obstructive nuisance; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol irit sol tri";
+  expect_semantics """
+    irit(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word frus {
+  gloss "Frustration";
+  explain """
+    Frustration; negative response to blockage of a goal; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol frus sol tri";
+  expect_semantics """
+    frus(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word resent {
+  gloss "Resentment";
+  explain """
+    Resentment; persistent negative response to perceived unfairness/wrong; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol resent sol tri";
+  expect_semantics """
+    resent(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word odio {
+  gloss "Hatred";
+  explain """
+    Hatred; stable strong negative orientation toward a target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol odio sol tri";
+  expect_semantics """
+    odio(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word avers {
+  gloss "Disgust/aversion";
+  explain """
+    Disgust/aversion; immediate avoidance-oriented response to an unpleasant target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol avers sol tri";
+  expect_semantics """
+    avers(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word kontem {
+  gloss "Contempt";
+  explain """
+    Contempt; negative social evaluation of a target as unworthy/inferior; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol kontem sol tri";
+  expect_semantics """
+    kontem(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word vergon {
+  gloss "Shame";
+  explain """
+    Shame; negative evaluation of the self; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol vergon tri";
+  expect_semantics """
+    vergon(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word kulpa {
+  gloss "Guilt";
+  explain """
+    Guilt; negative evaluation of one's own specific action/responsibility; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol kulpa prop tri";
+  expect_semantics """
+    kulpa(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word embar {
+  gloss "Embarrassment";
+  explain """
+    Embarrassment; social discomfort caused by unwanted attention/error; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol embar tri";
+  expect_semantics """
+    embar(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word humil {
+  gloss "Humiliation";
+  explain """
+    Humiliation; painful experience of imposed loss of status; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol humil sol tri";
+  expect_semantics """
+    humil(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word regri {
+  gloss "Regret";
+  explain """
+    Regret; negative counterfactual evaluation of a past choice; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol regri prop tri";
+  expect_semantics """
+    regri(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word remor {
+  gloss "Remorse";
+  explain """
+    Remorse; regret with responsibility for harm caused; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol remor prop tri";
+  expect_semantics """
+    remor(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word disap {
+  gloss "Disappointment";
+  explain """
+    Disappointment; negative response to an unmet expectation; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol disap prop tri";
+  expect_semantics """
+    disap(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word desol {
+  gloss "Despair";
+  explain """
+    Despair; experience that no available route to a desired outcome remains; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol desol prop tri";
+  expect_semantics """
+    desol(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word lonel {
+  gloss "Loneliness";
+  explain """
+    Loneliness; experience of insufficient desired social connection; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol lonel tri";
+  expect_semantics """
+    lonel(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word envi {
+  gloss "Envy";
+  explain """
+    Envy; negative response to another possessing a desired good/state; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol envi sol tri";
+  expect_semantics """
+    envi(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word jelos {
+  gloss "Jealousy";
+  explain """
+    Jealousy; perceived threat of losing a valued relationship to a rival/third party; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol jelos sol tri";
+  expect_semantics """
+    jelos(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word boren {
+  gloss "Boredom";
+  explain """
+    Boredom; negative state of insufficient meaningful stimulation; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol boren tri";
+  expect_semantics """
+    boren(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word nemog {
+  gloss "Helplessness";
+  explain """
+    Helplessness; experience of lacking effective control/action capacity; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol nemog tri";
+  expect_semantics """
+    nemog(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word stres {
+  gloss "Stress";
+  explain """
+    Stress; sustained tension under perceived demands; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol stres tri";
+  expect_semantics """
+    stres(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word opres {
+  gloss "Overwhelm";
+  explain """
+    Overwhelm; experience of demands exceeding available capacity; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol opres tri";
+  expect_semantics """
+    opres(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word surpri {
+  gloss "Surprise";
+  explain """
+    Surprise; violation of expectation without built-in positive/negative valence; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol surpri prop tri";
+  expect_semantics """
+    surpri(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word nosta {
+  gloss "Nostalgia";
+  explain """
+    Nostalgia; affective orientation toward a personally significant past; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol nosta sol tri";
+  expect_semantics """
+    nosta(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word langu {
+  gloss "Longing";
+  explain """
+    Longing; affectively significant desire for an absent/inaccessible target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol langu sol tri";
+  expect_semantics """
+    langu(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word konfi {
+  gloss "Confidence";
+  explain """
+    Confidence; high subjective confidence regarding an evaluation/outcome; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol konfi prop tri";
+  expect_semantics """
+    konfi(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word dubia {
+  gloss "Doubt";
+  explain """
+    Doubt; subjective uncertainty; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol dubia prop tri";
+  expect_semantics """
+    dubia(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word antik {
+  gloss "Anticipation";
+  explain """
+    Anticipation; affective response to an expected future event; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol antik prop tri";
+  expect_semantics """
+    antik(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word avida {
+  gloss "Eagerness";
+  explain """
+    Eagerness; high motivational readiness toward a desired action/outcome; represented as an experienced affective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol avida tri";
+  expect_semantics """
+    avida(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word konfus {
+  gloss "Confusion";
+  explain """
+    Confusion; inability to form a coherent understanding of the current situation; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content.
+  """;
+  tag "affect";
+  example "sol konfus prop tri";
+  expect_semantics """
+    konfus(experiencer = sol, intensity = number<"3">, target = viv(entity = sol))
+  """;
+}
+
+word romat {
+  gloss "Romantic attraction";
+  explain """
+    Romantic attraction; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol romat sol tri";
+  expect_semantics """
+    romat(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word eros {
+  gloss "Sexual attraction toward an explicit target";
+  explain """
+    Sexual attraction toward an explicit target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "affect";
+  example "sol eros sol tri";
+  expect_semantics """
+    eros(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word eruz {
+  gloss "Current sexual arousal state";
+  explain """
+    Current sexual arousal state; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol eruz tri";
+  expect_semantics """
+    eruz(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word libid {
+  gloss "Baseline/persistent level of sexual drive";
+  explain """
+    Baseline/persistent level of sexual drive; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol libid tri";
+  expect_semantics """
+    libid(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word orgaz {
+  gloss "Orgasm as a distinct physiological event";
+  explain """
+    Orgasm as a distinct physiological event; represented as an explicit subjective event with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol orgaz tri";
+  expect_semantics """
+    orgaz(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word hedon {
+  gloss "Subjective pleasure";
+  explain """
+    Subjective pleasure; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol hedon tri";
+  expect_semantics """
+    hedon(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word komfor {
+  gloss "Bodily comfort";
+  explain """
+    Bodily comfort; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol komfor tri";
+  expect_semantics """
+    komfor(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word dolor {
+  gloss "Pain";
+  explain """
+    Pain; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol dolor tri";
+  expect_semantics """
+    dolor(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word nelag {
+  gloss "Physical discomfort";
+  explain """
+    Physical discomfort; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol nelag tri";
+  expect_semantics """
+    nelag(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word famen {
+  gloss "Hunger";
+  explain """
+    Hunger; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol famen tri";
+  expect_semantics """
+    famen(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word tirst {
+  gloss "Thirst";
+  explain """
+    Thirst; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol tirst tri";
+  expect_semantics """
+    tirst(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word satur {
+  gloss "Satiety/fullness";
+  explain """
+    Satiety/fullness; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol satur tri";
+  expect_semantics """
+    satur(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word nause {
+  gloss "Nausea";
+  explain """
+    Nausea; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol nause tri";
+  expect_semantics """
+    nause(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word prur {
+  gloss "Itch";
+  explain """
+    Itch; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol prur tri";
+  expect_semantics """
+    prur(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word verti {
+  gloss "Dizziness/vertigo sensation";
+  explain """
+    Dizziness/vertigo sensation; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol verti tri";
+  expect_semantics """
+    verti(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word dispne {
+  gloss "Subjective shortness of breath/air hunger";
+  explain """
+    Subjective shortness of breath/air hunger; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol dispne tri";
+  expect_semantics """
+    dispne(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word fati {
+  gloss "Fatigue";
+  explain """
+    Fatigue; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol fati tri";
+  expect_semantics """
+    fati(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word somni {
+  gloss "Sleepiness";
+  explain """
+    Sleepiness; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol somni tri";
+  expect_semantics """
+    somni(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word vigir {
+  gloss "Alertness/wakeful vigor";
+  explain """
+    Alertness/wakeful vigor; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol vigir tri";
+  expect_semantics """
+    vigir(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word frigi {
+  gloss "Subjective feeling of cold";
+  explain """
+    Subjective feeling of cold; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol frigi tri";
+  expect_semantics """
+    frigi(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word kalor {
+  gloss "Subjective feeling of heat";
+  explain """
+    Subjective feeling of heat; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol kalor tri";
+  expect_semantics """
+    kalor(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word superb {
+  gloss "Excessive pride/self-exaltation";
+  explain """
+    Excessive pride/self-exaltation; deliberately distinct from ordinary `prid`; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "affect";
+  example "sol superb tri";
+  expect_semantics """
+    superb(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word avari {
+  gloss "Greed";
+  explain """
+    Greed; drive to accumulate/appropriate goods; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol avari tri";
+  expect_semantics """
+    avari(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word lusta {
+  gloss "Lust";
+  explain """
+    Lust; strong sexual desire as a motivational state; represented as an explicit subjective state with explicit experiencer and intensity. Its target is an explicit entity.
+  """;
+  tag "subjective-state";
+  example "sol lusta sol tri";
+  expect_semantics """
+    lusta(experiencer = sol, intensity = number<"3">, target = sol)
+  """;
+}
+
+word gula {
+  gloss "Gluttony";
+  explain """
+    Gluttony; excessive drive toward food consumption; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol gula tri";
+  expect_semantics """
+    gula(experiencer = sol, intensity = number<"3">)
+  """;
+}
+
+word leni {
+  gloss "Laziness/sloth";
+  explain """
+    Laziness/sloth; persistent unwillingness to expend effort; represented as an explicit subjective state with explicit experiencer and intensity.
+  """;
+  tag "subjective-state";
+  example "sol leni tri";
+  expect_semantics """
+    leni(experiencer = sol, intensity = number<"3">)
+  """;
+}

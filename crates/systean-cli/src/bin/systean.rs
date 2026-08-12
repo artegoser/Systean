@@ -29,6 +29,7 @@ fn main() -> ExitCode {
 
     match command.as_str() {
         "check" => check(&language_path, args),
+        "english" => english(&language_path, args),
         "explain" => explain(&language_path, args),
         "phonology" => phonology(&language_path, args),
         "morphology" => morphology(&language_path, args),
@@ -91,7 +92,34 @@ fn check(language_path: &Path, args: Vec<String>) -> ExitCode {
     println!("morphology: {}", language.morphology().config().strategy);
     println!("syntax: compiled ({} lexical roots)", language.syntax().lexicon().len());
     println!("semantics: compiled");
+    println!(
+        "English documentation: {} entries ({})",
+        language.documentation().len(),
+        language.documentation_fingerprint()
+    );
     ExitCode::SUCCESS
+}
+
+fn english(language_path: &Path, args: Vec<String>) -> ExitCode {
+    let expression = args.join(" ");
+    if expression.is_empty() {
+        usage();
+        return ExitCode::from(2);
+    }
+    let language = match load_language(language_path) {
+        Ok(language) => language,
+        Err(code) => return code,
+    };
+    match language.render_english(&expression) {
+        Ok(rendering) => {
+            println!("{}", rendering.text);
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn explain(language_path: &Path, args: Vec<String>) -> ExitCode {
@@ -1179,6 +1207,6 @@ fn fail(label: &str, error: impl std::fmt::Display) -> ExitCode {
 
 fn usage() {
     eprintln!(
-        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] literals analyze <structured-literal>\n  systean [--language <path>] literals convert <quantity> --to <unit-id>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>\n  systean [--language <path>] workbench package\n  systean [--language <path>] workbench word <word>\n  systean [--language <path>] workbench surface <surface-expression>\n  systean [--language <path>] workbench utterance <surface-expression>\n  systean [--language <path>] workbench text spoken|written <text-stream>\n  systean [--language <path>] workbench generate <semantic-expression>\n  systean [--language <path>] workbench literal <structured-literal>"
+        "usage:\n  systean [--language <path>] check\n  systean [--language <path>] english <surface-expression>\n  systean [--language <path>] explain <semantic-expression>\n  systean [--language <path>] phonology check\n  systean [--language <path>] phonology pronounce <text>\n  systean [--language <path>] phonology spell <pronunciation>\n  systean [--language <path>] phonology analyze <word> [--root <root>]\n  systean [--language <path>] morphology check\n  systean [--language <path>] morphology analyze <word>\n  systean [--language <path>] morphology generate <root>\n  systean [--language <path>] syntax check\n  systean [--language <path>] syntax analyze <surface-expression>\n  systean [--language <path>] literals analyze <structured-literal>\n  systean [--language <path>] literals convert <quantity> --to <unit-id>\n  systean [--language <path>] discourse\n  systean [--language <path>] roots check <candidate>\n  systean [--language <path>] roots audit\n  systean [--language <path>] roots segment <pronunciation>\n  systean [--language <path>] workbench package\n  systean [--language <path>] workbench word <word>\n  systean [--language <path>] workbench surface <surface-expression>\n  systean [--language <path>] workbench utterance <surface-expression>\n  systean [--language <path>] workbench text spoken|written <text-stream>\n  systean [--language <path>] workbench generate <semantic-expression>\n  systean [--language <path>] workbench literal <structured-literal>"
     );
 }

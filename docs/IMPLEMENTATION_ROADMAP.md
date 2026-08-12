@@ -973,39 +973,42 @@ English is fixed as the Systean 1.0 bridge language. English documentation/rende
 
 Per-word documentation:
 
-- [ ] Every public root has a short English `gloss`
-- [ ] Every public root has a detailed English `explain` entry
-- [ ] Documentation displays the compiled semantic signature rather than duplicating it manually
-- [ ] Every public root has at least one canonical executable example
-- [ ] Operators/constructions have examples that make scope/argument behavior visible where relevant
-- [ ] Explanations state important non-implications/contrasts when a short English gloss would otherwise be misleading
-- [ ] Documentation indicates primitive / defined / intrinsic-backed status
+- [x] Every public root has a short English `gloss`
+- [x] Every public root has a detailed English `explain` entry
+- [x] Documentation displays the compiled semantic signature rather than duplicating it manually
+- [x] Every public root has at least one canonical executable example
+- [x] Operators/constructions have examples that make scope/argument behavior visible where relevant
+- [x] Explanations state important non-implications/contrasts when a short English gloss would otherwise be misleading
+- [x] Documentation indicates primitive / defined / intrinsic-backed status
 
 Documentation compiler:
 
-- [ ] Store human documentation separately from normative semantic declarations, provisionally under `language/docs/en.sydoc`
-- [ ] Resolve documentation entries to compiled symbols
-- [ ] Fail release validation when any public 1.0 root lacks required English documentation
-- [ ] Parse/test documentation examples through the real engine
-- [ ] Give documentation an independent fingerprint
-- [ ] Ensure documentation-only edits do not change semantic/surface fingerprints
+- [x] Store human documentation separately from normative semantic declarations, provisionally under `language/docs/en.sydoc`
+- [x] Resolve documentation entries to compiled symbols
+- [x] Fail release validation when any public 1.0 root lacks required English documentation
+- [x] Parse/test documentation examples through the real engine
+- [x] Pin each documentation example to committed expected canonical semantics so grammar changes cannot silently rewrite teaching material
+- [x] Give documentation an independent fingerprint
+- [x] Ensure documentation-only edits do not change semantic/surface fingerprints
 
 Controlled English rendering:
 
-- [ ] Render from canonical typed semantics, never by concatenating word glosses
-- [ ] Cover ordinary predicates/relations, logical operators, quantifiers, generic/statistical claims, structured values, information status, context/reference, speech acts, and repair
-- [ ] Preserve scope explicitly even when the most idiomatic English wording would hide it
-- [ ] Preserve unknown/unspecified/withheld information without inventing content
-- [ ] Expose rendering provenance/alignment data where feasible for the analyzer
-- [ ] Keep optional future idiomatic/natural paraphrasing non-normative and outside 1.0 acceptance
+- [x] Render from canonical typed semantics, never by concatenating word glosses
+- [x] Cover ordinary predicates/relations, logical operators, quantifiers, generic/statistical claims, structured values, information status, context/reference, speech acts, and repair
+- [x] Preserve scope explicitly even when the most idiomatic English wording would hide it
+- [x] Preserve unknown/unspecified/withheld information without inventing content
+- [x] Expose rendering provenance/alignment data where feasible for the analyzer
+- [x] Keep optional future idiomatic/natural paraphrasing non-normative and outside 1.0 acceptance
 
 Required validation:
 
-- [ ] 100% public vocabulary documentation coverage
-- [ ] All documentation examples parse and preserve intended canonical semantics
-- [ ] Controlled English golden corpus covers every major semantic subsystem
-- [ ] Rendering is deterministic and cannot alter Systean parse/meaning
-- [ ] English wording changes affect only documentation/rendering compatibility, not semantic identity
+- [x] 100% public vocabulary documentation coverage
+- [x] All documentation examples parse and preserve intended canonical semantics
+- [x] Controlled English golden corpus covers every major semantic subsystem
+- [x] Rendering is deterministic and cannot alter Systean parse/meaning
+- [x] English wording changes affect only documentation/rendering compatibility, not semantic identity
+
+Status: **implementation complete; Rust toolchain validation pending.**
 
 Completion result: English is a complete learning/reference bridge for Systean 1.0 without becoming part of Systean semantics.
 

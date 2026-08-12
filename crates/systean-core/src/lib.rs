@@ -1,5 +1,7 @@
 pub mod compiler;
+pub mod documentation;
 pub mod discourse;
+pub mod english;
 pub mod language;
 pub mod literals;
 pub mod morphology;

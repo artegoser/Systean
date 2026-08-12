@@ -17,6 +17,62 @@ export interface Dictionary {
 	entries: DictionaryEntry[];
 }
 
+export type DocumentationDeclarationKind = 'primitive' | 'defined' | 'intrinsic_backed';
+
+export interface DocumentationParameter {
+	name: string;
+	ty: string;
+}
+
+export interface DocumentationExample {
+	source: string;
+	canonical_surface: string;
+	canonical_semantics: string;
+	english: string;
+}
+
+export interface DocumentationEntry {
+	root: string;
+	gloss: string;
+	explain: string;
+	declaration_kind: DocumentationDeclarationKind;
+	signature: string;
+	parameters: DocumentationParameter[];
+	result_type: string;
+	pronunciation: string;
+	stressed_pronunciation: string;
+	tags: string[];
+	examples: DocumentationExample[];
+	source: string;
+	source_line: number;
+}
+
+export interface DocumentationSearchEntry {
+	root: string;
+	gloss: string;
+	explain: string;
+	declaration_kind: DocumentationDeclarationKind;
+	result_type: string;
+	argument_count: number;
+	argument_types: string[];
+	tags: string[];
+	examples: string[];
+	source: string;
+	source_line: number;
+}
+
+export interface EnglishAlignment {
+	semantic_path: string;
+	root: string | null;
+	start: number;
+	end: number;
+}
+
+export interface EnglishRendering {
+	text: string;
+	alignments: EnglishAlignment[];
+}
+
 export interface SyllableAnalysis {
 	spelling: string;
 	pronunciation: string;
@@ -141,9 +197,9 @@ export interface PackageWorkbenchInfo {
 	provenance: PackageProvenance;
 	semantic_fingerprint: string;
 	surface_fingerprint: string;
+	documentation_fingerprint: string;
 	validation: PackageValidationReport;
 }
-
 
 export interface WorkbenchDictionaryEntry {
 	root: string;
@@ -170,6 +226,7 @@ export interface WordWorkbenchAnalysis {
 	root: string;
 	definition: string;
 	dictionary_entry: WorkbenchDictionaryEntry;
+	documentation: DocumentationEntry | null;
 	semantic_origin?: string;
 	pronunciation: string;
 	stressed_pronunciation: string;
@@ -244,6 +301,7 @@ export interface SurfaceWorkbenchAnalysis {
 	semantic_ir: string;
 	canonical_semantic_ir: string;
 	semantic_explanation: SemanticNodeView;
+	english: EnglishRendering;
 	package_fingerprint: string;
 }
 

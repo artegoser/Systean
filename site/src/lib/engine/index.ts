@@ -1,6 +1,8 @@
 import type {
 	Alphabet,
 	Dictionary,
+	DocumentationSearchEntry,
+	EnglishRendering,
 	SemanticAnalysis,
 	SurfaceAnalysis,
 	SyntaxPolicy,
@@ -19,6 +21,8 @@ interface WasmModule {
 	default: () => Promise<unknown>;
 	alphabet_json: () => string;
 	dictionary_json: () => string;
+	documentation_json: () => string;
+	english_json: (expression: string) => string;
 	pronounce: (text: string) => string;
 	spell: (pronunciation: string) => string;
 	analyze_word_json: (word: string) => string;
@@ -38,6 +42,8 @@ interface WasmModule {
 export interface SysteanEngine {
 	alphabet(): Alphabet;
 	dictionary(): Dictionary;
+	documentation(): DocumentationSearchEntry[];
+	english(expression: string): EnglishRendering;
 	pronounce(text: string): string;
 	spell(pronunciation: string): string;
 	analyzeWord(word: string): WordAnalysis;
@@ -68,6 +74,8 @@ async function createEngine(): Promise<SysteanEngine> {
 	return {
 		alphabet: () => JSON.parse(wasm.alphabet_json()) as Alphabet,
 		dictionary: () => JSON.parse(wasm.dictionary_json()) as Dictionary,
+		documentation: () => JSON.parse(wasm.documentation_json()) as DocumentationSearchEntry[],
+		english: (expression) => JSON.parse(wasm.english_json(expression)) as EnglishRendering,
 		pronounce: (text) => wasm.pronounce(text),
 		spell: (pronunciation) => wasm.spell(pronunciation),
 		analyzeWord: (word) => JSON.parse(wasm.analyze_word_json(word)) as WordAnalysis,

@@ -17,11 +17,12 @@ fn workbench_exposes_package_version_fingerprint_and_full_provenance() {
     let language = language();
     let info = workbench::package_info(&language);
 
-    assert_eq!(info.manifest.package.version, "0.19.0");
-    assert_eq!(info.manifest.package.revision, 19);
+    assert_eq!(info.manifest.package.version, "0.20.0");
+    assert_eq!(info.manifest.package.revision, 20);
     assert_eq!(info.provenance.fingerprint, language.package_fingerprint());
     assert_eq!(info.semantic_fingerprint, language.semantic_fingerprint());
     assert_eq!(info.surface_fingerprint, language.surface_fingerprint());
+    assert_eq!(info.documentation_fingerprint, language.documentation_fingerprint());
     assert!(info.provenance.sources.iter().any(|source| source.path == "package.toml"));
     assert!(info.validation.generated_surfaces > 0);
 }
@@ -37,6 +38,7 @@ fn word_workbench_unifies_dictionary_phonology_morphology_semantics_and_provenan
     assert_eq!(report.morphemes.len(), 1);
     assert!(!report.syllables.is_empty());
     assert!(report.semantic_origin.is_some());
+    assert_eq!(report.documentation.as_ref().unwrap().gloss, "see");
     assert_eq!(report.package.provenance.fingerprint, language.package_fingerprint());
 }
 
@@ -75,6 +77,7 @@ fn surface_workbench_shows_typed_ast_scope_semantic_ir_and_resolved_reference() 
     assert!(report.surface_ast.kind.contains("clause"));
     assert!(report.semantic_ir.contains("viv"));
     assert!(!report.semantic_explanation.label.is_empty());
+    assert!(report.english.text.contains("alive"));
 }
 
 #[test]
