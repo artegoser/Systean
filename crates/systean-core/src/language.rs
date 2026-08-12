@@ -1366,14 +1366,10 @@ fn validate_literals(
             "structured-literal type `{approximate_number_type}` is not declared by the semantic package"
         ))));
     }
-    for dimension in &literals.units().config().dimensions {
-        let ty = parse_type(&dimension.semantic_type).map_err(|errors| LanguageError::Syntax(SurfaceError::InvalidBinding(
-            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
-        )))?;
-        if !semantics.is_well_formed_type(&ty) {
+    for (dimension, ty) in literals.units().dimensions() {
+        if !semantics.is_well_formed_type(ty) {
             return Err(LanguageError::Syntax(SurfaceError::InvalidBinding(format!(
-                "unit dimension `{}` uses undeclared semantic type `{}`",
-                dimension.id, dimension.semantic_type
+                "typed unit dimension `{dimension}` projects undeclared semantic type `{ty}`"
             ))));
         }
     }

@@ -172,6 +172,10 @@ impl UnitRegistry {
         self.dimension_types.get(&dimension)
     }
 
+    pub fn dimensions(&self) -> impl Iterator<Item = (DimensionId, &Type)> {
+        self.dimension_types.iter().map(|(id, ty)| (*id, ty))
+    }
+
     pub fn unit_type(&self, unit: &ResolvedUnit) -> Type {
         Type::Generic {
             name: "Unit".into(),

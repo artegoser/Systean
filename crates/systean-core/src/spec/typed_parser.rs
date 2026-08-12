@@ -478,7 +478,7 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
         .padded()
         .ignore_then(ident.clone())
         .then_ignore(just(':').padded())
-        .then(ty)
+        .then(ty.clone())
         .then_ignore(just(';').padded())
         .map(|(name, ty)| TypedDeclaration::Context { name, ty });
 
