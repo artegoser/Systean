@@ -154,8 +154,16 @@ fn malformed_or_noninvertible_surface_forms_fail_package_compilation() {
     ] {
         let errors = compile_typed_sources([("bad.semsys".into(), source.into())])
             .expect_err("invalid surface form must fail");
-        let rendered = errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("; ");
-        assert!(rendered.contains(expected), "{rendered}");
+        assert!(
+            errors.iter().any(|error| match (expected, error) {
+                ("unknown", TypedCompileError::UnknownSurfaceParameter { .. })
+                | ("duplicate", TypedCompileError::DuplicateSurfaceParameter { .. })
+                | ("missing", TypedCompileError::MissingSurfaceParameter { .. })
+                | ("root", TypedCompileError::InvalidSurfaceRootCount { .. }) => true,
+                _ => false,
+            }),
+            "unexpected errors: {errors:?}"
+        );
     }
 
     let errors = compile_typed_sources([(
