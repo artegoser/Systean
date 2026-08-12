@@ -11,7 +11,6 @@ export type {
 	DiscourseWorkbenchAnalysis,
 	GenerationWorkbenchAnalysis,
 	Letter,
-	LexicalSemantic,
 	LiteralWorkbenchAnalysis,
 	MorphemeAnalysis,
 	PackageManifest,

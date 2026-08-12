@@ -4,6 +4,8 @@ mod package;
 mod parser;
 mod typed_ast;
 mod typed_compile;
+mod typed_compat;
+mod legacy_map;
 mod typed_parser;
 
 pub use ast::{Declaration, ParsedTerm, Specification};
@@ -25,3 +27,7 @@ pub use typed_compile::{
     compile_typed_specifications,
 };
 pub use typed_parser::{TypedParseError, parse_typed_specification};
+
+pub(crate) use typed_compat::{legacy_type as legacy_typed_type, project_environment as project_typed_environment};
+
+pub use legacy_map::{LegacyLexicalMapError, LegacyLexicalMapping, resolve_legacy_lexical_map};

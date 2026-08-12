@@ -166,8 +166,6 @@ pub struct PragmaticsConfig {
     pub disjunction_operator: String,
     pub disjunction_left_role: String,
     pub disjunction_right_role: String,
-    pub information_family: String,
-    pub unknown_status: String,
 }
 
 /// Surface realization attached to one lexical root in `dictionary.toml`.
@@ -391,8 +389,6 @@ impl SyntaxConfig {
             ("disjunction_operator", self.pragmatics.disjunction_operator.as_str()),
             ("disjunction_left_role", self.pragmatics.disjunction_left_role.as_str()),
             ("disjunction_right_role", self.pragmatics.disjunction_right_role.as_str()),
-            ("information_family", self.pragmatics.information_family.as_str()),
-            ("unknown_status", self.pragmatics.unknown_status.as_str()),
         ] {
             if value.trim().is_empty() {
                 return Err(SyntaxConfigError::UnsupportedPolicy(format!(

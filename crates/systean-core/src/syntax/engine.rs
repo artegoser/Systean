@@ -67,26 +67,11 @@ impl SyntaxEngine {
                     }
                 }
                 LexemeConfig::Reference => {}
-                LexemeConfig::Information { status, knower_type } => {
-                    if status.trim().is_empty() {
-                        return Err(SurfaceError::InvalidBinding(format!(
-                            "information lexical root `{surface}` has an empty status identity"
-                        )));
-                    }
-                    if let Some(source) = knower_type {
-                        let ty = parse_type(source).map_err(|errors| {
-                            SurfaceError::InvalidBinding(format!(
-                                "information lexical root `{surface}` has invalid knower type `{source}`: {}",
-                                errors
-                                    .into_iter()
-                                    .map(|error| error.to_string())
-                                    .collect::<Vec<_>>()
-                                    .join("; ")
-                            ))
-                        })?;
-                        if !environment.is_well_formed_type(&ty) {
+                LexemeConfig::Information { knower_type, .. } => {
+                    if let Some(ty) = knower_type {
+                        if !environment.is_well_formed_type(ty) {
                             return Err(SurfaceError::InvalidBinding(format!(
-                                "information lexical root `{surface}` uses unknown knower type `{source}`"
+                                "information lexical root `{surface}` uses unknown knower type `{ty}`"
                             )));
                         }
                     }
@@ -109,17 +94,7 @@ impl SyntaxEngine {
                     }
                 }
                 LexemeConfig::Context { ty, .. } => {
-                    let ty = parse_type(ty).map_err(|errors| {
-                        SurfaceError::InvalidBinding(format!(
-                            "context lexical root `{surface}` has invalid type: {}",
-                            errors
-                                .into_iter()
-                                .map(|error| error.to_string())
-                                .collect::<Vec<_>>()
-                                .join("; ")
-                        ))
-                    })?;
-                    if !environment.is_well_formed_type(&ty) {
+                    if !environment.is_well_formed_type(ty) {
                         return Err(SurfaceError::InvalidBinding(format!(
                             "context lexical root `{surface}` uses unknown type `{ty}`"
                         )));

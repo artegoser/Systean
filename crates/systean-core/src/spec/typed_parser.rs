@@ -3,7 +3,7 @@ use std::fmt;
 use chumsky::error::Rich;
 use chumsky::prelude::*;
 
-
+use crate::semantics::LiteralKind;
 use super::parser::type_parser;
 use super::typed_ast::{
     DataConstructorDeclaration, SourceExpr, SourceParameter, SourceUnitDefinition, TypedDeclaration,
@@ -165,6 +165,28 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
             type_parameters: type_parameters.unwrap_or_default(),
         });
 
+    let subtype = just("subtype")
+        .padded()
+        .ignore_then(ident.clone())
+        .then_ignore(just(':').padded())
+        .then(ident.clone())
+        .then_ignore(just(';').padded())
+        .map(|(child, parent)| TypedDeclaration::Subtype { child, parent });
+
+    let literal_kind = choice((
+        just("integer").to(LiteralKind::Integer),
+        just("boolean").to(LiteralKind::Boolean),
+        just("string").to(LiteralKind::String),
+    ))
+    .padded();
+    let literal = just("literal")
+        .padded()
+        .ignore_then(literal_kind)
+        .then_ignore(just(':').padded())
+        .then(ty.clone())
+        .then_ignore(just(';').padded())
+        .map(|(kind, ty)| TypedDeclaration::Literal { kind, ty });
+
     let callable_shape = choice((
         parameters
             .clone()
@@ -317,6 +339,8 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
 
     choice((
         type_declaration,
+        subtype,
+        literal,
         word,
         primitive,
         definition,

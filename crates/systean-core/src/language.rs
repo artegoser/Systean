@@ -3,7 +3,7 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::compiler::{
     PackageInvariantError, PackageManifest, PackageManifestError, PackageProvenance,
@@ -23,44 +23,22 @@ use crate::morphology::{
 use crate::phonology::{ConfigError, PhonologyConfig, RootInventory, WordAnalysis};
 use crate::pragmatics::{PragmaticAnalysis, PragmaticError, interpret_pragmatics, validate_pragmatics};
 use crate::units::{UnitRegistry, UnitsConfig, UnitsConfigError};
-use crate::semantics::{Checker, Environment, Explainer, Term, Type, canonicalize};
-use crate::spec::{PackageError, compile_path, compile_sources, lower_term, parse_term, parse_type};
+use crate::semantics::{Checker, Environment, Explainer, InformationStatus, Term, Type, canonicalize};
+use crate::spec::{
+    CompiledSymbolKind, CompiledTerm, TypedCompileError, TypedSemanticPackage,
+    compile_typed_sources, legacy_typed_type, lower_term, parse_term, parse_type,
+    project_typed_environment,
+};
 use crate::syntax::{
     LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceExpr, SurfaceFormConfig, SurfaceLexicon,
     SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst, elaborate_surface,
     linearize_surface, parse_surface_with_literals,
 };
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum LexicalSemantic {
-    Constant {
-        #[serde(default)]
-        name: Option<String>,
-        #[serde(rename = "type")]
-        ty: String,
-    },
-    Operator {
-        name: String,
-    },
-    Reference,
-    Information {
-        status: String,
-        #[serde(default)]
-        knower_type: Option<String>,
-    },
-    Context {
-        key: String,
-        #[serde(rename = "type")]
-        ty: String,
-    },
-}
-
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct DictionaryEntry {
     pub root: String,
     pub definition: String,
-    pub semantic: LexicalSemantic,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub syntax: Option<SurfaceFormConfig>,
 }
@@ -90,43 +68,36 @@ impl Dictionary {
         &self.entries
     }
 
-    pub fn surface_lexicon(&self) -> SurfaceLexicon {
-        let entries = self
+    pub fn surface_lexicon(
+        &self,
+        semantics: &TypedSemanticPackage,
+    ) -> Result<SurfaceLexicon, LanguageError> {
+        let dictionary_roots = self
             .entries
             .iter()
-            .map(|entry| (entry.root.clone(), compile_surface_lexeme(entry)))
-            .collect::<BTreeMap<_, _>>();
-        SurfaceLexicon::new(entries)
-    }
-
-    fn install_constants(&self, environment: &mut Environment) -> Result<(), LanguageError> {
-        for entry in &self.entries {
-            let LexicalSemantic::Constant { name, ty } = &entry.semantic else {
-                continue;
-            };
-            let semantic_name = name.as_deref().unwrap_or(&entry.root);
-            let parsed_type = parse_type(ty).map_err(|errors| {
-                LanguageError::Dictionary(format!(
-                    "dictionary entry `{}` has invalid semantic type `{}`: {}",
-                    entry.root,
-                    ty,
-                    errors
-                        .into_iter()
-                        .map(|error| error.to_string())
-                        .collect::<Vec<_>>()
-                        .join("; ")
-                ))
-            })?;
-            environment
-                .define_constant(semantic_name.to_owned(), parsed_type)
-                .map_err(|error| {
-                    LanguageError::Dictionary(format!(
-                        "dictionary entry `{}` cannot define semantic constant `{semantic_name}`: {error}",
-                        entry.root
-                    ))
-                })?;
+            .map(|entry| entry.root.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        let semantic_roots = semantics
+            .symbols()
+            .filter(|symbol| symbol.kind == CompiledSymbolKind::Word)
+            .filter_map(|symbol| semantics.source_name_for_symbol(symbol.id))
+            .collect::<std::collections::BTreeSet<_>>();
+        if dictionary_roots != semantic_roots {
+            let missing_metadata = semantic_roots.difference(&dictionary_roots).copied().collect::<Vec<_>>();
+            let missing_semantics = dictionary_roots.difference(&semantic_roots).copied().collect::<Vec<_>>();
+            return Err(LanguageError::Dictionary(format!(
+                "dictionary/typed lexicon ownership mismatch; missing metadata: {missing_metadata:?}; missing typed words: {missing_semantics:?}"
+            )));
         }
-        Ok(())
+
+        let mut entries = BTreeMap::new();
+        for entry in &self.entries {
+            entries.insert(
+                entry.root.clone(),
+                compile_surface_lexeme(entry, semantics)?,
+            );
+        }
+        Ok(SurfaceLexicon::new(entries))
     }
 }
 
@@ -135,10 +106,10 @@ fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryE
         LanguageError::Dictionary(format!("dictionary entry `{root}` must be a TOML table"))
     })?;
     if let Some(unknown) = fields.keys().find(|name| {
-        !matches!(name.as_str(), "definition" | "semantic" | "syntax")
+        !matches!(name.as_str(), "definition" | "syntax")
     }) {
         return Err(LanguageError::Dictionary(format!(
-            "dictionary entry `{root}` contains unsupported field `{unknown}`; lexical roots have one canonical identity, not POS-specific meanings"
+            "dictionary entry `{root}` contains unsupported field `{unknown}`; semantic identity belongs to language/typed/*.semsys"
         )));
     }
     let definition = fields
@@ -151,16 +122,6 @@ fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryE
                 "dictionary entry `{root}` must contain a non-empty `definition`"
             ))
         })?;
-    let semantic_value = fields.get("semantic").ok_or_else(|| {
-        LanguageError::Dictionary(format!(
-            "dictionary entry `{root}` must contain one `semantic` binding"
-        ))
-    })?;
-    let semantic: LexicalSemantic = semantic_value.clone().try_into().map_err(|error| {
-        LanguageError::Dictionary(format!(
-            "dictionary entry `{root}` has invalid `semantic` binding: {error}"
-        ))
-    })?;
     let syntax = fields
         .get("syntax")
         .map(|value| {
@@ -172,176 +133,164 @@ fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryE
         })
         .transpose()?;
 
-    validate_lexical_binding(root, &semantic, syntax.as_ref())?;
-
     Ok(DictionaryEntry {
         root: root.to_lowercase(),
         definition: definition.to_owned(),
-        semantic,
         syntax,
     })
 }
 
-fn validate_lexical_binding(
-    root: &str,
-    semantic: &LexicalSemantic,
-    syntax: Option<&SurfaceFormConfig>,
-) -> Result<(), LanguageError> {
-    match semantic {
-        LexicalSemantic::Constant { name, ty } => {
-            if name.as_ref().is_some_and(|name| name.trim().is_empty()) {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary entry `{root}` has an empty semantic constant name"
-                )));
-            }
-            if ty.trim().is_empty() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary entry `{root}` has an empty semantic type"
-                )));
-            }
-            if syntax.is_some() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary constant root `{root}` is automatically a surface atom and must not duplicate that in `syntax`"
-                )));
-            }
+fn compile_surface_lexeme(
+    entry: &DictionaryEntry,
+    semantics: &TypedSemanticPackage,
+) -> Result<LexemeConfig, LanguageError> {
+    let symbol_id = semantics.symbol_id(&entry.root).ok_or_else(|| {
+        LanguageError::Dictionary(format!(
+            "dictionary root `{}` has no typed semantic word declaration",
+            entry.root
+        ))
+    })?;
+    let symbol = semantics.symbol(symbol_id).ok_or_else(|| {
+        LanguageError::Dictionary(format!("typed symbol for `{}` was not compiled", entry.root))
+    })?;
+    if symbol.kind != CompiledSymbolKind::Word {
+        return Err(LanguageError::Dictionary(format!(
+            "dictionary root `{}` resolves to a non-word typed symbol",
+            entry.root
+        )));
+    }
+
+    let body = strip_definition_lambdas(symbol.definition.as_ref());
+    if let Some(CompiledTerm::Apply { function, arguments }) = body {
+        if Some(*function) == semantics.symbol_id("meta.resolve") && arguments.is_empty() {
+            return Ok(LexemeConfig::Reference);
         }
-        LexicalSemantic::Operator { name } => {
-            if name.trim().is_empty() {
+        if Some(*function) == semantics.symbol_id("meta.hole") && arguments.len() == 1 {
+            let CompiledTerm::Constructor { constructor: mode, .. } = &arguments[0] else {
                 return Err(LanguageError::Dictionary(format!(
-                    "dictionary entry `{root}` has an empty semantic operator name"
+                    "information word `{}` must construct one InfoMode value",
+                    entry.root
                 )));
-            }
-            if syntax.is_none() {
+            };
+            let status = if Some(*mode) == semantics.constructor_id("InfoMode.unknown") {
+                InformationStatus::Unknown
+            } else if Some(*mode) == semantics.constructor_id("InfoMode.unspecified") {
+                InformationStatus::Unspecified
+            } else if Some(*mode) == semantics.constructor_id("InfoMode.withheld") {
+                InformationStatus::Withheld
+            } else {
                 return Err(LanguageError::Dictionary(format!(
-                    "dictionary operator root `{root}` requires one explicit `syntax` realization"
+                    "information word `{}` uses an unknown InfoMode constructor",
+                    entry.root
                 )));
-            }
-        }
-        LexicalSemantic::Reference => {
-            if syntax.is_some() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary reference root `{root}` has intrinsic reference syntax and must not declare `syntax`"
-                )));
-            }
-        }
-        LexicalSemantic::Information { status, knower_type } => {
-            if status.trim().is_empty() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary information root `{root}` has an empty status identity"
-                )));
-            }
-            if knower_type.as_ref().is_some_and(|ty| ty.trim().is_empty()) {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary information root `{root}` has an empty knower type"
-                )));
-            }
-            if syntax.is_some() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary information root `{root}` has intrinsic typed-slot syntax and must not declare `syntax`"
-                )));
-            }
-        }
-        LexicalSemantic::Context { key, ty } => {
-            if key.trim().is_empty() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary context root `{root}` has an empty context key"
-                )));
-            }
-            if ty.trim().is_empty() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary context root `{root}` has an empty semantic type"
-                )));
-            }
-            if syntax.is_some() {
-                return Err(LanguageError::Dictionary(format!(
-                    "dictionary context root `{root}` has intrinsic context syntax and must not declare `syntax`"
-                )));
-            }
+            };
+            let knower_type = if status == InformationStatus::Unknown {
+                symbol
+                    .signature
+                    .parameters
+                    .first()
+                    .map(|ty| legacy_typed_type(semantics, ty))
+            } else {
+                None
+            };
+            return Ok(LexemeConfig::Information {
+                mode: *mode,
+                status,
+                knower_type,
+            });
         }
     }
-    Ok(())
+    if let Some(CompiledTerm::Context(slot)) = body {
+        let key = semantics
+            .source_name_for_context(*slot)
+            .ok_or_else(|| LanguageError::Dictionary(format!(
+                "context word `{}` references an unknown context slot",
+                entry.root
+            )))?
+            .to_owned();
+        return Ok(LexemeConfig::Context {
+            slot: *slot,
+            key,
+            ty: legacy_typed_type(semantics, &symbol.signature.returns),
+        });
+    }
+
+    let semantic = entry.root.clone();
+    let lexeme = match &entry.syntax {
+        None if symbol.signature.parameters.is_empty() => LexemeConfig::Atom { semantic },
+        None => {
+            let debug = semantics.debug_symbol(symbol_id).expect("word debug info");
+            LexemeConfig::Predicate {
+                semantic,
+                primary_role: debug.parameter_names.first().cloned(),
+                rest_roles: debug.parameter_names.iter().skip(1).cloned().collect(),
+            }
+        }
+        Some(SurfaceFormConfig::Class { role }) => LexemeConfig::Class {
+            semantic,
+            role: role.clone(),
+        },
+        Some(SurfaceFormConfig::Predicate { primary_role, rest_roles }) => LexemeConfig::Predicate {
+            semantic,
+            primary_role: primary_role.clone(),
+            rest_roles: rest_roles.clone(),
+        },
+        Some(SurfaceFormConfig::Prefix { role }) => LexemeConfig::Prefix {
+            semantic,
+            role: role.clone(),
+        },
+        Some(SurfaceFormConfig::Infix { left_role, right_role }) => LexemeConfig::Infix {
+            semantic,
+            left_role: left_role.clone(),
+            right_role: right_role.clone(),
+        },
+        Some(SurfaceFormConfig::Quantifier {
+            binder_role,
+            variable_type,
+            restriction_operator,
+            restriction_role,
+            body_role,
+        }) => LexemeConfig::Quantifier {
+            semantic,
+            binder_role: binder_role.clone(),
+            variable_type: variable_type.clone(),
+            restriction_operator: restriction_operator.clone(),
+            restriction_role: restriction_role.clone(),
+            body_role: body_role.clone(),
+        },
+        Some(SurfaceFormConfig::CountedQuantifier {
+            binder_role,
+            count_role,
+            variable_type,
+            restriction_operator,
+            restriction_role,
+            body_role,
+        }) => LexemeConfig::CountedQuantifier {
+            semantic,
+            binder_role: binder_role.clone(),
+            count_role: count_role.clone(),
+            variable_type: variable_type.clone(),
+            restriction_operator: restriction_operator.clone(),
+            restriction_role: restriction_role.clone(),
+            body_role: body_role.clone(),
+        },
+        Some(SurfaceFormConfig::SpeechAct { role }) => LexemeConfig::SpeechAct {
+            semantic,
+            role: role.clone(),
+        },
+        Some(SurfaceFormConfig::Name { role }) => LexemeConfig::Name {
+            semantic,
+            role: role.clone(),
+        },
+    };
+    Ok(lexeme)
 }
 
-fn compile_surface_lexeme(entry: &DictionaryEntry) -> LexemeConfig {
-    match (&entry.semantic, &entry.syntax) {
-        (LexicalSemantic::Constant { name, .. }, None) => LexemeConfig::Atom {
-            semantic: name.clone().unwrap_or_else(|| entry.root.clone()),
-        },
-        (LexicalSemantic::Reference, None) => LexemeConfig::Reference,
-        (LexicalSemantic::Information { status, knower_type }, None) => LexemeConfig::Information {
-            status: status.clone(),
-            knower_type: knower_type.clone(),
-        },
-        (LexicalSemantic::Context { key, ty }, None) => LexemeConfig::Context {
-            key: key.clone(),
-            ty: ty.clone(),
-        },
-        (LexicalSemantic::Operator { name }, Some(surface)) => match surface {
-            SurfaceFormConfig::Class { role } => LexemeConfig::Class {
-                semantic: name.clone(),
-                role: role.clone(),
-            },
-            SurfaceFormConfig::Predicate {
-                primary_role,
-                rest_roles,
-            } => LexemeConfig::Predicate {
-                semantic: name.clone(),
-                primary_role: primary_role.clone(),
-                rest_roles: rest_roles.clone(),
-            },
-            SurfaceFormConfig::Prefix { role } => LexemeConfig::Prefix {
-                semantic: name.clone(),
-                role: role.clone(),
-            },
-            SurfaceFormConfig::Infix {
-                left_role,
-                right_role,
-            } => LexemeConfig::Infix {
-                semantic: name.clone(),
-                left_role: left_role.clone(),
-                right_role: right_role.clone(),
-            },
-            SurfaceFormConfig::Quantifier {
-                binder_role,
-                variable_type,
-                restriction_operator,
-                restriction_role,
-                body_role,
-            } => LexemeConfig::Quantifier {
-                semantic: name.clone(),
-                binder_role: binder_role.clone(),
-                variable_type: variable_type.clone(),
-                restriction_operator: restriction_operator.clone(),
-                restriction_role: restriction_role.clone(),
-                body_role: body_role.clone(),
-            },
-            SurfaceFormConfig::CountedQuantifier {
-                binder_role,
-                count_role,
-                variable_type,
-                restriction_operator,
-                restriction_role,
-                body_role,
-            } => LexemeConfig::CountedQuantifier {
-                semantic: name.clone(),
-                binder_role: binder_role.clone(),
-                count_role: count_role.clone(),
-                variable_type: variable_type.clone(),
-                restriction_operator: restriction_operator.clone(),
-                restriction_role: restriction_role.clone(),
-                body_role: body_role.clone(),
-            },
-            SurfaceFormConfig::SpeechAct { role } => LexemeConfig::SpeechAct {
-                semantic: name.clone(),
-                role: role.clone(),
-            },
-            SurfaceFormConfig::Name { role } => LexemeConfig::Name {
-                semantic: name.clone(),
-                role: role.clone(),
-            },
-        },
-        _ => unreachable!("dictionary lexical bindings are validated during parsing"),
+fn strip_definition_lambdas(mut term: Option<&CompiledTerm>) -> Option<&CompiledTerm> {
+    while let Some(CompiledTerm::Lambda { body, .. }) = term {
+        term = Some(body.as_ref());
     }
+    term
 }
 
 #[derive(Clone, Debug)]
@@ -352,6 +301,7 @@ pub struct LanguagePackage {
     dictionary: Dictionary,
     roots: RootInventory,
     semantics: Environment,
+    typed_semantics: TypedSemanticPackage,
     manifest: PackageManifest,
     provenance: PackageProvenance,
     validation: PackageValidationReport,
@@ -437,7 +387,7 @@ pub enum LanguageError {
     Conversation(ConversationError),
     Dictionary(String),
     RootInventory(String),
-    Semantics(Vec<PackageError>),
+    TypedSemantics(Vec<TypedCompileError>),
     PackageManifest(PackageManifestError),
     Package(Vec<PackageInvariantError>),
     SemanticExpression(String),
@@ -461,7 +411,7 @@ impl LanguagePackage {
         let dictionary = read(path.join("dictionary.toml"))?;
         let literals = read(path.join("literals.toml"))?;
         let units = read(path.join("units.toml"))?;
-        let semantics = compile_path(path.join("semantics")).map_err(LanguageError::Semantics)?;
+        let typed_semantics = compile_typed_directory(path.join("typed"))?;
         Self::from_parts(
             &alphabet,
             &phonology,
@@ -469,7 +419,7 @@ impl LanguagePackage {
             &syntax,
             &dictionary,
             Some((&literals, &units)),
-            semantics,
+            typed_semantics,
             manifest,
             provenance,
             Some(path),
@@ -484,12 +434,12 @@ impl LanguagePackage {
         dictionary: &str,
         semantic_sources: &[(&str, &str)],
     ) -> Result<Self, LanguageError> {
-        let semantics = compile_sources(
+        let typed_semantics = compile_typed_sources(
             semantic_sources
                 .iter()
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
-        .map_err(LanguageError::Semantics)?;
+        .map_err(LanguageError::TypedSemantics)?;
         let manifest = PackageManifest::synthetic();
         let provenance = PackageProvenance::from_sources(
             &manifest,
@@ -514,7 +464,7 @@ impl LanguagePackage {
             syntax,
             dictionary,
             None,
-            semantics,
+            typed_semantics,
             manifest,
             provenance,
             None,
@@ -536,12 +486,12 @@ impl LanguagePackage {
     ) -> Result<Self, LanguageError> {
         let manifest = PackageManifest::from_toml(manifest_source)
             .map_err(LanguageError::PackageManifest)?;
-        let semantics = compile_sources(
+        let typed_semantics = compile_typed_sources(
             semantic_sources
                 .iter()
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
-        .map_err(LanguageError::Semantics)?;
+        .map_err(LanguageError::TypedSemantics)?;
         let compatibility_path = manifest.validation.compatibility_corpus.clone();
         let adversarial_path = manifest.validation.adversarial_corpus.clone();
         let provenance = PackageProvenance::from_sources(
@@ -572,7 +522,7 @@ impl LanguagePackage {
             syntax,
             dictionary,
             Some((literals, units)),
-            semantics,
+            typed_semantics,
             manifest,
             provenance,
             None,
@@ -601,12 +551,12 @@ impl LanguagePackage {
         units: &str,
         semantic_sources: &[(&str, &str)],
     ) -> Result<Self, LanguageError> {
-        let semantics = compile_sources(
+        let typed_semantics = compile_typed_sources(
             semantic_sources
                 .iter()
                 .map(|(name, source)| ((*name).to_owned(), (*source).to_owned())),
         )
-        .map_err(LanguageError::Semantics)?;
+        .map_err(LanguageError::TypedSemantics)?;
         let manifest = PackageManifest::synthetic();
         let provenance = PackageProvenance::from_sources(
             &manifest,
@@ -633,7 +583,7 @@ impl LanguagePackage {
             syntax,
             dictionary,
             Some((literals, units)),
-            semantics,
+            typed_semantics,
             manifest,
             provenance,
             None,
@@ -647,7 +597,7 @@ impl LanguagePackage {
         syntax: &str,
         dictionary: &str,
         structured_sources: Option<(&str, &str)>,
-        semantics: Environment,
+        typed_semantics: TypedSemanticPackage,
         manifest: PackageManifest,
         provenance: PackageProvenance,
         package_root: Option<&Path>,
@@ -664,8 +614,9 @@ impl LanguagePackage {
         validate_roots(&phonology_config, &roots)?;
         validate_morphology(&morphology_engine, &phonology_config, &roots)?;
 
-        let mut semantics = semantics;
-        dictionary_parsed.install_constants(&mut semantics)?;
+        let semantics = project_typed_environment(&typed_semantics).map_err(|error| {
+            LanguageError::Dictionary(format!("typed semantic compatibility projection failed: {error}"))
+        })?;
         validate_pragmatics(&syntax_config.pragmatics, &semantics)
             .map_err(LanguageError::Pragmatics)?;
         let syntax_engine = if let Some((literal_source, units_source)) = structured_sources {
@@ -673,7 +624,7 @@ impl LanguagePackage {
                 .map_err(LanguageError::LiteralConfig)?;
             let units_config = UnitsConfig::from_toml(units_source)
                 .map_err(LanguageError::UnitsConfig)?;
-            let units_registry = UnitRegistry::new(units_config).map_err(LanguageError::UnitsConfig)?;
+            let units_registry = UnitRegistry::new(units_config, &typed_semantics).map_err(LanguageError::UnitsConfig)?;
             let literal_engine = LiteralEngine::new(
                 literal_config,
                 units_registry,
@@ -683,11 +634,11 @@ impl LanguagePackage {
             .map_err(LanguageError::Literal)?;
             SyntaxEngine::new_with_literals(
                 syntax_config,
-                dictionary_parsed.surface_lexicon(),
+                dictionary_parsed.surface_lexicon(&typed_semantics)?,
                 literal_engine,
             )
         } else {
-            SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon())
+            SyntaxEngine::new(syntax_config, dictionary_parsed.surface_lexicon(&typed_semantics)?)
         };
         validate_syntax(&syntax_engine, &phonology_config, &roots, &semantics)?;
         validate_literals(&syntax_engine, &phonology_config, &roots, &semantics)?;
@@ -699,6 +650,7 @@ impl LanguagePackage {
             dictionary: dictionary_parsed,
             roots,
             semantics,
+            typed_semantics,
             manifest,
             provenance,
             validation: PackageValidationReport::empty(),
@@ -739,6 +691,14 @@ impl LanguagePackage {
         &self.provenance.fingerprint
     }
 
+    pub fn semantic_fingerprint(&self) -> &str {
+        self.typed_semantics.semantic_fingerprint()
+    }
+
+    pub fn surface_fingerprint(&self) -> &str {
+        self.typed_semantics.surface_fingerprint()
+    }
+
     pub fn phonology(&self) -> &PhonologyConfig {
         &self.phonology
     }
@@ -765,6 +725,10 @@ impl LanguagePackage {
 
     pub fn semantics(&self) -> &Environment {
         &self.semantics
+    }
+
+    pub fn typed_semantics(&self) -> &TypedSemanticPackage {
+        &self.typed_semantics
     }
 
     pub fn analyze_word(&self, word: &str) -> Result<LexicalWordAnalysis, LanguageError> {
@@ -1374,7 +1338,7 @@ fn validate_literals(
             ))));
         }
     }
-    for unit in &literals.units().config().units {
+    for unit in literals.units().units() {
         for ty in [
             literals.units().unit_type(unit),
             literals.units().quantity_type(unit, false),
@@ -1422,6 +1386,31 @@ fn validate_surface_token(
     Ok(())
 }
 
+fn compile_typed_directory(path: PathBuf) -> Result<TypedSemanticPackage, LanguageError> {
+    let mut sources = Vec::new();
+    let entries = fs::read_dir(&path).map_err(|error| LanguageError::Io {
+        path: path.clone(),
+        message: error.to_string(),
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|error| LanguageError::Io {
+            path: path.clone(),
+            message: error.to_string(),
+        })?;
+        let entry_path = entry.path();
+        if entry_path.extension().and_then(|value| value.to_str()) != Some("semsys") {
+            continue;
+        }
+        let relative = format!(
+            "typed/{}",
+            entry_path.file_name().and_then(|value| value.to_str()).unwrap_or("<unknown>")
+        );
+        sources.push((relative, read(entry_path)?));
+    }
+    sources.sort_by(|left, right| left.0.cmp(&right.0));
+    compile_typed_sources(sources).map_err(LanguageError::TypedSemantics)
+}
+
 fn read(path: PathBuf) -> Result<String, LanguageError> {
     fs::read_to_string(&path).map_err(|error| LanguageError::Io {
         path,
@@ -1448,12 +1437,10 @@ impl fmt::Display for LanguageError {
             Self::Conversation(error) => write!(f, "conversation: {error}"),
             Self::Dictionary(error) => write!(f, "dictionary: {error}"),
             Self::RootInventory(error) => write!(f, "root inventory: {error}"),
-            Self::Semantics(errors) => {
+            Self::TypedSemantics(errors) => {
                 for (index, error) in errors.iter().enumerate() {
-                    if index > 0 {
-                        writeln!(f)?;
-                    }
-                    write!(f, "semantics: {error}")?;
+                    if index > 0 { writeln!(f)?; }
+                    write!(f, "typed semantics: {error}")?;
                 }
                 Ok(())
             }

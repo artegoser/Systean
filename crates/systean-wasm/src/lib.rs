@@ -15,9 +15,9 @@ const LITERALS: &str = include_str!("../../../language/literals.toml");
 const UNITS: &str = include_str!("../../../language/units.toml");
 const COMPATIBILITY_CORPUS: &str = include_str!("../../../language/corpus/compatibility.tsv");
 const ADVERSARIAL_CORPUS: &str = include_str!("../../../language/corpus/adversarial.tsv");
-const SEMANTICS_CORE: &str = include_str!("../../../language/semantics/core.semsys");
-const SEMANTICS_PRAGMATICS: &str = include_str!("../../../language/semantics/pragmatics.semsys");
-const SEMANTICS_SUBJECTIVE: &str = include_str!("../../../language/semantics/subjective.semsys");
+const TYPED_CORE: &str = include_str!("../../../language/typed/core.semsys");
+const TYPED_LEXICON: &str = include_str!("../../../language/typed/lexicon.semsys");
+const TYPED_UNITS: &str = include_str!("../../../language/typed/units.semsys");
 
 static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
 
@@ -33,9 +33,9 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             LITERALS,
             UNITS,
             &[
-                ("semantics/core.semsys", SEMANTICS_CORE),
-                ("semantics/pragmatics.semsys", SEMANTICS_PRAGMATICS),
-                ("semantics/subjective.semsys", SEMANTICS_SUBJECTIVE),
+                ("typed/core.semsys", TYPED_CORE),
+                ("typed/lexicon.semsys", TYPED_LEXICON),
+                ("typed/units.semsys", TYPED_UNITS),
             ],
             COMPATIBILITY_CORPUS,
             ADVERSARIAL_CORPUS,

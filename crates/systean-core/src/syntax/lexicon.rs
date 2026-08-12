@@ -1,3 +1,5 @@
+use crate::semantics::{ConstructorId, ContextSlotId, InformationStatus, Type};
+
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -7,16 +9,18 @@ pub enum LexemeConfig {
     },
     Reference,
     Information {
-        status: String,
-        knower_type: Option<String>,
+        mode: ConstructorId,
+        status: InformationStatus,
+        knower_type: Option<Type>,
     },
     Alias {
         name: String,
         ty: String,
     },
     Context {
+        slot: ContextSlotId,
         key: String,
-        ty: String,
+        ty: Type,
     },
     Class {
         semantic: String,

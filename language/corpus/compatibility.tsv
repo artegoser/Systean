@@ -1,9 +1,9 @@
 # label<TAB>source<TAB>canonical surface<TAB>type<TAB>canonical semantics
 bare entity	sol	sol	Entity	sol
-proper name	na artemi	na artemi	Entity	proper_name(payload = "artemi")
-binary predicate	na artemi vid na mari	na artemi vid na mari	Proposition	see(observed = proper_name(payload = "mari"), observer = proper_name(payload = "artemi"))
-explicit question	ke na artemi viv	ke na artemi viv	Utterance	ask_truth(content = alive(entity = proper_name(payload = "artemi")))
-negated proposition	ne na artemi viv	ne na artemi viv	Proposition	not(value = alive(entity = proper_name(payload = "artemi")))
-universal quantifier	ra per viv	ra per viv	Proposition	forall(predicate = bind v0: Entity => implies(condition = person(entity = v0), consequence = alive(entity = v0)))
+proper name	na artemi	na artemi	Entity	na(payload = "artemi")
+binary predicate	na artemi vid na mari	na artemi vid na mari	Proposition	vid(observed = na(payload = "mari"), observer = na(payload = "artemi"))
+explicit question	ke na artemi viv	ke na artemi viv	Utterance	ke(content = viv(entity = na(payload = "artemi")))
+negated proposition	ne na artemi viv	ne na artemi viv	Proposition	ne(value = viv(entity = na(payload = "artemi")))
+universal quantifier	ra per viv	ra per viv	Proposition	ra(predicate = bind v0: Entity => imp(condition = per(entity = v0), consequence = viv(entity = v0)))
 spoken exact number	mega uno pent	mega uno pent	Number	number<"1000005">
 opaque text	sit hello world tis	sit hello world tis	Text	"hello world"

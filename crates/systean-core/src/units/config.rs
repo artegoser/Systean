@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use num_bigint::BigInt;
-use crate::rational::ExactRational;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -20,6 +18,7 @@ pub struct MetaConfig {
     pub version: Option<String>,
 }
 
+/// Surface/type-adapter metadata for a typed semantic dimension.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct DimensionConfig {
@@ -27,15 +26,14 @@ pub struct DimensionConfig {
     pub semantic_type: String,
 }
 
+/// Human/API aliases and surface spellings only. Dimension and exact scale are owned by
+/// `language/typed/units.semsys` as of Phase 18.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct UnitConfig {
     pub id: String,
-    pub dimension: String,
     pub symbol: String,
     pub spoken: String,
-    pub scale_numerator: String,
-    pub scale_denominator: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,12 +69,6 @@ impl UnitsConfig {
         let mut symbols = BTreeSet::new();
         let mut spoken = BTreeSet::new();
         for unit in &self.units {
-            if !dimensions.contains(&unit.dimension) {
-                return Err(UnitsConfigError::Invalid(format!(
-                    "unit `{}` references unknown dimension `{}`",
-                    unit.id, unit.dimension
-                )));
-            }
             if !ids.insert(unit.id.clone()) {
                 return Err(UnitsConfigError::Invalid(format!("duplicate unit id `{}`", unit.id)));
             }
@@ -92,14 +84,6 @@ impl UnitsConfig {
                     unit.spoken
                 )));
             }
-            let numerator = parse_bigint(&unit.scale_numerator)?;
-            let denominator = parse_bigint(&unit.scale_denominator)?;
-            if numerator <= BigInt::from(0u8) || denominator <= BigInt::from(0u8) {
-                return Err(UnitsConfigError::Invalid(format!(
-                    "unit `{}` conversion scale must be positive",
-                    unit.id
-                )));
-            }
         }
         Ok(())
     }
@@ -107,21 +91,6 @@ impl UnitsConfig {
     pub fn dimensions_by_id(&self) -> BTreeMap<&str, &DimensionConfig> {
         self.dimensions.iter().map(|value| (value.id.as_str(), value)).collect()
     }
-}
-
-impl UnitConfig {
-    pub fn scale(&self) -> Result<ExactRational, UnitsConfigError> {
-        Ok(ExactRational::new(
-            parse_bigint(&self.scale_numerator)?,
-            parse_bigint(&self.scale_denominator)?,
-        ))
-    }
-}
-
-fn parse_bigint(source: &str) -> Result<BigInt, UnitsConfigError> {
-    BigInt::parse_bytes(source.as_bytes(), 10).ok_or_else(|| {
-        UnitsConfigError::Invalid(format!("invalid exact integer `{source}` in unit conversion"))
-    })
 }
 
 impl std::fmt::Display for UnitsConfigError {

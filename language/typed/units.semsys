@@ -1,5 +1,5 @@
-// Phase 18B1 typed unit/dimension identity bridge.
-// Runtime identity follows Systean unit roots; legacy units.toml names are compatibility aliases only.
+// Phase 18 normative unit/dimension semantic ownership.
+// Runtime identity follows typed IDs derived from Systean unit roots; units.toml names are surface/API aliases only.
 
 dimension length;
 dimension time;

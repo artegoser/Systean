@@ -1,11 +1,13 @@
 mod config;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use num_bigint::BigInt;
 
 use crate::literals::ExactNumber;
 use crate::rational::ExactRational;
 use crate::semantics::{DimensionId, Type, UnitId};
-use crate::spec::parse_type;
+use crate::spec::{TypedSemanticPackage, parse_type};
 
 pub use config::{DimensionConfig, UnitConfig, UnitsConfig, UnitsConfigError};
 
@@ -39,14 +41,52 @@ pub struct QuantityValue {
     pub uncertainty: Option<ExactNumber>,
 }
 
+
+fn absolute_scale(
+    typed: &TypedSemanticPackage,
+    id: UnitId,
+) -> Result<ExactRational, UnitsConfigError> {
+    let mut current = id;
+    let mut scale = ExactRational::from_integer(BigInt::from(1u8));
+    let mut visited = BTreeSet::new();
+    loop {
+        if !visited.insert(current) {
+            return Err(UnitsConfigError::Invalid(format!(
+                "typed unit conversion cycle reached `{current}`"
+            )));
+        }
+        let unit = typed.unit(current).ok_or_else(|| {
+            UnitsConfigError::Invalid(format!("unknown typed unit `{current}`"))
+        })?;
+        scale = scale * ExactRational::new(
+            BigInt::from(unit.scale_numerator),
+            BigInt::from(unit.scale_denominator),
+        );
+        match unit.base {
+            Some(base) => current = base,
+            None => return Ok(scale),
+        }
+    }
+}
+
 impl UnitRegistry {
-    /// Transitional Phase 18B1 boundary: textual TOML is resolved exactly once into IDs.
-    /// The typed `.semsys` unit declarations are parity-checked separately in this quarter;
-    /// they become the production ownership source in the final Phase 18 cutover.
-    pub fn new(config: UnitsConfig) -> Result<Self, UnitsConfigError> {
+    /// Phase 18 production boundary: semantic unit identity, dimension and exact conversion scale
+    /// come from the typed package. TOML contributes only aliases, symbols and semantic-type
+    /// adapter metadata needed by the Phase 17 checker projection.
+    pub fn new(
+        config: UnitsConfig,
+        typed: &TypedSemanticPackage,
+    ) -> Result<Self, UnitsConfigError> {
         let mut dimension_types = BTreeMap::new();
+        let mut configured_dimensions = BTreeSet::new();
         for dimension in &config.dimensions {
-            let id = DimensionId::from_source("dimension", &dimension.id);
+            let id = typed.dimension_id(&dimension.id).ok_or_else(|| {
+                UnitsConfigError::Invalid(format!(
+                    "dimension metadata `{}` has no typed semantic dimension declaration",
+                    dimension.id
+                ))
+            })?;
+            configured_dimensions.insert(id);
             let ty = parse_type(&dimension.semantic_type).map_err(|errors| {
                 UnitsConfigError::Invalid(format!(
                     "dimension `{}` has invalid semantic type `{}`: {}",
@@ -57,37 +97,49 @@ impl UnitRegistry {
             })?;
             if dimension_types.insert(id, ty).is_some() {
                 return Err(UnitsConfigError::Invalid(format!(
-                    "dimension `{}` collides after ID resolution",
+                    "dimension `{}` collides after typed ID resolution",
                     dimension.id
                 )));
             }
+        }
+        let typed_dimensions = typed.dimensions().collect::<BTreeSet<_>>();
+        if configured_dimensions != typed_dimensions {
+            return Err(UnitsConfigError::Invalid(
+                "units.toml dimension metadata must cover exactly the typed dimensions".into(),
+            ));
         }
 
         let mut units = BTreeMap::new();
         let mut by_name = BTreeMap::new();
         let mut by_symbol = BTreeMap::new();
         let mut by_spoken = BTreeMap::new();
+        let mut configured_units = BTreeSet::new();
         for unit in &config.units {
-            // Systean spoken unit root, not the English compatibility key, owns runtime identity.
-            let id = UnitId::from_source("unit", &unit.spoken);
-            let dimension = DimensionId::from_source("dimension", &unit.dimension);
-            if !dimension_types.contains_key(&dimension) {
+            let id = typed.unit_id(&unit.spoken).ok_or_else(|| {
+                UnitsConfigError::Invalid(format!(
+                    "unit metadata `{}` / `{}` has no typed unit declaration",
+                    unit.id, unit.spoken
+                ))
+            })?;
+            configured_units.insert(id);
+            let compiled = typed.unit(id).expect("typed unit ID resolves to compiled unit");
+            if !dimension_types.contains_key(&compiled.dimension) {
                 return Err(UnitsConfigError::Invalid(format!(
-                    "unit `{}` resolves to an unknown dimension `{}`",
-                    unit.id, unit.dimension
+                    "unit `{}` uses a typed dimension with no semantic-type adapter",
+                    unit.id
                 )));
             }
             let resolved = ResolvedUnit {
                 id,
-                dimension,
+                dimension: compiled.dimension,
                 legacy_name: unit.id.clone(),
                 symbol: unit.symbol.clone(),
                 spoken: unit.spoken.clone(),
-                scale: unit.scale()?,
+                scale: absolute_scale(typed, id)?,
             };
             if units.insert(id, resolved).is_some() {
                 return Err(UnitsConfigError::Invalid(format!(
-                    "unit `{}` collides after ID resolution",
+                    "unit `{}` collides after typed ID resolution",
                     unit.id
                 )));
             }
@@ -95,6 +147,12 @@ impl UnitRegistry {
             by_name.insert(unit.spoken.to_lowercase(), id);
             by_symbol.insert(unit.symbol.to_lowercase(), id);
             by_spoken.insert(unit.spoken.to_lowercase(), id);
+        }
+        let typed_units = typed.units().map(|unit| unit.id).collect::<BTreeSet<_>>();
+        if configured_units != typed_units {
+            return Err(UnitsConfigError::Invalid(
+                "units.toml surface metadata must cover exactly the typed unit declarations".into(),
+            ));
         }
         Ok(Self { config, units, by_name, by_symbol, by_spoken, dimension_types })
     }

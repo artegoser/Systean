@@ -1,871 +1,696 @@
 [meta]
-description = "Defines the canonical lexical roots of Systean. Each root has one lexical identity, semantic binding, and—only when needed—one surface realization."
-version = "14.0"
+description = "Human-facing definitions and Phase 18 surface metadata for canonical Systean roots. Semantic identity and signatures are owned by typed/lexicon.semsys."
+version = "18.0"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
-semantic = { kind = "constant", type = "Entity" }
 
 [ref]
 definition = "Universal typed shorthand reference resolved only by deterministic discourse compatibility."
-semantic = { kind = "reference" }
 
 [mi]
 definition = "The current discourse speaker supplied by the explicit runtime context."
-semantic = { kind = "context", key = "speaker", type = "Entity" }
 
 [tu]
 definition = "The current discourse addressee supplied by the explicit runtime context."
-semantic = { kind = "context", key = "addressee", type = "Entity" }
 
 [na]
 definition = "Marks the following canonical Systean name payload as one proper-name-denoting entity; no source-language pronunciation is inferred."
-semantic = { kind = "operator", name = "proper_name" }
 syntax = { kind = "name", role = "payload" }
 
 [ke]
 definition = "Marks an utterance as a truth question about its propositional content."
-semantic = { kind = "operator", name = "ask_truth" }
 syntax = { kind = "speech_act", role = "content" }
 
 [ne]
 definition = "Logical negation of a proposition."
-semantic = { kind = "operator", name = "not" }
 syntax = { kind = "prefix", role = "value" }
 
 [va]
 definition = "Logical conjunction: all joined propositions hold."
-semantic = { kind = "operator", name = "and" }
 syntax = { kind = "infix", left_role = "left", right_role = "right" }
 
 [zo]
 definition = "Logical disjunction: at least one joined proposition holds."
-semantic = { kind = "operator", name = "or" }
 syntax = { kind = "infix", left_role = "left", right_role = "right" }
 
 [ra]
 definition = "Universal quantification over every entity satisfying the stated restriction."
-semantic = { kind = "operator", name = "forall" }
-syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "implies", restriction_role = "condition", body_role = "consequence" }
+syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "imp", restriction_role = "condition", body_role = "consequence" }
 
 [mu]
 definition = "Existential quantification: at least one entity satisfies the stated restriction and body."
-semantic = { kind = "operator", name = "exists" }
-syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [da]
 definition = "Marks propositional content as a command speech act."
-semantic = { kind = "operator", name = "command" }
 syntax = { kind = "speech_act", role = "content" }
 
 [me]
 definition = "Marks propositional content as a request speech act."
-semantic = { kind = "operator", name = "request" }
 syntax = { kind = "speech_act", role = "content" }
 
 [per]
 definition = "A human person; as a class predicate, the value is human."
-semantic = { kind = "operator", name = "person" }
 syntax = { kind = "class", role = "entity" }
 
 [anim]
 definition = "An animal; as a class predicate, the value is an animal."
-semantic = { kind = "operator", name = "animal" }
 syntax = { kind = "class", role = "entity" }
 
 [lok]
 definition = "A spatial location; as a class predicate, the value functions as a location."
-semantic = { kind = "operator", name = "location" }
 syntax = { kind = "class", role = "entity" }
 
 [obj]
 definition = "A physical object; as a class predicate, the value is materially instantiated."
-semantic = { kind = "operator", name = "physical_object" }
 syntax = { kind = "class", role = "entity" }
 
 [vid]
 definition = "Visual perception in which an observer visually perceives one observed entity."
-semantic = { kind = "operator", name = "see" }
 syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
 
 [aud]
 definition = "Auditory perception in which an observer hears one entity or sound-source entity."
-semantic = { kind = "operator", name = "hear" }
 syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["heard"] }
 
 [mov]
 definition = "Physical movement of one entity, without encoding a destination."
-semantic = { kind = "operator", name = "move" }
 syntax = { kind = "predicate", primary_role = "mover", rest_roles = [] }
 
 [ven]
 definition = "Arrival of a moving entity at an explicitly stated target."
-semantic = { kind = "operator", name = "arrive" }
 syntax = { kind = "predicate", primary_role = "mover", rest_roles = ["target"] }
 
 [vad]
 definition = "Directed movement of an entity toward an explicitly stated destination."
-semantic = { kind = "operator", name = "go_toward" }
 syntax = { kind = "predicate", primary_role = "mover", rest_roles = ["destination"] }
 
 [don]
 definition = "Intentional transfer of one item from an explicit giver to an explicit recipient."
-semantic = { kind = "operator", name = "give" }
 syntax = { kind = "predicate", primary_role = "giver", rest_roles = ["item", "recipient"] }
 
 [ten]
 definition = "Physical holding relation between a holder and the held entity."
-semantic = { kind = "operator", name = "hold" }
 syntax = { kind = "predicate", primary_role = "holder", rest_roles = ["held"] }
 
 [hab]
 definition = "Possession relation between an explicit possessor and possessed entity."
-semantic = { kind = "operator", name = "possess" }
 syntax = { kind = "predicate", primary_role = "possessor", rest_roles = ["possessed"] }
 
 [fak]
 definition = "Intentional creation in which an explicit creator brings an explicit product into existence."
-semantic = { kind = "operator", name = "create" }
 syntax = { kind = "predicate", primary_role = "creator", rest_roles = ["product"] }
 
 [viv]
 definition = "The explicit entity is alive."
-semantic = { kind = "operator", name = "alive" }
 syntax = { kind = "class", role = "entity" }
 
 [mor]
 definition = "The explicit entity dies; this root states the death relation without inferring time or aspect."
-semantic = { kind = "operator", name = "die" }
 syntax = { kind = "predicate", primary_role = "entity", rest_roles = [] }
 
 [nov]
 definition = "The explicit value is new relative to an explicitly supplied comparison standard."
-semantic = { kind = "operator", name = "new_relative" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["standard"] }
 
 [vet]
 definition = "The explicit value is old relative to an explicitly supplied comparison standard."
-semantic = { kind = "operator", name = "old_relative" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["standard"] }
 
 [bon]
 definition = "Positive evaluation of a value by an explicitly supplied criterion."
-semantic = { kind = "operator", name = "positive_by" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["criterion"] }
 
 [mal]
 definition = "Negative evaluation of a value by an explicitly supplied criterion."
-semantic = { kind = "operator", name = "negative_by" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["criterion"] }
 
 [ver]
 definition = "Explicitly presents propositional content as true without adding world-state inference to parsing."
-semantic = { kind = "operator", name = "truth" }
 syntax = { kind = "prefix", role = "value" }
 
 [fal]
 definition = "Explicitly presents propositional content as false; it is a distinct lexical identity from logical negation."
-semantic = { kind = "operator", name = "falsity" }
 syntax = { kind = "prefix", role = "value" }
 
 [sim]
 definition = "Similarity between two explicit values along one explicitly supplied comparison dimension."
-semantic = { kind = "operator", name = "similar_by" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
 
 [dif]
 definition = "Difference between two explicit values along one explicitly supplied comparison dimension."
-semantic = { kind = "operator", name = "different_by" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
 
 [par]
 definition = "Equality between two explicit values along one explicitly supplied comparison dimension."
-semantic = { kind = "operator", name = "equal_by" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
 
 [mag]
 definition = "The left value is greater than the right value along one explicitly supplied comparison dimension."
-semantic = { kind = "operator", name = "greater_by" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
 
 [min]
 definition = "The left value is less than the right value along one explicitly supplied comparison dimension."
-semantic = { kind = "operator", name = "less_by" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right", "dimension"] }
 
 [in]
 definition = "Spatial relation in which one value is inside an explicit container."
-semantic = { kind = "operator", name = "inside" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["container"] }
 
 [sur]
 definition = "Spatial relation in which one value is above an explicit reference entity."
-semantic = { kind = "operator", name = "above" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference"] }
 
 [sub]
 definition = "Spatial relation in which one value is below an explicit reference entity."
-semantic = { kind = "operator", name = "below" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference"] }
 
 [prok]
 definition = "Spatial nearness relative to both an explicit reference entity and an explicit distance standard."
-semantic = { kind = "operator", name = "near_by" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference", "standard"] }
 
 [dist]
 definition = "Spatial farness relative to both an explicit reference entity and an explicit distance standard."
-semantic = { kind = "operator", name = "far_by" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["reference", "standard"] }
 
 [zna]
 definition = "Knowledge relation between an explicit knower and explicit propositional content."
-semantic = { kind = "operator", name = "know" }
 syntax = { kind = "predicate", primary_role = "knower", rest_roles = ["content"] }
 
 [bel]
 definition = "Belief relation between an explicit believer and explicit propositional content."
-semantic = { kind = "operator", name = "believe" }
 syntax = { kind = "predicate", primary_role = "believer", rest_roles = ["content"] }
 
 [mem]
 definition = "Remembering relation between an explicit rememberer and explicit propositional content."
-semantic = { kind = "operator", name = "remember" }
 syntax = { kind = "predicate", primary_role = "rememberer", rest_roles = ["content"] }
 
 [dum]
 definition = "Thinking or considering relation between an explicit thinker and explicit propositional content."
-semantic = { kind = "operator", name = "think" }
 syntax = { kind = "predicate", primary_role = "thinker", rest_roles = ["content"] }
 
 [nom]
 definition = "A textual value functioning as a name; this lexical concept is distinct from the proper-name marker `na`."
-semantic = { kind = "operator", name = "name_text" }
 syntax = { kind = "class", role = "value" }
 
 [tekst]
 definition = "A textual value."
-semantic = { kind = "operator", name = "text_value" }
 syntax = { kind = "class", role = "value" }
 
 [ling]
 definition = "A language as an explicit entity."
-semantic = { kind = "operator", name = "language_entity" }
 syntax = { kind = "class", role = "entity" }
 
 [gov]
 definition = "Speech or utterance by an explicit speaker of explicit textual content."
-semantic = { kind = "operator", name = "speak" }
 syntax = { kind = "predicate", primary_role = "speaker", rest_roles = ["content"] }
 
 [skrib]
 definition = "Writing or symbolic encoding by an explicit writer of explicit textual content."
-semantic = { kind = "operator", name = "write" }
 syntax = { kind = "predicate", primary_role = "writer", rest_roles = ["content"] }
 
 [nau]
 definition = "The current instant supplied by the explicit runtime context; no clock value is guessed from text."
-semantic = { kind = "context", key = "now", type = "Instant" }
 
 [ante]
 definition = "Temporal relation stating that the left temporal value is before the right temporal value."
-semantic = { kind = "operator", name = "before" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
 
 [aft]
 definition = "Temporal relation stating that the left temporal value is after the right temporal value."
-semantic = { kind = "operator", name = "after" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
 
 [pot]
 definition = "Temporal relation stating that an explicit temporal value occurs during an explicit interval."
-semantic = { kind = "operator", name = "during" }
 syntax = { kind = "predicate", primary_role = "value", rest_roles = ["interval"] }
 
 [temp]
 definition = "An explicit temporal value: an instant, interval, calendar date, or time of day."
-semantic = { kind = "operator", name = "time_value" }
 syntax = { kind = "class", role = "value" }
 
 [sta]
 definition = "Starts one explicit occurrence target; the parser does not infer whether that target exists or actually begins."
-semantic = { kind = "operator", name = "start" }
 syntax = { kind = "prefix", role = "target" }
 
 [stop]
 definition = "Ceases one explicit occurrence or activity target without implying that it can never recur."
-semantic = { kind = "operator", name = "cease" }
 syntax = { kind = "prefix", role = "target" }
 
 [dur]
 definition = "Continues one explicit occurrence or activity target."
-semantic = { kind = "operator", name = "continue" }
 syntax = { kind = "prefix", role = "target" }
 
 [fin]
 definition = "Finishes one explicit occurrence target; completion is distinct from generic cessation."
-semantic = { kind = "operator", name = "finish" }
 syntax = { kind = "prefix", role = "target" }
 
 [rup]
 definition = "Interrupts one explicit occurrence target without asserting completion."
-semantic = { kind = "operator", name = "interrupt" }
 syntax = { kind = "prefix", role = "target" }
 
 [reg]
 definition = "Constructs a habitual or recurrent activity from one explicit occurrence target."
-semantic = { kind = "operator", name = "habitual" }
 syntax = { kind = "prefix", role = "activity" }
 
 [rep]
 definition = "Constructs an explicitly counted repeated activity from one explicit occurrence target."
-semantic = { kind = "operator", name = "repeat" }
 syntax = { kind = "predicate", primary_role = "target", rest_roles = ["count"] }
 
 [unk]
 definition = "A typed value explicitly unknown to the following stated or context-bound knower."
-semantic = { kind = "information", status = "unknown", knower_type = "Entity" }
 
 [vak]
 definition = "A typed value deliberately left unspecified by the utterance."
-semantic = { kind = "information", status = "unspecified" }
 
 [hid]
 definition = "A typed value intentionally withheld rather than merely unknown or unspecified."
-semantic = { kind = "information", status = "withheld" }
 
 [rov]
 definition = "Exactly the stated number of members of the explicit class satisfy the quantified body."
-semantic = { kind = "operator", name = "exactly" }
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [mini]
 definition = "At least the stated number of members of the explicit class satisfy the quantified body."
-semantic = { kind = "operator", name = "at_least" }
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [maks]
 definition = "At most the stated number of members of the explicit class satisfy the quantified body."
-semantic = { kind = "operator", name = "at_most" }
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "and", restriction_role = "left", body_role = "right" }
+syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [set]
 definition = "An unordered collection identity constructed from two explicit entity members; larger sets are nested compositionally."
-semantic = { kind = "operator", name = "set_pair" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
 
 [list]
 definition = "An ordered collection identity constructed from two explicit entity members; larger lists are nested compositionally."
-semantic = { kind = "operator", name = "list_pair" }
 syntax = { kind = "predicate", primary_role = "first", rest_roles = ["second"] }
 
 [grup]
 definition = "A collective group entity constructed from two explicit entity members."
-semantic = { kind = "operator", name = "group_pair" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
 
 [kol]
 definition = "Marks propositional content for collective interpretation without changing its semantic roles."
-semantic = { kind = "operator", name = "collective" }
 syntax = { kind = "prefix", role = "content" }
 
 [dis]
 definition = "Marks propositional content for distributive interpretation without changing its semantic roles."
-semantic = { kind = "operator", name = "distributive" }
 syntax = { kind = "prefix", role = "content" }
 
 [aso]
 definition = "States an explicitly underspecified association between two entities without guessing a more specific relation."
-semantic = { kind = "operator", name = "association" }
 syntax = { kind = "predicate", primary_role = "left", rest_roles = ["right"] }
 
 [imp]
 definition = "Material/logical implication between explicit propositional condition and consequence."
-semantic = { kind = "operator", name = "implies" }
 syntax = { kind = "infix", left_role = "condition", right_role = "consequence" }
 
 [hip]
 definition = "Counterfactual causal relation between an explicit antecedent and consequence; distinct from material implication."
-semantic = { kind = "operator", name = "counterfactual" }
 syntax = { kind = "infix", left_role = "condition", right_role = "consequence" }
 
 [tip]
 definition = "Typical or normal-case claim for an explicit domain, explicit measure, and explicit numeric standard."
-semantic = { kind = "operator", name = "typical" }
 syntax = { kind = "predicate", primary_role = "domain", rest_roles = ["measure", "standard"] }
 
 [stat]
 definition = "Statistical claim for an explicit domain and measure with an explicit numeric proportion/value."
-semantic = { kind = "operator", name = "statistical" }
 syntax = { kind = "predicate", primary_role = "domain", rest_roles = ["measure", "value"] }
 
 [prob]
 definition = "Explicit probability assigned to an explicit proposition."
-semantic = { kind = "operator", name = "probability" }
 syntax = { kind = "predicate", primary_role = "claim", rest_roles = ["value"] }
 
 [frek]
 definition = "Explicit frequency claim about an activity under an explicit measure and numeric value."
-semantic = { kind = "operator", name = "frequency" }
 syntax = { kind = "predicate", primary_role = "activity", rest_roles = ["measure", "value"] }
 
 
 [emo]
 definition = "Explicitly expresses one declared subjective state; it never infers affect from prosody or changes the state's literal content."
-semantic = { kind = "operator", name = "express_affect" }
 syntax = { kind = "prefix", role = "state" }
 
 [fok]
 definition = "Marks an explicit semantic value already present in propositional content as focus without reordering or changing its semantic role."
-semantic = { kind = "operator", name = "focus" }
 syntax = { kind = "infix", left_role = "target", right_role = "content" }
 
 [top]
 definition = "Marks an explicit semantic value already present in propositional content as topic without changing semantic roles or quantifier scope."
-semantic = { kind = "operator", name = "topic" }
 syntax = { kind = "infix", left_role = "target", right_role = "content" }
 
 [ret]
 definition = "Explicitly retracts the uniquely identified prior discourse commitment numbered by its repair target."
-semantic = { kind = "operator", name = "retract" }
 syntax = { kind = "prefix", role = "target" }
 
 [kor]
 definition = "Explicitly corrects the uniquely identified prior discourse commitment by replacing it with new propositional content."
-semantic = { kind = "operator", name = "correct" }
 syntax = { kind = "infix", left_role = "target", right_role = "replacement" }
 
 [klar]
 definition = "Explicitly clarifies the uniquely identified prior discourse entry with additional propositional content."
-semantic = { kind = "operator", name = "clarify" }
 syntax = { kind = "infix", left_role = "target", right_role = "content" }
 
 [felis]
 definition = "Joy; a general positive affective state; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_felis" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [satis]
 definition = "Satisfaction; positive response to an achieved or sufficient state; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_satis" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [seren]
 definition = "Calm; low affective tension; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_seren" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [amuz]
 definition = "Amusement; pleasure from something perceived as funny or entertaining; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_amuz" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [entuz]
 definition = "Excitement/enthusiasm; high-activation positive affect; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_entuz" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [inter]
 definition = "Interest; sustained affective engagement with an object/topic; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_inter" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [kuri]
 definition = "Curiosity; motivation to obtain currently unknown information; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_kuri" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [esper]
 definition = "Hope; positive anticipation of a desired possible future outcome; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_esper" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [relif]
 definition = "Relief; positive response to removal or reduction of a threat/burden; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_relif" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [grati]
 definition = "Gratitude; positive affect toward the source of a received benefit; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_grati" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [admir]
 definition = "Admiration; strong positive evaluation of another's qualities/actions; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_admir" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [majes]
 definition = "Awe; affective response to exceptional scale, grandeur, or perceived magnitude; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_majes" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [tenda]
 definition = "Tenderness; gentle caring positive affect; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_tenda" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [afek]
 definition = "Affection; stable positive emotional attachment; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_afek" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [amori]
 definition = "Love; strong stable love without mandatory romantic or sexual content; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_amori" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [simpat]
 definition = "Liking/sympathy; positive personal disposition toward another; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_simpat" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [kompa]
 definition = "Compassion; affective concern for another's suffering; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_kompa" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [piti]
 definition = "Pity; negative affect about another's adverse condition; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_piti" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [empati]
 definition = "Empathy; affective experiencing/modeling of another's emotional state; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_empati" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [prid]
 definition = "Ordinary pride; positive affect concerning an achievement/quality of self or an associated target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_prid" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [trium]
 definition = "Triumph; positive response to victory or successful overcoming; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_trium" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [fidu]
 definition = "Trust; subjective readiness to rely on a specific agent/system; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_fidu" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [unita]
 definition = "Belonging; subjective experience of inclusion in a group/relationship; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_unita" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [sekur]
 definition = "Felt safety; subjective experience of absence of significant threat; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_sekur" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [trist]
 definition = "Sadness; general low-activation negative affect; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_trist" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [grif]
 definition = "Grief; affective response to a significant loss; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_grif" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [timor]
 definition = "Fear; response to a perceived threat; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_timor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [anks]
 definition = "Anxiety; negative anticipation of an uncertain threat; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_anks" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [dred]
 definition = "Dread; fear directed toward an anticipated future event; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_dred" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [panik]
 definition = "Panic; acute high-intensity threat response with felt loss of control; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_panik" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [furor]
 definition = "Anger/wrath; negative response to perceived harm or violation; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_furor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [irit]
 definition = "Irritation; negative response to a recurring or obstructive nuisance; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_irit" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [frus]
 definition = "Frustration; negative response to blockage of a goal; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_frus" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [resent]
 definition = "Resentment; persistent negative response to perceived unfairness/wrong; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_resent" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [odio]
 definition = "Hatred; stable strong negative orientation toward a target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_odio" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [avers]
 definition = "Disgust/aversion; immediate avoidance-oriented response to an unpleasant target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_avers" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [kontem]
 definition = "Contempt; negative social evaluation of a target as unworthy/inferior; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_kontem" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [vergon]
 definition = "Shame; negative evaluation of the self; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_vergon" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [kulpa]
 definition = "Guilt; negative evaluation of one's own specific action/responsibility; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_kulpa" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [embar]
 definition = "Embarrassment; social discomfort caused by unwanted attention/error; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_embar" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [humil]
 definition = "Humiliation; painful experience of imposed loss of status; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_humil" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [regri]
 definition = "Regret; negative counterfactual evaluation of a past choice; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_regri" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [remor]
 definition = "Remorse; regret with responsibility for harm caused; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_remor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [disap]
 definition = "Disappointment; negative response to an unmet expectation; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_disap" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [desol]
 definition = "Despair; experience that no available route to a desired outcome remains; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_desol" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [lonel]
 definition = "Loneliness; experience of insufficient desired social connection; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_lonel" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [envi]
 definition = "Envy; negative response to another possessing a desired good/state; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_envi" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [jelos]
 definition = "Jealousy; perceived threat of losing a valued relationship to a rival/third party; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_jelos" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [boren]
 definition = "Boredom; negative state of insufficient meaningful stimulation; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_boren" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [nemog]
 definition = "Helplessness; experience of lacking effective control/action capacity; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_nemog" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [stres]
 definition = "Stress; sustained tension under perceived demands; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_stres" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [opres]
 definition = "Overwhelm; experience of demands exceeding available capacity; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_opres" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [surpri]
 definition = "Surprise; violation of expectation without built-in positive/negative valence; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_surpri" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [nosta]
 definition = "Nostalgia; affective orientation toward a personally significant past; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_nosta" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [langu]
 definition = "Longing; affectively significant desire for an absent/inaccessible target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_langu" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [konfi]
 definition = "Confidence; high subjective confidence regarding an evaluation/outcome; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_konfi" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [dubia]
 definition = "Doubt; subjective uncertainty; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_dubia" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [antik]
 definition = "Anticipation; affective response to an expected future event; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_antik" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [avida]
 definition = "Eagerness; high motivational readiness toward a desired action/outcome; represented as an experienced affective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "affect_avida" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [konfus]
 definition = "Confusion; inability to form a coherent understanding of the current situation; represented as an experienced affective state with explicit experiencer and intensity. Its target is explicit propositional content."
-semantic = { kind = "operator", name = "affect_konfus" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [romat]
 definition = "Romantic attraction; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_romat" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [eros]
 definition = "Sexual attraction toward an explicit target; represented as an experienced affective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "affect_eros" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [eruz]
 definition = "Current sexual arousal state; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_eruz" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [libid]
 definition = "Baseline/persistent level of sexual drive; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_libid" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [orgaz]
 definition = "Orgasm as a distinct physiological event; represented as an explicit subjective event with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "event_orgaz" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [hedon]
 definition = "Subjective pleasure; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_hedon" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [komfor]
 definition = "Bodily comfort; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_komfor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [dolor]
 definition = "Pain; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_dolor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [nelag]
 definition = "Physical discomfort; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_nelag" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [famen]
 definition = "Hunger; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_famen" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [tirst]
 definition = "Thirst; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_tirst" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [satur]
 definition = "Satiety/fullness; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_satur" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [nause]
 definition = "Nausea; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_nause" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [prur]
 definition = "Itch; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_prur" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [verti]
 definition = "Dizziness/vertigo sensation; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_verti" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [dispne]
 definition = "Subjective shortness of breath/air hunger; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_dispne" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [fati]
 definition = "Fatigue; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_fati" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [somni]
 definition = "Sleepiness; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_somni" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [vigir]
 definition = "Alertness/wakeful vigor; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_vigir" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [frigi]
 definition = "Subjective feeling of cold; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_frigi" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [kalor]
 definition = "Subjective feeling of heat; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_kalor" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [superb]
 definition = "Excessive pride/self-exaltation; deliberately distinct from ordinary `prid`; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_superb" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [avari]
 definition = "Greed; drive to accumulate/appropriate goods; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_avari" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [lusta]
 definition = "Lust; strong sexual desire as a motivational state; represented as an explicit subjective state with explicit experiencer and intensity. Its target is an explicit entity."
-semantic = { kind = "operator", name = "state_lusta" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["target", "intensity"] }
 
 [gula]
 definition = "Gluttony; excessive drive toward food consumption; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_gula" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }
 
 [leni]
 definition = "Laziness/sloth; persistent unwillingness to expend effort; represented as an explicit subjective state with explicit experiencer and intensity."
-semantic = { kind = "operator", name = "state_leni" }
 syntax = { kind = "predicate", primary_role = "experiencer", rest_roles = ["intensity"] }

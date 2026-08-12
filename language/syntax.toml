@@ -1,6 +1,6 @@
 [meta]
-description = "Defines normative Systean surface-syntax policies. Lexical roots and their surface realizations live only in dictionary.toml."
-version = "1.6"
+description = "Defines Phase 18 surface-syntax policies over typed Systean semantic root symbols."
+version = "1.7"
 
 [order]
 frame = "primary_predicate_rest"
@@ -16,14 +16,14 @@ quantifier_order = "appearance"
 flatten_same_operator = true
 
 [logic.precedence]
-and = 20
-or = 10
-implies = 5
-counterfactual = 5
-focus = 2
-topic = 2
-correct = 1
-clarify = 1
+va = 20
+zo = 10
+imp = 5
+hip = 5
+fok = 2
+top = 2
+kor = 1
+klar = 1
 
 [roles]
 realization = "frame_order"
@@ -61,28 +61,26 @@ readability_punctuation = [",", ":", ";", "?", "!"]
 [pragmatics]
 default_assertion_operator = "assert"
 default_assertion_role = "content"
-question_operator = "ask_truth"
+question_operator = "ke"
 question_content_role = "content"
-command_operator = "command"
+command_operator = "da"
 command_content_role = "content"
-request_operator = "request"
+request_operator = "me"
 request_content_role = "content"
-expressive_operator = "express_affect"
+expressive_operator = "emo"
 expressive_state_role = "state"
-focus_operator = "focus"
+focus_operator = "fok"
 focus_target_role = "target"
 focus_content_role = "content"
-topic_operator = "topic"
+topic_operator = "top"
 topic_target_role = "target"
 topic_content_role = "content"
-retract_operator = "retract"
+retract_operator = "ret"
 repair_target_role = "target"
-correction_operator = "correct"
+correction_operator = "kor"
 correction_replacement_role = "replacement"
-clarification_operator = "clarify"
+clarification_operator = "klar"
 clarification_content_role = "content"
-disjunction_operator = "or"
+disjunction_operator = "zo"
 disjunction_left_role = "left"
 disjunction_right_role = "right"
-information_family = "information"
-unknown_status = "unknown"

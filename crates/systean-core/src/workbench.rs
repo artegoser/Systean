@@ -7,11 +7,11 @@ use crate::discourse::{
     ConversationState, DiscourseError, DiscourseResolutionError, DiscourseState, IntroductionOrigin,
     TextDocument, TextRealization, TextSessionState, TextTurn,
 };
-use crate::language::{DictionaryEntry, LanguageError, LanguagePackage, LexicalSemantic};
+use crate::language::{DictionaryEntry, LanguageError, LanguagePackage};
 use crate::literals::{LiteralRealization, StructuredLiteralCodec, SurfaceLiteral};
 use crate::pragmatics::PragmaticAnalysis;
 use crate::semantics::{
-    Checker, ContextSlotId, Explanation, InformationKnowerValue, InformationStatus, Literal, Origin,
+    Checker, Explanation, InformationKnowerValue, InformationStatus, Literal, Origin,
     StructuredValue, Term, canonicalize,
 };
 use crate::spec::{lower_term, parse_term, parse_type};
@@ -63,6 +63,8 @@ impl WorkbenchDiagnostic {
 pub struct PackageWorkbenchInfo {
     pub manifest: PackageManifest,
     pub provenance: PackageProvenance,
+    pub semantic_fingerprint: String,
+    pub surface_fingerprint: String,
     pub validation: PackageValidationReport,
 }
 
@@ -71,6 +73,8 @@ impl PackageWorkbenchInfo {
         Self {
             manifest: language.manifest().clone(),
             provenance: language.provenance().clone(),
+            semantic_fingerprint: language.semantic_fingerprint().to_owned(),
+            surface_fingerprint: language.surface_fingerprint().to_owned(),
             validation: language.validation_report().clone(),
         }
     }
@@ -601,7 +605,7 @@ pub fn diagnostic_from_language_error(error: LanguageError) -> WorkbenchDiagnost
         LanguageError::Io { .. }
         | LanguageError::PackageManifest(_)
         | LanguageError::Package(_)
-        | LanguageError::Semantics(_) => DiagnosticLayer::Package,
+        | LanguageError::TypedSemantics(_) => DiagnosticLayer::Package,
         LanguageError::Phonology(_) | LanguageError::RootInventory(_) => DiagnosticLayer::Phonology,
         LanguageError::MorphologyConfig(_) | LanguageError::Morphology(_) => DiagnosticLayer::Morphology,
         LanguageError::Dictionary(_) => DiagnosticLayer::Lexical,
@@ -669,16 +673,13 @@ fn surface_workbench_from_analysis(
     })
 }
 
-fn lexical_origin<'a>(language: &'a LanguagePackage, entry: &DictionaryEntry) -> Option<&'a Origin> {
-    match &entry.semantic {
-        LexicalSemantic::Constant { name, .. } => language
-            .semantics()
-            .constant_origin(name.as_deref().unwrap_or(&entry.root)),
-        LexicalSemantic::Operator { name } => language.semantics().operator_origin(name),
-        LexicalSemantic::Reference
-        | LexicalSemantic::Information { .. }
-        | LexicalSemantic::Context { .. } => None,
-    }
+fn lexical_origin(language: &LanguagePackage, entry: &DictionaryEntry) -> Option<Origin> {
+    let id = language.typed_semantics().symbol_id(&entry.root)?;
+    let symbol = language.typed_semantics().symbol(id)?;
+    Some(Origin::new(
+        symbol.provenance.source.clone(),
+        symbol.provenance.declaration,
+    ))
 }
 
 fn reference_views(
@@ -1372,7 +1373,7 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         };
         let marker = self
             .find_lexeme(|lexeme| {
-                matches!(lexeme, LexemeConfig::Information { status: candidate, .. } if candidate == status_name)
+                matches!(lexeme, LexemeConfig::Information { status: candidate, .. } if candidate == status)
             })
             .ok_or_else(|| {
                 WorkbenchDiagnostic::generation(format!(
@@ -1393,8 +1394,7 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             (Some(_), Some(InformationKnowerValue::Context(slot))) => {
                 let surface = self
                     .find_lexeme(|lexeme| {
-                        matches!(lexeme, LexemeConfig::Context { key, .. }
-                            if ContextSlotId::from_source("context", key) == *slot)
+                        matches!(lexeme, LexemeConfig::Context { slot: candidate, .. } if candidate == slot)
                     })
                     .ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(

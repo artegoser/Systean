@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use crate::semantics::{
-    ConstructorId, ContextSlotId, DimensionId, FieldId, IntrinsicId, SymbolId, Type, TypeId,
-    UnitId,
+    ConstructorId, ContextSlotId, DimensionId, FieldId, IntrinsicId, LiteralKind, SymbolId, Type,
+    TypeId, UnitId,
 };
 
 use super::typed_ast::{
@@ -41,6 +41,10 @@ impl TypedSourceSpecification {
 pub struct TypedSemanticPackage {
     types: BTreeMap<TypeId, u32>,
     type_provenance: BTreeMap<TypeId, DeclarationProvenance>,
+    subtypes: BTreeSet<(TypeId, TypeId)>,
+    subtype_provenance: BTreeMap<(TypeId, TypeId), DeclarationProvenance>,
+    literal_types: BTreeMap<LiteralKind, CompiledType>,
+    literal_provenance: BTreeMap<LiteralKind, DeclarationProvenance>,
     symbols: BTreeMap<SymbolId, CompiledSymbol>,
     constructors: BTreeMap<ConstructorId, CompiledConstructor>,
     contexts: BTreeMap<ContextSlotId, CompiledContextSlot>,
@@ -60,6 +64,58 @@ pub struct TypedSemanticPackage {
 }
 
 impl TypedSemanticPackage {
+    pub fn types(&self) -> impl Iterator<Item = (TypeId, u32)> + '_ {
+        self.types.iter().map(|(id, arity)| (*id, *arity))
+    }
+
+    pub fn subtypes(&self) -> impl Iterator<Item = (TypeId, TypeId)> + '_ {
+        self.subtypes.iter().copied()
+    }
+
+    pub fn literal_types(&self) -> impl Iterator<Item = (LiteralKind, &CompiledType)> + '_ {
+        self.literal_types.iter().map(|(kind, ty)| (*kind, ty))
+    }
+
+    pub fn symbols(&self) -> impl Iterator<Item = &CompiledSymbol> + '_ {
+        self.symbols.values()
+    }
+
+    pub fn units(&self) -> impl Iterator<Item = &CompiledUnit> + '_ {
+        self.units.values()
+    }
+
+    pub fn dimensions(&self) -> impl Iterator<Item = DimensionId> + '_ {
+        self.dimensions.iter().copied()
+    }
+
+    pub fn source_name_for_type(&self, id: TypeId) -> Option<&str> {
+        self.type_names.iter().find_map(|(name, candidate)| (*candidate == id).then_some(name.as_str()))
+    }
+
+    pub fn source_name_for_symbol(&self, id: SymbolId) -> Option<&str> {
+        self.debug_symbols.get(&id).map(|debug| debug.source_name.as_str())
+    }
+
+    pub fn source_name_for_context(&self, id: ContextSlotId) -> Option<&str> {
+        self.context_names.iter().find_map(|(name, candidate)| (*candidate == id).then_some(name.as_str()))
+    }
+
+    pub fn source_name_for_dimension(&self, id: DimensionId) -> Option<&str> {
+        self.dimension_names.iter().find_map(|(name, candidate)| (*candidate == id).then_some(name.as_str()))
+    }
+
+    pub fn source_name_for_unit(&self, id: UnitId) -> Option<&str> {
+        self.unit_names.iter().find_map(|(name, candidate)| (*candidate == id).then_some(name.as_str()))
+    }
+
+    pub fn subtype_provenance(&self, child: TypeId, parent: TypeId) -> Option<&DeclarationProvenance> {
+        self.subtype_provenance.get(&(child, parent))
+    }
+
+    pub fn literal_provenance(&self, kind: LiteralKind) -> Option<&DeclarationProvenance> {
+        self.literal_provenance.get(&kind)
+    }
+
     pub fn symbol_id(&self, source_name: &str) -> Option<SymbolId> {
         self.symbol_names.get(source_name).copied()
     }
@@ -160,7 +216,10 @@ pub enum TypedCompileError {
     IdentityCollision { namespace: &'static str, left: String, right: String },
     DuplicateParameter { declaration: String, parameter: String },
     DuplicateTypeParameter { declaration: String, parameter: String },
+    DuplicateLiteralKind(LiteralKind),
     UnknownType(String),
+    InvalidSubtype { child: String, parent: String },
+    CyclicSubtype(Vec<TypeId>),
     WrongTypeArity { name: String, expected: u32, actual: usize },
     UnknownSymbol(String),
     UnknownDimension(String),
@@ -222,6 +281,7 @@ pub fn compile_typed_specifications(
                     );
                     type_arities.insert(name.clone(), type_parameters.len() as u32);
                 }
+                TypedDeclaration::Subtype { .. } | TypedDeclaration::Literal { .. } => {}
                 TypedDeclaration::Word { name, .. }
                 | TypedDeclaration::Primitive { name, .. }
                 | TypedDeclaration::Def { name, .. }
@@ -294,6 +354,10 @@ pub fn compile_typed_specifications(
     let mut package = TypedSemanticPackage {
         types: BTreeMap::new(),
         type_provenance: BTreeMap::new(),
+        subtypes: BTreeSet::new(),
+        subtype_provenance: BTreeMap::new(),
+        literal_types: BTreeMap::new(),
+        literal_provenance: BTreeMap::new(),
         symbols: BTreeMap::new(),
         constructors: BTreeMap::new(),
         contexts: BTreeMap::new(),
@@ -328,6 +392,36 @@ pub fn compile_typed_specifications(
                 TypedDeclaration::Type { name, .. } => {
                     let id = package.type_names[name];
                     package.type_provenance.insert(id, provenance);
+                }
+                TypedDeclaration::Subtype { child, parent } => {
+                    let Some(child_id) = package.type_names.get(child).copied() else {
+                        errors.push(TypedCompileError::UnknownType(child.clone()));
+                        continue;
+                    };
+                    let Some(parent_id) = package.type_names.get(parent).copied() else {
+                        errors.push(TypedCompileError::UnknownType(parent.clone()));
+                        continue;
+                    };
+                    if type_arities.get(child).copied().unwrap_or(0) != 0
+                        || type_arities.get(parent).copied().unwrap_or(0) != 0
+                    {
+                        errors.push(TypedCompileError::InvalidSubtype { child: child.clone(), parent: parent.clone() });
+                        continue;
+                    }
+                    package.subtypes.insert((child_id, parent_id));
+                    package.subtype_provenance.insert((child_id, parent_id), provenance);
+                }
+                TypedDeclaration::Literal { kind, ty } => {
+                    match resolve_type(ty, &package, &BTreeMap::new(), &type_arities) {
+                        Ok(ty) => {
+                            if package.literal_types.insert(*kind, ty).is_some() {
+                                errors.push(TypedCompileError::DuplicateLiteralKind(*kind));
+                            } else {
+                                package.literal_provenance.insert(*kind, provenance);
+                            }
+                        }
+                        Err(error) => errors.push(error),
+                    }
                 }
                 TypedDeclaration::Dimension { name } => {
                     let id = package.dimension_names[name];
@@ -497,6 +591,9 @@ pub fn compile_typed_specifications(
         }
     }
 
+    if errors.is_empty() {
+        validate_subtypes(&package, &mut errors);
+    }
     if errors.is_empty() {
         validate_units(&package, &mut errors);
     }
@@ -737,6 +834,46 @@ fn resolve_value_name(
         return Ok(CompiledTerm::Unit(id));
     }
     Err(TypedCompileError::UnknownSymbol(name.to_owned()))
+}
+
+fn validate_subtypes(package: &TypedSemanticPackage, errors: &mut Vec<TypedCompileError>) {
+    fn visit(
+        current: TypeId,
+        package: &TypedSemanticPackage,
+        visiting: &mut BTreeSet<TypeId>,
+        visited: &mut BTreeSet<TypeId>,
+        path: &mut Vec<TypeId>,
+    ) -> Option<Vec<TypeId>> {
+        if visited.contains(&current) {
+            return None;
+        }
+        if !visiting.insert(current) {
+            let start = path.iter().position(|id| *id == current).unwrap_or(0);
+            let mut cycle = path[start..].to_vec();
+            cycle.push(current);
+            return Some(cycle);
+        }
+        path.push(current);
+        for (_, parent) in package.subtypes.iter().filter(|(child, _)| *child == current) {
+            if let Some(cycle) = visit(*parent, package, visiting, visited, path) {
+                return Some(cycle);
+            }
+        }
+        path.pop();
+        visiting.remove(&current);
+        visited.insert(current);
+        None
+    }
+
+    let mut visited = BTreeSet::new();
+    for start in package.types.keys().copied() {
+        let mut visiting = BTreeSet::new();
+        let mut path = Vec::new();
+        if let Some(cycle) = visit(start, package, &mut visiting, &mut visited, &mut path) {
+            errors.push(TypedCompileError::CyclicSubtype(cycle));
+            return;
+        }
+    }
 }
 
 fn validate_units(package: &TypedSemanticPackage, errors: &mut Vec<TypedCompileError>) {
@@ -1051,6 +1188,16 @@ fn semantic_fingerprint(package: &TypedSemanticPackage) -> String {
         bytes.extend_from_slice(&id.0.to_le_bytes());
         bytes.extend_from_slice(&arity.to_le_bytes());
     }
+    for (child, parent) in &package.subtypes {
+        bytes.push(0x51);
+        bytes.extend_from_slice(&child.0.to_le_bytes());
+        bytes.extend_from_slice(&parent.0.to_le_bytes());
+    }
+    for (kind, ty) in &package.literal_types {
+        bytes.push(0x52);
+        bytes.push(match kind { LiteralKind::Integer => 1, LiteralKind::Boolean => 2, LiteralKind::String => 3 });
+        encode_type(ty, &mut bytes);
+    }
     for (id, constructor) in &package.constructors {
         bytes.extend_from_slice(&id.0.to_le_bytes());
         bytes.extend_from_slice(&constructor.owner.0.to_le_bytes());
@@ -1228,6 +1375,8 @@ fn locate_declaration_spans(
             let name = declaration.source_name();
             let keyword = match declaration {
                 TypedDeclaration::Type { .. } => "type",
+                TypedDeclaration::Subtype { .. } => "subtype",
+                TypedDeclaration::Literal { .. } => "literal",
                 TypedDeclaration::Word { .. } => "word",
                 TypedDeclaration::Primitive { .. } => "primitive",
                 TypedDeclaration::Def { .. } => "def",
@@ -1281,7 +1430,10 @@ impl fmt::Display for TypedCompileError {
                 f,
                 "`{declaration}` declares type parameter `{parameter}` more than once",
             ),
+            Self::DuplicateLiteralKind(kind) => write!(f, "literal kind `{kind:?}` is already typed"),
             Self::UnknownType(name) => write!(f, "unknown type `{name}`"),
+            Self::InvalidSubtype { child, parent } => write!(f, "subtype `{child}: {parent}` requires non-generic named types"),
+            Self::CyclicSubtype(cycle) => write!(f, "cyclic subtype relation: {cycle:?}"),
             Self::WrongTypeArity { name, expected, actual } => write!(
                 f,
                 "type `{name}` expects {expected} type argument(s) but received {actual}",

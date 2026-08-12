@@ -13,7 +13,7 @@
 		entries.filter((entry) => {
 			const needle = query.trim().toLowerCase();
 			if (!needle) return true;
-			return `${entry.root} ${entry.definition} ${JSON.stringify(entry.semantic)} ${JSON.stringify(entry.syntax ?? {})}`
+			return `${entry.root} ${entry.definition} ${JSON.stringify(entry.syntax ?? {})}`
 				.toLowerCase()
 				.includes(needle);
 		})
@@ -38,21 +38,21 @@
 
 <div class="flex flex-col items-center gap-4 max-w-220 w-full">
 	<div class="big-text mt-6">Systean dictionary</div>
-	<div class="small-text text-center">Lexical definitions, semantic bindings and canonical surface frames from the compiled package.</div>
+	<div class="small-text text-center">Lexical definitions and canonical surface metadata from the compiled typed package.</div>
 
 	{#if loading}
 		<div class="small-text">Loading language engine…</div>
 	{:else if error}
 		<div class="text-red-400 text-center font-bold">{error}</div>
 	{:else}
-		<input class="input m-0 w-full" bind:value={query} placeholder="Search roots, definitions, operators or frame roles" />
+		<input class="input m-0 w-full" bind:value={query} placeholder="Search roots, definitions or frame roles" />
 		<div class="small-text">{filtered.length} / {entries.length} entries</div>
 		<div class="flex flex-col gap-3 w-full">
 			{#each filtered as entry}
 				<article class="bg-accent/10 border-2 border-accent/10 rounded-xl p-4">
 					<div class="flex flex-wrap gap-3 items-baseline justify-between">
 						<div class="text-3xl font-black">{entry.root}</div>
-						<div class="font-mono text-sm break-all">{JSON.stringify(entry.semantic)}</div>
+						<div class="font-mono text-sm">typed semantic word</div>
 					</div>
 					<div class="mt-3 text-stone-200/80 whitespace-pre-line">{entry.definition}</div>
 					<div class="mt-3 rounded-lg bg-black/10 p-3">

@@ -10,7 +10,7 @@ use crate::syntax::PragmaticsConfig;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedValue {
     pub ty: Type,
-    pub status: String,
+    pub status: InformationStatus,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -308,7 +308,7 @@ fn collect_requested_values(term: &Term, output: &mut Vec<RequestedValue>) {
             if let StructuredValue::Information { status: InformationStatus::Unknown, .. } = &value.value {
                 output.push(RequestedValue {
                     ty: value.ty.clone(),
-                    status: "unknown".into(),
+                    status: InformationStatus::Unknown,
                 });
             }
         }

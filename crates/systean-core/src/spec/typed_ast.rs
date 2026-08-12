@@ -1,5 +1,5 @@
 use crate::semantics::{
-    ConstructorId, ContextSlotId, DimensionId, IntrinsicId, SymbolId, Type, TypeId, UnitId,
+    ConstructorId, ContextSlotId, DimensionId, IntrinsicId, LiteralKind, SymbolId, Type, TypeId, UnitId,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,6 +31,14 @@ pub enum TypedDeclaration {
     Type {
         name: String,
         type_parameters: Vec<String>,
+    },
+    Subtype {
+        child: String,
+        parent: String,
+    },
+    Literal {
+        kind: LiteralKind,
+        ty: Type,
     },
     Word {
         name: String,
@@ -80,6 +88,12 @@ pub enum TypedDeclaration {
 impl TypedDeclaration {
     pub fn source_name(&self) -> &str {
         match self {
+            Self::Subtype { child, .. } => child,
+            Self::Literal { kind, .. } => match kind {
+                LiteralKind::Integer => "integer",
+                LiteralKind::Boolean => "boolean",
+                LiteralKind::String => "string",
+            },
             Self::Type { name, .. }
             | Self::Word { name, .. }
             | Self::Primitive { name, .. }

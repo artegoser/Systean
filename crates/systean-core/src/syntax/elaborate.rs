@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::semantics::{
-    Checker, ConstructorId, ContextSlotId, Environment, InformationKnowerValue,
-    InformationStatus, Literal, StructuredLiteral, StructuredValue, Term, Type,
+    Checker, Environment, InformationKnowerValue, Literal, StructuredLiteral, StructuredValue,
+    Term, Type,
 };
 use crate::spec::parse_type;
 
@@ -212,13 +212,13 @@ impl Elaborator<'_> {
         &mut self,
         surface: &str,
     ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Context { key, ty } = self.lexeme(surface)?.clone() else {
+        let LexemeConfig::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
                 surface: surface.to_owned(),
                 expected: "context",
             });
         };
-        let declared_type = self.parse_declared_type(&ty)?;
+        let declared_type = ty;
         let placeholder = self.next_placeholder("context");
         self.contexts.push(ContextSlot {
             placeholder: placeholder.clone(),
@@ -382,13 +382,13 @@ impl Elaborator<'_> {
                 Ok((Term::Const(semantic.clone()), None))
             }
             Argument::Context(surface) => {
-                let LexemeConfig::Context { key, ty } = self.lexeme(surface)?.clone() else {
+                let LexemeConfig::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: surface.clone(),
                         expected: "context",
                     });
                 };
-                let declared_type = self.parse_declared_type(&ty)?;
+                let declared_type = ty;
                 self.match_expected(expected, &declared_type, type_bindings, role)?;
                 let placeholder = self.next_placeholder("context");
                 self.contexts.push(ContextSlot {
@@ -449,7 +449,7 @@ impl Elaborator<'_> {
                 Ok((term, None))
             }
             Argument::Information { marker, knower } => {
-                let LexemeConfig::Information { status, knower_type } = self.lexeme(marker)?.clone() else {
+                let LexemeConfig::Information { mode, status, knower_type } = self.lexeme(marker)?.clone() else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: marker.clone(),
                         expected: "information marker",
@@ -463,34 +463,22 @@ impl Elaborator<'_> {
                 let concrete = expected.substitute(type_bindings);
                 if contains_type_variable(&concrete) {
                     return Err(SurfaceElaborationError::UnconstrainedReferenceType {
-                        role: format!("information {status} for {role}"),
+                        role: format!("information {status:?} for {role}"),
                         ty: concrete,
                     });
                 }
-                let declared_knower_type = knower_type
-                    .as_deref()
-                    .map(|source| self.parse_declared_type(source))
-                    .transpose()?;
-                let status_value = match status.as_str() {
-                    "unknown" => InformationStatus::Unknown,
-                    "unspecified" => InformationStatus::Unspecified,
-                    "withheld" => InformationStatus::Withheld,
-                    other => return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
-                        "unknown information status `{other}`"
-                    ))),
-                };
-                let mode = ConstructorId::from_source("constructor", &format!("InfoMode.{status}"));
+                let declared_knower_type = knower_type;
                 let knower = match knower {
                     None => None,
                     Some(InformationKnower::Context(surface)) => {
-                        let LexemeConfig::Context { key, ty } = self.lexeme(surface)? else {
+                        let LexemeConfig::Context { slot, ty, .. } = self.lexeme(surface)? else {
                             return Err(SurfaceElaborationError::WrongLexemeKind {
                                 surface: surface.clone(),
                                 expected: "context knower",
                             });
                         };
                         if let Some(expected_knower) = &declared_knower_type {
-                            let actual_knower = self.parse_declared_type(ty)?;
+                            let actual_knower = ty.clone();
                             let mut knower_bindings = BTreeMap::new();
                             self.match_expected(
                                 expected_knower,
@@ -499,7 +487,7 @@ impl Elaborator<'_> {
                                 "information knower",
                             )?;
                         }
-                        Some(InformationKnowerValue::Context(ContextSlotId::from_source("context", key)))
+                        Some(InformationKnowerValue::Context(*slot))
                     }
                     Some(InformationKnower::Name { marker: name_marker, payload }) => {
                         let LexemeConfig::Name { role: name_role, .. } = self.lexeme(name_marker)? else {
@@ -526,7 +514,7 @@ impl Elaborator<'_> {
                 };
                 Ok((
                     Term::Literal(Literal::Structured(StructuredLiteral::new(
-                        StructuredValue::Information { mode, status: status_value, knower },
+                        StructuredValue::Information { mode, status, knower },
                         concrete,
                     ))),
                     None,

@@ -236,11 +236,11 @@ impl fmt::Display for StructuredValue {
                     InformationStatus::Unspecified => "unspecified",
                     InformationStatus::Withheld => "withheld",
                 };
-                match knower {
-                    None => write!(f, "information<{status:?}>") ,
-                    Some(InformationKnowerValue::Context(slot)) => write!(f, "information<{:?}>", format!("{status}:context:@{slot}")),
-                    Some(InformationKnowerValue::Value(term)) => write!(f, "information<{:?}>", format!("{status}:value:{term}")),
+                write!(f, "information(status = {status}")?;
+                if let Some(knower) = knower {
+                    write!(f, ", knower = {knower}")?;
                 }
+                write!(f, ")")
             }
         }
     }

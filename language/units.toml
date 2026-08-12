@@ -1,6 +1,6 @@
 [meta]
-description = "Declares canonical Systean SI-first unit identities and exact multiplicative conversions."
-version = "1.0"
+description = "Surface/API metadata for typed Systean units. Exact dimensions and conversion scales are owned by typed/units.semsys."
+version = "2.0"
 
 [[dimensions]]
 id = "length"
@@ -32,96 +32,60 @@ semantic_type = "LuminousIntensityDimension"
 
 [[units]]
 id = "meter"
-dimension = "length"
 symbol = "m"
 spoken = "metr"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "kilometer"
-dimension = "length"
 symbol = "km"
 spoken = "kilometr"
-scale_numerator = "1000"
-scale_denominator = "1"
 
 [[units]]
 id = "centimeter"
-dimension = "length"
 symbol = "cm"
 spoken = "santimetr"
-scale_numerator = "1"
-scale_denominator = "100"
 
 [[units]]
 id = "second"
-dimension = "time"
 symbol = "s"
 spoken = "sek"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "millisecond"
-dimension = "time"
 symbol = "ms"
 spoken = "milisek"
-scale_numerator = "1"
-scale_denominator = "1000"
 
 [[units]]
 id = "hour"
-dimension = "time"
 symbol = "h"
 spoken = "hor"
-scale_numerator = "3600"
-scale_denominator = "1"
 
 [[units]]
 id = "kilogram"
-dimension = "mass"
 symbol = "kg"
 spoken = "kilogram"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "gram"
-dimension = "mass"
 symbol = "g"
 spoken = "gram"
-scale_numerator = "1"
-scale_denominator = "1000"
 
 [[units]]
 id = "kelvin"
-dimension = "temperature"
 symbol = "k"
 spoken = "kelvin"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "ampere"
-dimension = "current"
 symbol = "a"
 spoken = "amper"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "mole"
-dimension = "amount"
 symbol = "mol"
 spoken = "mol"
-scale_numerator = "1"
-scale_denominator = "1"
 
 [[units]]
 id = "candela"
-dimension = "luminous_intensity"
 symbol = "cd"
 spoken = "kandela"
-scale_numerator = "1"
-scale_denominator = "1"

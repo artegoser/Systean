@@ -287,10 +287,9 @@ fn collect_normative_files(
             message: error.to_string(),
         })?;
         if file_type.is_dir() {
-            // `legacy/` is archival input. `typed/` is the Phase 18 migration workspace
-            // until 18B2 makes the typed package the production ownership source.
+            // `legacy/` is archival migration input only. `typed/` is normative as of Phase 18.
             let directory = path.file_name().and_then(|name| name.to_str());
-            if directory == Some("legacy") || directory == Some("typed") {
+            if directory == Some("legacy") {
                 continue;
             }
             collect_normative_files(&path, output)?;

@@ -1,0 +1,78 @@
+// Phase 18 normative typed semantic ontology.
+// Source names are compile-time labels; runtime identity uses stable typed IDs.
+
+type Entity;
+type Occurrence;
+type Event;
+type Process;
+type State;
+type Activity;
+subtype Event: Occurrence;
+subtype Process: Occurrence;
+subtype State: Occurrence;
+subtype Activity: Occurrence;
+type Proposition;
+type Number;
+type Boolean;
+type Text;
+type Utterance;
+type SpeechAct;
+type Affect;
+type Digit;
+type DigitSequence;
+type Sequence<T>;
+type Unit<D>;
+type Quantity<D>;
+type Approximate<T>;
+type LengthDimension;
+type TimeDimension;
+type MassDimension;
+type TemperatureDimension;
+type CurrentDimension;
+type AmountDimension;
+type LuminousIntensityDimension;
+type Temporal;
+type Instant;
+type Interval;
+type Duration;
+type CalendarDate;
+type TimeOfDay;
+type TimeZone;
+subtype Instant: Temporal;
+subtype Interval: Temporal;
+subtype CalendarDate: Temporal;
+subtype TimeOfDay: Temporal;
+literal integer: Number;
+literal boolean: Boolean;
+literal string: Text;
+type SubjectiveExperience;
+type SubjectiveState;
+type SubjectiveEvent;
+subtype SubjectiveExperience: Proposition;
+subtype SubjectiveState: SubjectiveExperience;
+subtype SubjectiveState: State;
+subtype SubjectiveEvent: SubjectiveExperience;
+subtype SubjectiveEvent: Event;
+subtype Affect: SubjectiveState;
+
+data InfoMode {
+    unknown($knower: Entity);
+    unspecified;
+    withheld;
+}
+
+context speaker : Entity;
+context addressee : Entity;
+context now : Instant;
+
+intrinsic meta.resolve<T> : $T;
+intrinsic meta.hole<T>($mode: InfoMode) -> $T;
+
+primitive activity_of($content: Proposition) -> Activity;
+primitive assert($content: Proposition) -> Utterance;
+primitive duration_of($interval: Interval, $duration: Duration) -> Proposition;
+primitive equal<T>($left: $T, $right: $T) -> Proposition;
+primitive event_of($content: Proposition) -> Event;
+primitive interval($start: Instant, $end: Instant) -> Interval;
+primitive process_of($content: Proposition) -> Process;
+primitive state_of($content: Proposition) -> State;

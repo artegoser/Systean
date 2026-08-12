@@ -1,7 +1,7 @@
 [package]
 name = "systean"
-version = "0.17.0"
-revision = 17
+version = "0.18.0"
+revision = 18
 
 [provenance]
 source = "language/"
@@ -11,10 +11,10 @@ specification = "docs/FINAL_ARCHITECTURE.md"
 alphabet = "1.0"
 phonology = "1.0"
 morphology = "1.0"
-syntax = "1.6"
-dictionary = "14.0"
+syntax = "1.7"
+dictionary = "18.0"
 literals = "1.0"
-units = "1.0"
+units = "2.0"
 
 [compatibility]
 # Revisions with the same epoch promise to preserve the frozen compatibility

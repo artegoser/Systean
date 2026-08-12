@@ -11,7 +11,6 @@ export interface Alphabet {
 export interface DictionaryEntry {
 	root: string;
 	definition: string;
-	semantic: LexicalSemantic;
 	syntax?: SurfaceFormConfig;
 }
 
@@ -144,22 +143,16 @@ export interface PackageValidationReport {
 export interface PackageWorkbenchInfo {
 	manifest: PackageManifest;
 	provenance: PackageProvenance;
+	semantic_fingerprint: string;
+	surface_fingerprint: string;
 	validation: PackageValidationReport;
 }
-
-export type LexicalSemantic =
-	| { kind: 'constant'; name?: string; type: string }
-	| { kind: 'operator'; name: string }
-	| { kind: 'reference' }
-	| { kind: 'information'; status: string; knower_type?: string }
-	| { kind: 'context'; key: string; type: string };
 
 export type SurfaceFormConfig = { kind: string; [key: string]: unknown };
 
 export interface WorkbenchDictionaryEntry {
 	root: string;
 	definition: string;
-	semantic: LexicalSemantic;
 	syntax?: SurfaceFormConfig;
 }
 
