@@ -772,6 +772,7 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
     let mut prefixes = Vec::new();
     let mut outer_prefixes = Vec::new();
     let mut infixes = Vec::new();
+    let mut nested_infixes = Vec::new();
     let mut binders = Vec::new();
     let mut references = Vec::new();
     let mut information = Vec::new();
@@ -807,7 +808,12 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                     prefixes.push(surface.clone());
                 }
             }
-            CompiledSurfaceBinding::Infix { .. } => infixes.push(surface.clone()),
+            CompiledSurfaceBinding::Infix { outer_only, .. } => {
+                infixes.push(surface.clone());
+                if !*outer_only {
+                    nested_infixes.push(surface.clone());
+                }
+            }
             CompiledSurfaceBinding::Binder { direct_parameters, .. } => {
                 binders.push((surface.clone(), direct_parameters.len()));
             }
@@ -914,7 +920,7 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
             });
         }
         for outer in &infixes {
-            for inner in &infixes {
+            for inner in &nested_infixes {
                 if outer == inner {
                     continue;
                 }
