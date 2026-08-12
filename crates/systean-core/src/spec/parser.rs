@@ -46,7 +46,7 @@ fn identifier<'src>() -> impl Parser<'src, &'src str, String, Extra<'src>> + Clo
     text::ident::<_, Extra<'src>>().map(str::to_owned).padded()
 }
 
-fn type_parser<'src>() -> impl Parser<'src, &'src str, Type, Extra<'src>> + Clone {
+pub(super) fn type_parser<'src>() -> impl Parser<'src, &'src str, Type, Extra<'src>> + Clone {
     recursive(|ty| {
         let type_variable = just('$')
             .padded()
