@@ -223,49 +223,31 @@ A future focus construction must be explicit and must preserve the canonical und
 
 Likewise, relations/modifiers must structurally identify their target. Systean will not adopt natural-language-style ambiguous attachment such as an unmarked phrase that could modify either an entity or an event.
 
-## 12. Dictionary-compiled surface lexicon
+## 12. Typed-word surface lexicon
 
-There is no independent lexical table in `syntax.toml`.
+Phase 18 separates semantic ownership from the remaining Phase 17 surface metadata.
 
-`dictionary.toml` is the single source of lexical roots. Every dictionary root is compiled into the surface lexicon automatically:
+`language/typed/lexicon.semsys` is the normative owner of every lexical root and its typed semantic signature. `dictionary.toml` contains the human definition and, only where the Phase 17 grammar still requires it, a temporary `syntax` realization overlay. It contains no `semantic = { ... }` binding.
 
-- a semantic `constant` root becomes an `atom` with no extra syntax declaration;
-- an `operator` root carries exactly one root-specific `syntax` realization: `class`, `predicate`, `prefix`, `infix`, `quantifier`, `speech_act`, or `name`.
-
-For example, an ordinary constant root needs only:
-
-```toml
-[sol]
-definition = "..."
-semantic = { kind = "constant", type = "Entity" }
-```
-
-It is immediately recognized by morphology, phonology, and surface syntax. No second `sol` entry exists in `syntax.toml`.
-
-An operator root keeps semantic identity and surface realization together:
-
-```toml
-[ne]
-definition = "Logical negation of a proposition."
-semantic = { kind = "operator", name = "not" }
-syntax = { kind = "prefix", role = "value" }
-```
-
-The semantic operator signature itself remains declared only in `.semsys`:
+An ordinary typed word therefore looks like:
 
 ```text
-operator not(value: Proposition) -> Proposition;
+word vid($observer: Entity, $observed: Entity) -> Proposition;
 ```
 
-This division avoids three forms of duplication:
+with dictionary metadata:
 
-1. roots are not repeated between dictionary and syntax configuration;
-2. semantic signatures are not repeated in the dictionary;
-3. structural policy such as precedence and scope is not repeated per lexical root.
+```toml
+[vid]
+definition = "Visual perception of one entity by another."
+syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
+```
 
-`LanguagePackage` compiles these sources into one `SurfaceLexicon`, installs typed lexical constants into the semantic environment, then validates every operator realization against the `.semsys` signature.
+The Systean root `vid` is itself the semantic symbol identity. There is no production `vid -> see -> opaque operator` mapping. Parameter names are authoring/debug labels; the typed signature compiles them to ordered slots.
 
-This also makes errors occur at the correct layer. A declared root such as `sol` is never rejected as an "unknown surface word" merely because it lacks a second config entry. A structurally valid but semantically ill-typed expression such as `ne sol` reaches semantic type checking and is rejected because `not` expects `Proposition` while `sol` has type `Entity`.
+For ordinary words whose current frame follows arity directly, the typed compiler derives a default root/argument frame. Special Phase 17 surface forms (`prefix`, `infix`, quantifiers, speech acts, names, and related constructions) remain in the dictionary overlay until Phase 19 replaces `SurfaceFormConfig` with declarative typed `form` rules.
+
+At package load time the whole-language compiler enforces exact 1:1 coverage between dictionary roots and typed `word` declarations, validates root legality/phonology/reserved-token ownership, and generates the temporary Phase 17 checker environment from the typed package. Thus the compatibility environment is an output, not a semantic source.
 
 ## 13. Parser and generator invariants
 

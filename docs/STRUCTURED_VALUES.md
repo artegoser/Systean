@@ -7,8 +7,9 @@ This document defines the package-backed structured-value layer implemented by `
 The canonical configuration lives in:
 
 - `language/literals.toml` — numeric and temporal surface forms;
-- `language/units.toml` — dimensions, unit identities, spoken forms, written symbols, and exact conversion ratios;
-- `language/semantics/core.semsys` — semantic types and temporal relations.
+- `language/typed/core.semsys` — semantic types, subtypes, literal-kind ownership, and temporal primitives;
+- `language/typed/units.semsys` — normative dimension/unit IDs and exact conversion relations;
+- `language/units.toml` — written/spoken aliases plus the temporary Phase 17 checker type adapter.
 
 The fixed Systean alphabet remains unchanged. Spoken structured-value forms are validated against the same phonology as ordinary roots.
 
@@ -25,13 +26,7 @@ surface tokens
     -> ordinary semantic checking/elaboration
 ```
 
-Every accepted structured literal carries:
-
-- a family identity;
-- one canonical semantic payload;
-- one declared semantic type;
-- canonical written form;
-- canonical spoken form.
+Every accepted structured literal carries a typed `StructuredValue` payload and one declared semantic type. Canonical written/spoken strings are renderer outputs, not semantic storage. No later semantic layer reparses a canonical string to discover the value family, unit, time field, or information status.
 
 Parsing a value and converting/evaluating that value are separate operations. The parser never silently changes units, fills missing temporal context, or converts one structured type into another.
 

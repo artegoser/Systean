@@ -29,24 +29,23 @@ crates/systean-core/src/semantics/
   explain.rs
 
 crates/systean-core/src/spec/
-  ast.rs
-  parser.rs
-  compile.rs
-  package.rs
+  typed_ast.rs
+  typed_parser.rs
+  typed_compile.rs
+  typed_compat.rs
 
-language/semantics/
+language/typed/
   core.semsys
-  pragmatics.semsys
-  subjective.semsys
+  lexicon.semsys
+  units.semsys
 
-tests/fixtures/semantics/
-  corpus.semsys
-  demo.semsys
+language/legacy/semantics/
+  ... Phase 17 migration snapshots only ...
 ```
 
-The semantic specification/expression parser is implemented with `chumsky = 0.13.0` (pinned exactly in `Cargo.toml`). This parser is for the **specification DSL**, not the future spoken/written Systean surface grammar.
+The typed semantic specification frontend is implemented with `chumsky = 0.13.0` (pinned exactly in `Cargo.toml`). It compiles source declarations to stable typed IDs and ordered parameter slots. Source parameter names exist for authoring, diagnostics, and the temporary Phase 17 checker projection; they are not part of typed semantic identity.
 
-The prototype makes one additional baseline choice that should be preserved unless tests show a reason to change it: semantic operator calls accept named roles only. Argument order therefore carries no meaning, and calls are lowered into a role-keyed canonical map.
+The old named-role `Environment`/`Term` representation still exists as a generated compatibility projection for the current surface parser/checker. It is no longer loaded from an independent semantic package and is scheduled for removal in Phase 19 when declarative surface rules consume typed IDs directly.
 
 For example, these are the same semantic call:
 

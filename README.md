@@ -122,11 +122,11 @@ Morphology v1 is intentionally minimal: a lexical word is exactly its declared r
 cargo run --bin systean -- syntax check
 ```
 
-The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. `syntax.toml` contains structural policy only. Every lexical root comes from `dictionary.toml` and is compiled automatically into the surface lexicon, so adding an ordinary typed root does not require a duplicate syntax entry. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
+The structural syntax engine is executable and enforces canonical frame order, `ki ... ku` scope grouping, quantifier scope by order of appearance, and `AND > OR` precedence. Every lexical root is owned by `language/typed/lexicon.semsys`; `dictionary.toml` must cover those roots exactly and contributes human definitions plus temporary Phase 18 surface metadata. No semantic binding is duplicated in TOML. The normative core particles are `ke` question, `ne` not, `va` and, `zo` or, `ra` every, `mu` some/exists, `da` command, and `me` request. Content predicates/classes remain manually authored vocabulary; test fixtures exercise those unfinished categories end-to-end.
 
 ### Semantic IR
 
-The normative semantic declarations live in `language/semantics/*.semsys`. Corpus/demo declarations used only for tests live under `tests/fixtures/semantics/`.
+The normative semantic declarations live in `language/typed/*.semsys`. Phase 17 semantic sources are archived under `language/legacy/semantics/` only for migration parity; old DSL corpus/demo fixtures remain test-only compatibility inputs.
 
 ```bash
 cargo run --bin systean -- explain 'equal(left = 1, right = 1)'
@@ -172,7 +172,7 @@ Current engine-backed pages:
 
 ## Design status
 
-Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`. Phase 18A now adds the parallel typed `.semsys` compiler, resolved semantic IDs, alpha-normalized terms, structural information/date values, exact ID-based unit relations, and split semantic/surface fingerprints; the production runtime remains on the Phase 17 package until Phase 18B completes full migration and corpus parity.
+Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit. Phase 18 implementation is now complete: `language/typed/*.semsys` is the normative semantic owner, all 175 lexical roots use Systean-root semantic identities, structured values and unit/dimension relations are typed, and the old Phase 17 semantic sources are archival migration evidence only. Full Phase 18 author-toolchain validation is still pending. The remaining generated `Environment`/named-role surface adapter is intentionally removed in Phase 19 together with the declarative surface-grammar migration.
 
 Before the 1.0 freeze, the accepted roadmap now includes a deliberate architecture cleanup:
 
@@ -182,4 +182,4 @@ Before the 1.0 freeze, the accepted roadmap now includes a deliberate architectu
 - Phase 21 — user-facing learning site and interactive contextual analyzer;
 - Phase 22 — Systean 1.0 language freeze.
 
-The target model is specified in `docs/SEMANTIC_DSL_ARCHITECTURE.md`. The existing `dictionary.toml`/string-semantic structure remains the current Phase 17 implementation baseline, not the intended permanent 1.0 ownership model. Vocabulary remains manually authored.
+The target model is specified in `docs/SEMANTIC_DSL_ARCHITECTURE.md`. `dictionary.toml` now contains documentation and temporary Phase 18 surface metadata only; semantic identity/signatures are owned by the typed DSL. Vocabulary remains manually authored.

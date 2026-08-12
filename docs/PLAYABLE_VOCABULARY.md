@@ -2,13 +2,13 @@
 
 Status: **implemented and validated on the author toolchain**
 
-Phase 5 installs the first manually selected content vocabulary into the canonical `language/dictionary.toml`. These forms are ordinary bare roots. Their semantic identity and surface frame are compiled from the dictionary; the full typed operator signature remains in `language/semantics/core.semsys`.
+Phase 5 installed the first manually selected content vocabulary. As of Phase 18, the same roots are normative typed `word` declarations in `language/typed/lexicon.semsys`; `dictionary.toml` retains human definitions and temporary surface metadata only. The historical English operator labels shown below describe the Phase 5/17 implementation and are not current semantic identities.
 
 The phase intentionally implements 40 roots from the pre-implementation author-selected batch. Time, modality, causality, and aspect roots remain assigned to their dedicated later phases rather than receiving premature semantics here.
 
 ## Entity and class predicates
 
-| Root | Exact Phase 5 meaning | Semantic operator |
+| Root | Exact Phase 5 meaning | Archived Phase 17 operator label |
 | --- | --- | --- |
 | `per` | value is a human person | `person(entity)` |
 | `anim` | value is an animal | `animal(entity)` |

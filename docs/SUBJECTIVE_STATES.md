@@ -2,7 +2,7 @@
 
 Status: **author-selected lexical freeze; executable Phase 13 semantics validated on the author toolchain**
 
-This document freezes the currently approved Systean roots for affective, social, romantic/sexual, bodily, and selected motivational/dispositional subjective states. These forms are manually authored language content. Phase 13 installs them as executable dictionary entries with signatures in `language/semantics/subjective.semsys`; the dedicated Phase 13 suite and full workspace/WASM/site validation passed on the author toolchain on 2026-08-11.
+This document freezes the currently approved Systean roots for affective, social, romantic/sexual, bodily, and selected motivational/dispositional subjective states. These forms are manually authored language content. Phase 13 originally installed their signatures in the Phase 17 semantic package; Phase 18 migrates the normative signatures to `language/typed/lexicon.semsys` under the Systean roots themselves. The dedicated Phase 13 behavior remains part of the regression suite.
 
 The fixed alphabet remains authoritative. No form in this document may expand or modify it.
 
@@ -253,8 +253,8 @@ These static checks are not the final normative acceptance test. Phase 16 must s
 
 ## 11. Implementation ownership
 
-- Root spelling and one lexical identity belong in `language/dictionary.toml` when implemented.
-- Full typed semantic signatures belong in `language/semantics/*.semsys`.
+- Root spelling and typed semantic signature belong together as one `word` declaration in `language/typed/lexicon.semsys`.
+- `language/dictionary.toml` contains human definitions and temporary Phase 18 surface metadata, not semantic identity.
 - Generic affect/state machinery belongs in the engine only as generic mechanisms; Rust must not hardcode individual Systean emotions or bodily states.
 - `emo`, `fok`, and `top` remain explicit pragmatic/information-structure constructions selected elsewhere in the language package.
 - The whole-language compiler remains responsible for cross-layer spelling, pronunciation, structured-literal, grammar, and complete spoken-stream ambiguity checks.

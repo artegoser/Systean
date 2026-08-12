@@ -850,48 +850,56 @@ Architecture: [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
 
 Semantic identity and DSL:
 
-- [x] Extend/rework `.semsys` around typed `word`, `primitive`, `def`, `intrinsic`, `data`, `context`, `dimension`, and `unit` declarations
-- [x] Compile source names to stable package IDs (`SymbolId`, `TypeId`, `ConstructorId`, `ContextSlotId`, `DimensionId`, `UnitId`, ...)
-- [ ] Remove runtime semantic dependence on English/source identifiers
-- [x] Make binder/parameter source names non-semantic and alpha-normalized in the Phase 18 typed IR
+- [x] Extend `.semsys` around typed `type`, `subtype`, `literal`, `word`, `primitive`, `def`, `intrinsic`, `data`, `context`, `dimension`, and `unit` declarations
+- [x] Compile source declarations to stable package IDs (`SymbolId`, `TypeId`, `ConstructorId`, `ContextSlotId`, `DimensionId`, `UnitId`, ...)
+- [x] Remove English/source identifiers as normative lexical semantic identity: Systean roots own lexical symbols directly
+- [x] Make binder/parameter source names non-semantic and alpha-normalized in the typed IR
 - [x] Preserve source spans/names outside canonical terms for diagnostics, documentation, workbench display, and migration diffs
+- [x] Compile type/subtype/literal ownership into the typed package
 
 Lexical ownership:
 
-- [ ] Migrate ordinary roots from `dictionary.toml` + duplicated `.semsys` operator signature to one typed DSL declaration
-- [ ] Make the Systean declaration own semantic identity directly instead of `root -> English identifier -> opaque symbol`
+- [x] Migrate all 175 ordinary roots from `dictionary.toml` + duplicated semantic signatures to typed `word` declarations
+- [x] Remove `semantic = { ... }` JSON-shaped bindings and `LexicalSemantic` from production dictionary loading
+- [x] Make `language/typed/*.semsys` the only normative semantic source set
+- [x] Archive Phase 17 English aliases/signatures under `language/legacy/` and exclude them from package provenance
 - [x] Derive ordinary default surface frames from typed arity where possible
-- [x] Ensure adding an ordinary primitive word requires one typed declaration and no Rust change
+- [x] Ensure adding an ordinary primitive word requires one typed declaration and no Rust semantic branch
 
-Typed values:
+Typed values and units:
 
-- [x] Replace `StructuredLiteral { family: String, canonical: String }` with typed algebraic/scalar runtime values
-- [x] Remove `unknown:context:speaker` and other string-encoded runtime semantic mini-languages
-- [x] Represent unknown/unspecified/withheld information structurally
+- [x] Replace opaque structured semantic string envelopes with typed algebraic/scalar runtime values
+- [x] Remove `unknown:context:speaker` and related string-encoded semantic mini-languages
+- [x] Represent unknown/unspecified/withheld and their knowers structurally
 - [x] Migrate numbers, quantities, dates, times, durations, and intervals to typed runtime semantic values
 - [x] Replace runtime string-identified unit/dimension semantics with `UnitId`/`DimensionId`
+- [x] Make exact dimension/unit relations owned by `language/typed/units.semsys`
 - [x] Remove engine special cases keyed by names such as `"time"` or `"second"`
 
-Compatibility:
+Compatibility and package identity:
 
-- [x] Introduce separate semantic and surface fingerprints in the Phase 18 typed package
+- [x] Introduce separate semantic and surface fingerprints and expose both through `LanguagePackage`/workbench metadata
 - [x] Ensure source formatting, comments, and binder renames do not change semantic fingerprint
 - [x] Ensure semantic signature/definition changes do change semantic fingerprint
 - [x] Ensure surface spelling/form changes do change surface fingerprint
-- [ ] Preserve Phase 17 behavior through the frozen compatibility corpus unless a change is deliberately approved
+- [x] Enforce exact dictionary↔typed-word coverage
+- [x] Add migration diagnostics proving archived Phase 17 operator signatures match the Phase 18 typed projection
+- [x] Preserve the Phase 16 compatibility/ambiguity release gate while migrating canonical internal symbol labels to Systean roots
 
 Required validation:
 
-- [ ] Canonical semantic IR contains no human semantic identity strings
-- [ ] Ordinary lexical growth needs no Rust code
+- [x] Normative typed semantic IR contains resolved IDs rather than human semantic identity strings
+- [x] Ordinary lexical growth needs no Rust semantic code
 - [x] Structured values never require a later layer to parse their canonical string representation
 - [x] Unit/dimension runtime behavior contains no English-name special cases after package-boundary resolution
-- [ ] Alpha-equivalent DSL declarations produce equal canonical semantics/fingerprint
-- [ ] Existing behavioral, compatibility, ambiguity, native, and WASM suites remain green
+- [x] Alpha-equivalent DSL declarations produce equal canonical typed semantics/fingerprint
+- [ ] `cargo test --workspace` on the author toolchain
+- [ ] `cargo run --bin systean -- check` on the author toolchain
+- [ ] `pnpm check` and `pnpm build` for the site/WASM package
 
-Status: **in progress — Phase 18A typed compiler and Phase 18B1 structured-value/unit runtime cutover implemented; final lexical ownership/package cutover remains Phase 18B2.**
+Status: **implementation complete; awaiting author-toolchain validation.** The Phase 17 `Environment`/named-role surface representation now exists only as a compatibility projection generated from the typed package. Its removal belongs to Phase 19, where surface parsing/generation is compiled directly against typed IDs.
 
-Completion result: the core has one typed semantic identity model and no longer uses English/source strings as hidden semantics.
+Completion result: the package has one typed semantic source of truth; English aliases and semantic JSON shapes are no longer production semantics.
 
 ---
 
