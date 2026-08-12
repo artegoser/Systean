@@ -850,18 +850,18 @@ Architecture: [`SEMANTIC_DSL_ARCHITECTURE.md`](SEMANTIC_DSL_ARCHITECTURE.md)
 
 Semantic identity and DSL:
 
-- [ ] Extend/rework `.semsys` around typed `word`, `primitive`, `def`, `intrinsic`, `data`, `context`, `dimension`, and `unit` declarations
-- [ ] Compile source names to stable package IDs (`SymbolId`, `TypeId`, `ConstructorId`, `ContextSlotId`, `DimensionId`, `UnitId`, ...)
+- [x] Extend/rework `.semsys` around typed `word`, `primitive`, `def`, `intrinsic`, `data`, `context`, `dimension`, and `unit` declarations
+- [x] Compile source names to stable package IDs (`SymbolId`, `TypeId`, `ConstructorId`, `ContextSlotId`, `DimensionId`, `UnitId`, ...)
 - [ ] Remove runtime semantic dependence on English/source identifiers
-- [ ] Make binder/parameter source names non-semantic and alpha-normalized
-- [ ] Preserve source spans/names only for diagnostics, documentation, workbench display, and migration diffs
+- [x] Make binder/parameter source names non-semantic and alpha-normalized in the Phase 18 typed IR
+- [x] Preserve source spans/names outside canonical terms for diagnostics, documentation, workbench display, and migration diffs
 
 Lexical ownership:
 
 - [ ] Migrate ordinary roots from `dictionary.toml` + duplicated `.semsys` operator signature to one typed DSL declaration
 - [ ] Make the Systean declaration own semantic identity directly instead of `root -> English identifier -> opaque symbol`
-- [ ] Derive ordinary default surface frames from typed arity where possible
-- [ ] Ensure adding an ordinary primitive word requires one declaration and no Rust change
+- [x] Derive ordinary default surface frames from typed arity where possible
+- [x] Ensure adding an ordinary primitive word requires one typed declaration and no Rust change
 
 Typed values:
 
@@ -874,10 +874,10 @@ Typed values:
 
 Compatibility:
 
-- [ ] Introduce separate semantic and surface fingerprints
-- [ ] Ensure source formatting, comments, and binder renames do not change semantic fingerprint
-- [ ] Ensure semantic signature/definition changes do change semantic fingerprint
-- [ ] Ensure surface spelling/form changes do change surface fingerprint
+- [x] Introduce separate semantic and surface fingerprints in the Phase 18 typed package
+- [x] Ensure source formatting, comments, and binder renames do not change semantic fingerprint
+- [x] Ensure semantic signature/definition changes do change semantic fingerprint
+- [x] Ensure surface spelling/form changes do change surface fingerprint
 - [ ] Preserve Phase 17 behavior through the frozen compatibility corpus unless a change is deliberately approved
 
 Required validation:
@@ -888,6 +888,8 @@ Required validation:
 - [ ] Unit/dimension behavior contains no English-name special cases
 - [ ] Alpha-equivalent DSL declarations produce equal canonical semantics/fingerprint
 - [ ] Existing behavioral, compatibility, ambiguity, native, and WASM suites remain green
+
+Status: **in progress — Phase 18A typed compiler implemented in parallel with the Phase 17 runtime; full lexical/value migration and runtime cutover remain Phase 18B.**
 
 Completion result: the core has one typed semantic identity model and no longer uses English/source strings as hidden semantics.
 

@@ -172,7 +172,7 @@ Current engine-backed pages:
 
 ## Design status
 
-Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`.
+Phases 2–16 are implemented and validated on the author toolchain. Phase 17 workbench productization is implemented across core, CLI, WASM and SvelteKit and awaits the native/browser validation commands documented in `docs/PHASE_17_WORKBENCH.md`. Phase 18A now adds the parallel typed `.semsys` compiler, resolved semantic IDs, alpha-normalized terms, structural information/date values, exact ID-based unit relations, and split semantic/surface fingerprints; the production runtime remains on the Phase 17 package until Phase 18B completes full migration and corpus parity.
 
 Before the 1.0 freeze, the accepted roadmap now includes a deliberate architecture cleanup:
 
