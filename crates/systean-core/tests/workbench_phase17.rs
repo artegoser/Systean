@@ -149,7 +149,7 @@ fn literal_inspector_exposes_written_spoken_and_semantic_forms() {
     let language = language();
     let report = workbench::analyze_literal(&language, "2000-12-31").unwrap();
 
-    assert_eq!(report.ty, "Date");
+    assert_eq!(report.ty, "CalendarDate");
     assert_eq!(report.canonical_written, "2000-12-31");
     assert!(!report.canonical_spoken.is_empty());
     assert!(!report.semantic_canonical.is_empty());
