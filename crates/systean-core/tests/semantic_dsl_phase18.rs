@@ -571,11 +571,17 @@ fn runtime_unit_ids_match_the_typed_phase18_unit_bridge() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let language = LanguagePackage::load(repository.join("language")).expect("language package");
     let runtime = language.literals().expect("literal engine").units();
-    let typed = compile_typed_sources([(
-        "units.semsys".to_owned(),
-        include_str!("../../../language/typed/units.semsys").to_owned(),
-    )])
-    .expect("typed unit bridge should compile");
+    let typed = compile_typed_sources([
+        (
+            "core.semsys".to_owned(),
+            include_str!("../../../language/typed/core.semsys").to_owned(),
+        ),
+        (
+            "units.semsys".to_owned(),
+            include_str!("../../../language/typed/units.semsys").to_owned(),
+        ),
+    ])
+    .expect("typed unit bridge should compile in the same type context as the language package");
 
     for (legacy_name, root) in [
         ("meter", "metr"),
