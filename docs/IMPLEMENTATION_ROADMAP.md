@@ -909,25 +909,27 @@ Goal: complete the package architecture so ordinary syntax and Systean-specific 
 
 Detailed plan: [`PHASE_19_DECLARATIVE_LANGUAGE_PACKAGE.md`](PHASE_19_DECLARATIVE_LANGUAGE_PACKAGE.md)
 
-Surface grammar:
+Surface grammar — Phase 19A:
 
-- [ ] Implement typed `form` declarations compiled to both parser and canonical linearizer
-- [ ] Replace growing `Class/Predicate/Prefix/Infix/Quantifier/SpeechAct/...` special-case inventories with generic typed surface rules where possible
-- [ ] Express ordinary unary/binary/n-ary frames through the default word frame
-- [ ] Express `ne`, `va`, `zo` through declarative forms and semantic composition
-- [ ] Express `ra`/`mu` through higher-order typed predicate arguments where possible
-- [ ] Migrate counted quantifiers, aspect, focus/topic, speech acts, and related constructions to generic forms when representable
-- [ ] Keep genuinely structural boundaries/markers explicit rather than forcing them into a lexical abstraction
+- [x] Implement typed `form` declarations compiled into one reversible surface-rule model
+- [x] Derive ordinary unary/binary/n-ary default frames from typed word arity
+- [x] Remove ordinary class/predicate/prefix/infix surface ownership from `dictionary.toml`
+- [x] Move infix precedence and associativity from `syntax.toml` into typed surface rules
+- [x] Make parser and linearizer consume the same compiled per-word precedence/associativity metadata
+- [x] Express `ne`, `va`, `zo` through typed forms plus abstract `logic.not/and/or` semantic composition
+- [x] Preserve structural scope/quotation/text boundaries outside the lexical form abstraction
+- [ ] Express `na`, `ra`, `mu`, and counted quantifiers through the generic typed construction path (Phase 19B)
+- [ ] Remove the generated Phase 17 `LexemeConfig`/named-role projection after the remaining constructions migrate (Phase 19B)
 
 Elaboration/reference:
 
-- [ ] Allow predicate/function values as first-class typed arguments for higher-order constructions
-- [ ] Use expected type to reject impossible analyses without ranking multiple valid analyses
-- [ ] Compile context roots through `ContextSlotId`
-- [ ] Compile `ref<T>` and safe omission to one generic typed resolver request with distinct provenance
-- [ ] Preserve exact alias semantics and 0/1/many reference resolution
+- [ ] Move function-valued/higher-order arguments into the production type-directed surface compiler (typed IR support already exists)
+- [ ] Reject impossible candidates by expected type without ranking multiple valid analyses
+- [x] Keep context roots compiled through `ContextSlotId`
+- [x] Keep explicit `ref<T>` and safe omission on one typed resolver mechanism with distinct provenance
+- [x] Preserve exact alias semantics and 0/1/many reference resolution
 
-Discourse effects:
+Discourse effects — Phase 19B:
 
 - [ ] Define a small stable generic effect instruction set
 - [ ] Declare question/assertion/request/command/focus/topic/repair behavior through typed package effects
@@ -936,20 +938,24 @@ Discourse effects:
 
 Schema cleanup:
 
-- [ ] Remove unsupported/fake configuration alternatives that validators currently reject
-- [ ] Remove old semantic root/form inventories from TOML after migration
+- [x] Remove the global precedence table as a normative syntax source
+- [ ] Remove unsupported/fake configuration alternatives and the now-unused global same-operator flattening setting
+- [ ] Remove the last nine dictionary surface overlays and remaining compatibility surface adapter
 - [ ] Ensure no active language rule depends on `language/legacy/`
 
 Required validation:
 
-- [ ] Parser and generator derive from the same rule and round-trip canonically
+- [x] Parser and generator derive migrated ordinary forms from the same typed rule metadata and round-trip canonically
 - [ ] `ra per viv` and the full quantifier corpus preserve intended meaning without a quantifier-specific parse shortcut
-- [ ] Existing precedence/grouping/reference/repair behavior remains deterministic
-- [ ] New language-specific constructions using existing semantic/effect primitives require no Rust changes
-- [ ] Whole-language compiler still rejects every complete typed ambiguity rather than ranking candidates
+- [x] Precedence/associativity for migrated infix forms is package-declared and deterministic
+- [ ] New language-specific question/repair constructions using existing effect primitives require no Rust changes
+- [ ] Whole-language compiler rejects every complete typed ambiguity rather than ranking candidates after type-directed cutover
 - [ ] Native/WASM/site engine contract remains one implementation
+- [ ] Author-toolchain Phase 19A test/check/WASM gates
 
-Completion result: Rust is a generic typed language engine; Systean-specific language growth is predominantly `.semsys` package authoring.
+Status: **Phase 19A implemented; Phase 19B remains.** Ordinary reversible lexical surface ownership now lives in typed `.semsys`; `dictionary.toml` retains only nine explicit compatibility overlays: name, quantifier/counted-quantifier, and three outer-only speech-act categories that require the generic Phase 19B parser/effect cutover. The existing parser/linearizer remains a generated backend adapter rather than a second source of surface truth.
+
+Completion result after 19B: package-declared typed syntax and discourse effects replace Systean-specific parser/pragmatics growth in Rust.
 
 ---
 

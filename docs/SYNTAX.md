@@ -225,29 +225,45 @@ Likewise, relations/modifiers must structurally identify their target. Systean w
 
 ## 12. Typed-word surface lexicon
 
-Phase 18 separates semantic ownership from the remaining Phase 17 surface metadata.
+Phase 19A moves ordinary lexical surface ownership into the same typed package that already owns semantic identity. `dictionary.toml` is learning/documentation metadata and no longer declares class, predicate, prefix, or infix frames. Three outer-only speech-act overlays remain temporarily only as backend placement categories; their root/argument order is already owned and validated by typed `form` rules. The category carries a restriction that an unrestricted prefix projection would lose.
 
-`language/typed/lexicon.semsys` is the normative owner of every lexical root and its typed semantic signature. `dictionary.toml` contains the human definition and, only where the Phase 17 grammar still requires it, a temporary `syntax` realization overlay. It contains no `semantic = { ... }` binding.
-
-An ordinary typed word therefore looks like:
+An ordinary typed word uses its compiler-derived default frame:
 
 ```text
 word vid($observer: Entity, $observed: Entity) -> Proposition;
 ```
 
-with dictionary metadata:
+which compiles to the indexed reversible rule:
 
-```toml
-[vid]
-definition = "Visual perception of one entity by another."
-syntax = { kind = "predicate", primary_role = "observer", rest_roles = ["observed"] }
+```text
+$0 vid $1
 ```
 
-The Systean root `vid` is itself the semantic symbol identity. There is no production `vid -> see -> opaque operator` mapping. Parameter names are authoring/debug labels; the typed signature compiles them to ordered slots.
+Source parameter names (`$observer`, `$observed`) remain useful diagnostics/documentation labels, but the compiled surface rule stores numeric argument slots. Renaming them does not change the surface fingerprint.
 
-For ordinary words whose current frame follows arity directly, the typed compiler derives a default root/argument frame. Special Phase 17 surface forms (`prefix`, `infix`, quantifiers, speech acts, names, and related constructions) remain in the dictionary overlay until Phase 19 replaces `SurfaceFormConfig` with declarative typed `form` rules.
+A non-default realization is declared beside the word:
 
-At package load time the whole-language compiler enforces exact 1:1 coverage between dictionary roots and typed `word` declarations, validates root legality/phonology/reserved-token ownership, and generates the temporary Phase 17 checker environment from the typed package. Thus the compatibility environment is an output, not a semantic source.
+```text
+word ne($value: Proposition) -> Proposition = logic.not($value) {
+    form _ $value;
+}
+
+word va($left: Proposition, $right: Proposition) -> Proposition = logic.and($left, $right) {
+    form $left _ $right;
+    precedence 20;
+    associative;
+}
+```
+
+`_` denotes the lexical root. Every parameter must occur exactly once and the root exactly once. Invalid/missing/duplicate holes fail typed-package compilation. Infix precedence and associativity are properties of this rule; `syntax.toml` no longer owns an operator precedence table. Canonical parsing and linearization receive the same compiled rule metadata.
+
+For Phase 19A the current Phase 17 `SurfaceExpr` parser remains a generated backend projection. It can project default frames, prefix forms, and binary infix forms from typed rules. Outer-only speech acts get their root/argument order from typed rules too, but still use a compatibility backend category until the generic Phase 19B parser can enforce the same placement constraint directly. This is a compatibility implementation detail, not a second authoring source.
+
+Exactly nine dictionary overlays remain until Phase 19B: `na`, `ra`, `mu`, `rov`, `mini`, `maks`, `ke`, `da`, and `me`. The three speech-act overlays preserve only the current outer-expression placement rule; their `form _ $content` order already lives in typed DSL. Treating them as unrestricted Phase 17 prefixes would incorrectly accept forms such as `mi ke viv`. The name/quantifier overlays require generic construction parsing; the three speech-act overlays require generic typed placement/effect handling. Phase 19B removes both classes of adapter. No migrated ordinary root may reintroduce a `syntax = ...` overlay.
+
+The Systean roots `ne`, `va`, and `zo` are additionally defined over abstract typed primitives (`logic.not`, `logic.and`, `logic.or`), so their concrete roots and their abstract compositional semantics are no longer the same accidental symbol.
+
+At package load time the whole-language compiler still enforces exact dictionary↔typed-word coverage, root legality/phonology/reserved-token ownership, and surface-rule validity.
 
 ## 13. Parser and generator invariants
 
