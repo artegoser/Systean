@@ -6,8 +6,9 @@ use chumsky::prelude::*;
 use crate::semantics::LiteralKind;
 use super::parser::type_parser;
 use super::typed_ast::{
-    DataConstructorDeclaration, SourceExpr, SourceParameter, SourceSurfaceItem, SourceSurfaceRule,
-    SourceUnitDefinition, TypedDeclaration, TypedSpecification,
+    DataConstructorDeclaration, SourceActKind, SourceBinderRule, SourceCaptureKind, SourceCaptureRule,
+    SourceEffectDirective, SourceExpr, SourceParameter, SourceRepairKind, SourceSurfaceItem,
+    SourceSurfaceRule, SourceUnitDefinition, TypedDeclaration, TypedSpecification,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -74,10 +75,14 @@ fn surface_rule_parser<'src>() -> impl Parser<'src, &'src str, SourceSurfaceRule
         Form(Vec<SourceSurfaceItem>),
         Precedence(u16),
         Associative,
+        Bind(SourceBinderRule),
+        Capture(SourceCaptureRule),
+        OuterOnly,
     }
 
     let item = choice((
         just('_').to(SourceSurfaceItem::Root),
+        just("@restriction").to(SourceSurfaceItem::Restriction),
         just('$')
             .padded()
             .ignore_then(identifier())
@@ -107,7 +112,30 @@ fn surface_rule_parser<'src>() -> impl Parser<'src, &'src str, SourceSurfaceRule
         .then_ignore(just(';').padded())
         .to(Directive::Associative);
 
-    choice((form, precedence, associative))
+    let bind = just("bind")
+        .padded()
+        .ignore_then(just('$').padded().ignore_then(identifier()))
+        .then_ignore(just("using").padded())
+        .then(qualified_identifier())
+        .then_ignore(just(';').padded())
+        .map(|(parameter, combiner)| Directive::Bind(SourceBinderRule { parameter, combiner }));
+
+    let capture = just("capture")
+        .padded()
+        .ignore_then(just('$').padded().ignore_then(identifier()))
+        .then_ignore(just("bare").padded())
+        .then_ignore(just(';').padded())
+        .map(|parameter| Directive::Capture(SourceCaptureRule {
+            parameter,
+            kind: SourceCaptureKind::BareToken,
+        }));
+
+    let outer_only = just("outer")
+        .padded()
+        .then_ignore(just(';').padded())
+        .to(Directive::OuterOnly);
+
+    choice((form, precedence, associative, bind, capture, outer_only))
         .repeated()
         .at_least(1)
         .collect::<Vec<_>>()
@@ -116,6 +144,9 @@ fn surface_rule_parser<'src>() -> impl Parser<'src, &'src str, SourceSurfaceRule
             let mut form = None;
             let mut precedence = None;
             let mut associative = false;
+            let mut binder = None;
+            let mut captures = Vec::new();
+            let mut outer_only = false;
             for directive in directives {
                 match directive {
                     Directive::Form(items) => {
@@ -134,12 +165,24 @@ fn surface_rule_parser<'src>() -> impl Parser<'src, &'src str, SourceSurfaceRule
                         }
                         associative = true;
                     }
+                    Directive::Bind(rule) => {
+                        if binder.replace(rule).is_some() {
+                            return Err(Rich::custom(span, "surface block contains more than one `bind` declaration"));
+                        }
+                    }
+                    Directive::Capture(rule) => captures.push(rule),
+                    Directive::OuterOnly => {
+                        if outer_only {
+                            return Err(Rich::custom(span, "surface block contains duplicate `outer` declaration"));
+                        }
+                        outer_only = true;
+                    }
                 }
             }
             let Some(items) = form else {
                 return Err(Rich::custom(span, "surface block requires exactly one `form` declaration"));
             };
-            Ok(SourceSurfaceRule { items, precedence, associative })
+            Ok(SourceSurfaceRule { items, precedence, associative, binder, captures, outer_only })
         })
 }
 
@@ -221,6 +264,76 @@ fn source_expr_parser<'src>() -> impl Parser<'src, &'src str, SourceExpr, Extra<
         choice((lambda, integer, boolean, string, local, call_or_name))
             .or(expr.clone().delimited_by(just('(').padded(), just(')').padded()))
     })
+}
+
+fn effect_directives_parser<'src>() -> impl Parser<'src, &'src str, Vec<SourceEffectDirective>, Extra<'src>> + Clone {
+    let argument = just('$').padded().ignore_then(identifier());
+    let arguments = argument
+        .clone()
+        .separated_by(just(',').padded())
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just('(').padded(), just(')').padded());
+
+    let act_kind = choice((
+        just("assertion").to(SourceActKind::Assertion),
+        just("question").to(SourceActKind::Question),
+        just("command").to(SourceActKind::Command),
+        just("request").to(SourceActKind::Request),
+        just("expressive").to(SourceActKind::Expressive),
+        just("focus").to(SourceActKind::Focus),
+        just("topic").to(SourceActKind::Topic),
+        just("retraction").to(SourceActKind::Retraction),
+        just("correction").to(SourceActKind::Correction),
+        just("clarification").to(SourceActKind::Clarification),
+    ))
+    .padded();
+
+    let act = just("act")
+        .padded()
+        .ignore_then(act_kind)
+        .then(arguments)
+        .then_ignore(just(';').padded())
+        .map(|(kind, arguments)| SourceEffectDirective::Act { kind, arguments });
+
+    let commit = just("commit")
+        .padded()
+        .ignore_then(argument.clone())
+        .then_ignore(just(';').padded())
+        .map(|argument| SourceEffectDirective::Commit { argument });
+
+    let contains = just("require_contains")
+        .padded()
+        .ignore_then(argument.clone())
+        .then(argument.clone())
+        .then_ignore(just(';').padded())
+        .map(|(content, target)| SourceEffectDirective::RequireContains { content, target });
+
+    let choice_operator = just("choice")
+        .padded()
+        .ignore_then(qualified_identifier())
+        .then_ignore(just(';').padded())
+        .map(|operator| SourceEffectDirective::Choice { operator });
+
+    let repair_kind = choice((
+        just("retract").to(SourceRepairKind::Retract),
+        just("replace").to(SourceRepairKind::Replace),
+        just("clarify").to(SourceRepairKind::Clarify),
+    ))
+    .padded();
+    let repair = just("repair")
+        .padded()
+        .ignore_then(repair_kind)
+        .then(argument.clone())
+        .then(argument.or_not())
+        .then_ignore(just(';').padded())
+        .map(|((kind, target), value)| SourceEffectDirective::Repair { kind, target, value });
+
+    choice((act, commit, contains, choice_operator, repair))
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .delimited_by(just('{').padded(), just('}').padded())
 }
 
 fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclaration, Extra<'src>> + Clone {
@@ -372,8 +485,23 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
     let dimension = just("dimension")
         .padded()
         .ignore_then(ident.clone())
+        .then_ignore(just(':').padded())
+        .then(ty.clone())
         .then_ignore(just(';').padded())
-        .map(|name| TypedDeclaration::Dimension { name });
+        .map(|(name, ty)| TypedDeclaration::Dimension { name, ty });
+
+    let effect = just("effect")
+        .padded()
+        .ignore_then(qualified_identifier())
+        .then(effect_directives_parser())
+        .map(|(target, directives)| TypedDeclaration::Effect { target, directives });
+
+    let default_effect = just("default")
+        .padded()
+        .ignore_then(just("effect").padded())
+        .ignore_then(qualified_identifier())
+        .then_ignore(just(';').padded())
+        .map(|target| TypedDeclaration::DefaultEffect { target });
 
     let unit_scale = text::digits::<_, Extra<'src>>(10)
         .to_slice()
@@ -429,6 +557,8 @@ fn typed_declaration_parser<'src>() -> impl Parser<'src, &'src str, TypedDeclara
         data,
         context,
         dimension,
+        effect,
+        default_effect,
         unit,
     ))
 }

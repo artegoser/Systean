@@ -1,34 +1,6 @@
 [meta]
-description = "Surface/API metadata for typed Systean units. Exact dimensions and conversion scales are owned by typed/units.semsys."
-version = "2.0"
-
-[[dimensions]]
-id = "length"
-semantic_type = "LengthDimension"
-
-[[dimensions]]
-id = "time"
-semantic_type = "TimeDimension"
-
-[[dimensions]]
-id = "mass"
-semantic_type = "MassDimension"
-
-[[dimensions]]
-id = "temperature"
-semantic_type = "TemperatureDimension"
-
-[[dimensions]]
-id = "current"
-semantic_type = "CurrentDimension"
-
-[[dimensions]]
-id = "amount"
-semantic_type = "AmountDimension"
-
-[[dimensions]]
-id = "luminous_intensity"
-semantic_type = "LuminousIntensityDimension"
+description = "Surface/API aliases and spellings for typed Systean units. Dimensions, value types, and exact conversion scales are owned by typed/units.semsys."
+version = "3.0"
 
 [[units]]
 id = "meter"

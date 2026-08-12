@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::language::{LanguageError, LanguagePackage};
 use crate::semantics::canonicalize;
 use crate::syntax::{
-    Argument, ArgumentOmission, Clause, FrameOrder, InformationKnower, LexemeConfig, SurfaceExpr,
+    Argument, ArgumentOmission, Clause, FrameOrder, InformationKnower, CompiledSurfaceBinding, SurfaceExpr,
 };
 
 const REQUIRED_MODULES: [&str; 7] = [
@@ -767,50 +767,55 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
     let mut first_atom = None;
     let mut first_alias = None;
     let mut first_context = None;
-    let mut first_name = None;
+    let mut first_capture = None;
     let mut first_class = None;
     let mut prefixes = Vec::new();
+    let mut outer_prefixes = Vec::new();
     let mut infixes = Vec::new();
-    let mut speech_acts = Vec::new();
-    let mut quantifiers = Vec::new();
-    let mut counted_quantifiers = Vec::new();
+    let mut binders = Vec::new();
     let mut references = Vec::new();
     let mut information = Vec::new();
 
     for (surface, lexeme) in lexicon.iter() {
         match lexeme {
-            LexemeConfig::Atom { .. } => {
+            CompiledSurfaceBinding::Atom { .. } => {
                 first_atom.get_or_insert_with(|| surface.clone());
                 output.push(SurfaceExpr::Atom(surface.clone()));
             }
-            LexemeConfig::Alias { .. } => {
+            CompiledSurfaceBinding::Alias { .. } => {
                 first_alias.get_or_insert_with(|| surface.clone());
                 output.push(SurfaceExpr::Alias(surface.clone()));
             }
-            LexemeConfig::Context { .. } => {
+            CompiledSurfaceBinding::Context { .. } => {
                 first_context.get_or_insert_with(|| surface.clone());
                 output.push(SurfaceExpr::Context(surface.clone()));
             }
-            LexemeConfig::Name { .. } => {
-                first_name.get_or_insert_with(|| surface.clone());
-                output.push(SurfaceExpr::Name {
+            CompiledSurfaceBinding::Capture { .. } => {
+                first_capture.get_or_insert_with(|| surface.clone());
+                output.push(SurfaceExpr::Captured {
                     marker: surface.clone(),
                     payload: "nara".into(),
                 });
             }
-            LexemeConfig::Class { role: _, .. } => {
+            CompiledSurfaceBinding::Class { .. } => {
                 first_class.get_or_insert_with(|| surface.clone());
             }
-            LexemeConfig::Prefix { .. } => prefixes.push(surface.clone()),
-            LexemeConfig::Infix { .. } => infixes.push(surface.clone()),
-            LexemeConfig::SpeechAct { .. } => speech_acts.push(surface.clone()),
-            LexemeConfig::Quantifier { .. } => quantifiers.push(surface.clone()),
-            LexemeConfig::CountedQuantifier { .. } => counted_quantifiers.push(surface.clone()),
-            LexemeConfig::Reference => references.push(surface.clone()),
-            LexemeConfig::Information { knower_type, .. } => {
+            CompiledSurfaceBinding::Prefix { outer_only, .. } => {
+                if *outer_only {
+                    outer_prefixes.push(surface.clone());
+                } else {
+                    prefixes.push(surface.clone());
+                }
+            }
+            CompiledSurfaceBinding::Infix { .. } => infixes.push(surface.clone()),
+            CompiledSurfaceBinding::Binder { direct_parameters, .. } => {
+                binders.push((surface.clone(), direct_parameters.len()));
+            }
+            CompiledSurfaceBinding::Reference => references.push(surface.clone()),
+            CompiledSurfaceBinding::Information { knower_type, .. } => {
                 information.push((surface.clone(), knower_type.clone()))
             }
-            LexemeConfig::Predicate { .. } => {}
+            CompiledSurfaceBinding::Predicate { .. } => {}
         }
     }
 
@@ -844,26 +849,26 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
     if let (Some(argument), Some(expr)) = (representative_argument.clone(), representative_expr.clone()) {
         for (surface, lexeme) in lexicon.iter() {
             match lexeme {
-                LexemeConfig::Class { .. } => output.push(SurfaceExpr::Clause(Clause {
+                CompiledSurfaceBinding::Class { .. } => output.push(SurfaceExpr::Clause(Clause {
                     primary: Some(argument.clone()),
                     inner_prefixes: Vec::new(),
                     predicate: surface.clone(),
                     rest: Vec::new(),
                 })),
-                LexemeConfig::Predicate {
-                    primary_role,
-                    rest_roles,
+                CompiledSurfaceBinding::Predicate {
+                    primary_parameter,
+                    rest_parameters,
                     ..
                 } => {
-                    let primary = primary_role.as_ref().map(|_| argument.clone());
-                    let rest = rest_roles.iter().map(|_| argument.clone()).collect::<Vec<_>>();
+                    let primary = primary_parameter.as_ref().map(|_| argument.clone());
+                    let rest = rest_parameters.iter().map(|_| argument.clone()).collect::<Vec<_>>();
                     output.push(SurfaceExpr::Clause(Clause {
                         primary: primary.clone(),
                         inner_prefixes: Vec::new(),
                         predicate: surface.clone(),
                         rest: rest.clone(),
                     }));
-                    if primary_role.is_some()
+                    if primary_parameter.is_some()
                         && language.syntax().config().arguments.omission
                             == ArgumentOmission::UniqueReferenceOnly
                     {
@@ -874,7 +879,7 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                             rest,
                         }));
                     }
-                    if primary_role.is_some()
+                    if primary_parameter.is_some()
                         && language.syntax().config().order.frame == FrameOrder::PrimaryPredicateRest
                     {
                         for prefix in &prefixes {
@@ -882,7 +887,7 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                                 primary: primary.clone(),
                                 inner_prefixes: vec![prefix.clone()],
                                 predicate: surface.clone(),
-                                rest: rest_roles.iter().map(|_| argument.clone()).collect(),
+                                rest: rest_parameters.iter().map(|_| argument.clone()).collect(),
                             }));
                         }
                     }
@@ -896,8 +901,8 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                 operand: Box::new(expr.clone()),
             });
         }
-        for speech_act in &speech_acts {
-            output.push(SurfaceExpr::SpeechAct {
+        for speech_act in &outer_prefixes {
+            output.push(SurfaceExpr::Outer {
                 operator: speech_act.clone(),
                 content: Box::new(expr.clone()),
             });
@@ -948,8 +953,8 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
         if let Some(alias) = first_alias {
             arguments.push(Argument::Alias(alias));
         }
-        if let Some(name) = first_name.clone() {
-            arguments.push(Argument::Name {
+        if let Some(name) = first_capture.clone() {
+            arguments.push(Argument::Captured {
                 marker: name,
                 payload: "nara".into(),
             });
@@ -967,7 +972,7 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                     .as_ref()
                     .map(|surface| InformationKnower::Context(surface.clone()))
                     .or_else(|| {
-                        first_name.as_ref().map(|name| InformationKnower::Name {
+                        first_capture.as_ref().map(|name| InformationKnower::Captured {
                             marker: name.clone(),
                             payload: "nara".into(),
                         })
@@ -979,17 +984,19 @@ fn generated_ast_corpus(language: &LanguagePackage) -> Vec<SurfaceExpr> {
                 arguments.push(Argument::Information { marker, knower });
             }
         }
-        for quantifier in quantifiers {
-            arguments.push(Argument::Quantified {
-                quantifier,
-                restriction: class.clone(),
-            });
-        }
-        if let Some(count) = count_literal {
-            for quantifier in counted_quantifiers {
-                arguments.push(Argument::CountedQuantified {
-                    quantifier,
-                    count: count.clone(),
+        for (binder, direct_count) in binders {
+            let mut direct = Vec::new();
+            if direct_count > 0 {
+                if let Some(count) = count_literal.clone() {
+                    direct.push(Argument::Literal(count));
+                } else {
+                    continue;
+                }
+            }
+            if direct.len() == direct_count {
+                arguments.push(Argument::Scoped {
+                    binder,
+                    direct,
                     restriction: class.clone(),
                 });
             }
@@ -1149,30 +1156,30 @@ fn enumerate_sequences(
     }
 }
 
-fn lexeme_family(lexeme: &LexemeConfig) -> &'static str {
+fn lexeme_family(lexeme: &CompiledSurfaceBinding) -> &'static str {
     match lexeme {
-        LexemeConfig::Atom { .. } => "atom",
-        LexemeConfig::Reference => "reference",
-        LexemeConfig::Information { knower_type: None, .. } => "information",
-        LexemeConfig::Information { knower_type: Some(_), .. } => "information_knower",
-        LexemeConfig::Alias { .. } => "alias",
-        LexemeConfig::Context { .. } => "context",
-        LexemeConfig::Class { .. } => "class",
-        LexemeConfig::Predicate {
-            primary_role: None, ..
+        CompiledSurfaceBinding::Atom { .. } => "atom",
+        CompiledSurfaceBinding::Reference => "reference",
+        CompiledSurfaceBinding::Information { knower_type: None, .. } => "information",
+        CompiledSurfaceBinding::Information { knower_type: Some(_), .. } => "information_knower",
+        CompiledSurfaceBinding::Alias { .. } => "alias",
+        CompiledSurfaceBinding::Context { .. } => "context",
+        CompiledSurfaceBinding::Class { .. } => "class",
+        CompiledSurfaceBinding::Predicate {
+            primary_parameter: None, ..
         } => "predicate_no_primary",
-        LexemeConfig::Predicate {
-            primary_role: Some(_),
-            rest_roles,
+        CompiledSurfaceBinding::Predicate {
+            primary_parameter: Some(_),
+            rest_parameters,
             ..
-        } if rest_roles.is_empty() => "predicate_primary",
-        LexemeConfig::Predicate { .. } => "predicate_multi",
-        LexemeConfig::Prefix { .. } => "prefix",
-        LexemeConfig::Infix { .. } => "infix",
-        LexemeConfig::Quantifier { .. } => "quantifier",
-        LexemeConfig::CountedQuantifier { .. } => "counted_quantifier",
-        LexemeConfig::SpeechAct { .. } => "speech_act",
-        LexemeConfig::Name { .. } => "name",
+        } if rest_parameters.is_empty() => "predicate_primary",
+        CompiledSurfaceBinding::Predicate { .. } => "predicate_multi",
+        CompiledSurfaceBinding::Prefix { outer_only: false, .. } => "prefix",
+        CompiledSurfaceBinding::Prefix { outer_only: true, .. } => "outer_prefix",
+        CompiledSurfaceBinding::Infix { .. } => "infix",
+        CompiledSurfaceBinding::Binder { direct_parameters, .. } if direct_parameters.is_empty() => "binder",
+        CompiledSurfaceBinding::Binder { .. } => "binder_direct",
+        CompiledSurfaceBinding::Capture { .. } => "capture",
     }
 }
 

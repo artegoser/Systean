@@ -165,7 +165,6 @@
 				</div>
 				<div class="font-mono text-sm break-all">
 					<div><strong>semantic identity:</strong> <span class="font-mono">{wordAnalysis.root}</span></div>
-					<div class="mt-2"><strong>surface frame:</strong> {wordAnalysis.dictionary_entry.syntax ? JSON.stringify(wordAnalysis.dictionary_entry.syntax) : 'bare atom'}</div>
 					<div class="mt-2"><strong>semantic provenance:</strong> {wordAnalysis.semantic_origin ?? 'typed package'}</div>
 				</div>
 			</div>

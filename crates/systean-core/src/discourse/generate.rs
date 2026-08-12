@@ -48,7 +48,7 @@ fn rewrite_expr(
         SurfaceExpr::Atom(_)
         | SurfaceExpr::Context(_)
         | SurfaceExpr::Alias(_)
-        | SurfaceExpr::Name { .. }
+        | SurfaceExpr::Captured { .. }
         | SurfaceExpr::Quote(_)
         | SurfaceExpr::Literal(_) => expression.clone(),
         SurfaceExpr::Clause(clause) => SurfaceExpr::Clause(Clause {
@@ -94,7 +94,7 @@ fn rewrite_expr(
                 reference_index,
             )?),
         },
-        SurfaceExpr::SpeechAct { operator, content } => SurfaceExpr::SpeechAct {
+        SurfaceExpr::Outer { operator, content } => SurfaceExpr::Outer {
             operator: operator.clone(),
             content: Box::new(rewrite_expr(
                 content,

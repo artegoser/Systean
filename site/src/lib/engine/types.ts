@@ -11,7 +11,6 @@ export interface Alphabet {
 export interface DictionaryEntry {
 	root: string;
 	definition: string;
-	syntax?: SurfaceFormConfig;
 }
 
 export interface Dictionary {
@@ -53,15 +52,12 @@ export interface SemanticAnalysis {
 
 export interface SyntaxPolicy {
 	frameOrder: string;
-	freeOrder: boolean;
 	scopeOpen: string;
 	scopeClose: string;
 	quoteOpen: string;
 	quoteClose: string;
-	explicitScope: string;
-	quantifierScope: string;
-	precedence: Record<string, number>;
-	flattenSameOperator: boolean;
+	surfaceRuleCount: number;
+	effectProgramCount: number;
 	lexicalRoots: number;
 }
 
@@ -148,12 +144,10 @@ export interface PackageWorkbenchInfo {
 	validation: PackageValidationReport;
 }
 
-export type SurfaceFormConfig = { kind: string; [key: string]: unknown };
 
 export interface WorkbenchDictionaryEntry {
 	root: string;
 	definition: string;
-	syntax?: SurfaceFormConfig;
 }
 
 export interface WorkbenchMorpheme {

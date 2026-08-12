@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 pub struct UnitsConfig {
     pub meta: Option<MetaConfig>,
     #[serde(default)]
-    pub dimensions: Vec<DimensionConfig>,
-    #[serde(default)]
     pub units: Vec<UnitConfig>,
 }
 
@@ -16,14 +14,6 @@ pub struct UnitsConfig {
 pub struct MetaConfig {
     pub description: Option<String>,
     pub version: Option<String>,
-}
-
-/// Surface/type-adapter metadata for a typed semantic dimension.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct DimensionConfig {
-    pub id: String,
-    pub semantic_type: String,
 }
 
 /// Human/API aliases and surface spellings only. Dimension and exact scale are owned by
@@ -51,20 +41,6 @@ impl UnitsConfig {
     }
 
     fn validate(&self) -> Result<(), UnitsConfigError> {
-        let mut dimensions = BTreeSet::new();
-        for dimension in &self.dimensions {
-            if dimension.id.trim().is_empty() || dimension.semantic_type.trim().is_empty() {
-                return Err(UnitsConfigError::Invalid(
-                    "unit dimensions require non-empty id and semantic_type".into(),
-                ));
-            }
-            if !dimensions.insert(dimension.id.clone()) {
-                return Err(UnitsConfigError::Invalid(format!(
-                    "duplicate unit dimension `{}`",
-                    dimension.id
-                )));
-            }
-        }
         let mut ids = BTreeSet::new();
         let mut symbols = BTreeSet::new();
         let mut spoken = BTreeSet::new();
@@ -88,9 +64,7 @@ impl UnitsConfig {
         Ok(())
     }
 
-    pub fn dimensions_by_id(&self) -> BTreeMap<&str, &DimensionConfig> {
-        self.dimensions.iter().map(|value| (value.id.as_str(), value)).collect()
-    }
+
 }
 
 impl std::fmt::Display for UnitsConfigError {

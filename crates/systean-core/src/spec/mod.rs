@@ -16,7 +16,8 @@ pub use package::{PackageError, compile_path, compile_sources, load_specificatio
 
 
 pub use typed_ast::{
-    CompiledConstructor, CompiledContextSlot, CompiledScalar, CompiledSignature, CompiledSurfaceItem,
+    CompiledActKind, CompiledConstructor, CompiledContextSlot, CompiledEffectInstruction,
+    CompiledEffectProgram, CompiledRepairKind, CompiledScalar, CompiledSignature, CompiledSurfaceItem,
     CompiledSurfaceRule, CompiledSymbol, CompiledSymbolKind, CompiledTerm, CompiledType, CompiledUnit,
     DataConstructorDeclaration, DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem,
     SourceExpr, SourceParameter, SourceSpan, SourceSurfaceItem, SourceSurfaceRule, SourceUnitDefinition,

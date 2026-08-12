@@ -9,9 +9,8 @@ mod parser;
 
 pub use ast::{Argument, Clause, InformationKnower, SurfaceExpr};
 pub use config::{
-    ArgumentOmission, DiscourseConfig, ExplicitOperatorRealization, ExplicitScopePolicy, FrameOrder,
-    GrammarConfig, PragmaticsConfig, QuantifierScopePolicy, QuotationConfig, RoleRealization,
-    SurfaceFormConfig, SyntaxConfig, SyntaxConfigError, TextConfig,
+    ArgumentOmission, ArgumentsConfig, DiscourseConfig, FrameOrder, MetaConfig, OrderConfig,
+    QuotationConfig, ScopeConfig, SyntaxConfig, SyntaxConfigError, TextConfig,
 };
 pub use elaborate::{
     AliasSlot, ContextSlot, ReferenceSlot, ReferenceSource, SurfaceElaborationError, TypedSurfaceAst,
@@ -19,6 +18,6 @@ pub use elaborate::{
 };
 pub use engine::{SurfaceAnalysis, SurfaceError, SyntaxEngine};
 pub use generate::{SurfaceGenerationError, linearize_surface};
-pub use lexicon::{LexemeConfig, SurfaceLexicon};
+pub use lexicon::{CompiledSurfaceBinding, CompiledSurfaceLexicon};
 pub use lower::{LoweredSurface, SurfaceLowerError, lower_surface};
 pub use parser::{SurfaceParseError, parse_surface, parse_surface_with_literals, tokenize};

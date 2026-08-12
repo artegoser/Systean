@@ -1,0 +1,53 @@
+// Phase 19 normative discourse behavior.
+// Effects bind typed symbols to generic discourse instructions; Rust does not key behavior by Systean roots.
+
+default effect assert;
+
+effect assert {
+    act assertion($content);
+    commit $content;
+}
+
+effect ke {
+    act question($content);
+    choice zo;
+}
+
+effect da {
+    act command($content);
+}
+
+effect me {
+    act request($content);
+}
+
+effect emo {
+    act expressive($state);
+}
+
+effect fok {
+    act focus($target, $content);
+    require_contains $content $target;
+    commit $content;
+}
+
+effect top {
+    act topic($target, $content);
+    require_contains $content $target;
+    commit $content;
+}
+
+effect ret {
+    act retraction($target);
+    repair retract $target;
+}
+
+effect kor {
+    act correction($target, $replacement);
+    repair replace $target $replacement;
+}
+
+effect klar {
+    act clarification($target, $content);
+    repair clarify $target $content;
+}

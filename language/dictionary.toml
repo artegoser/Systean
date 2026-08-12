@@ -1,6 +1,6 @@
 [meta]
-description = "Human-facing definitions and Phase 19A learning metadata for canonical Systean roots. Semantic identity and signatures are owned by typed/lexicon.semsys."
-version = "19.1"
+description = "Human-facing definitions and Phase 19 learning metadata for canonical Systean roots. Semantic identity and signatures are owned by typed/lexicon.semsys."
+version = "19.2"
 
 [sol]
 definition = """The primary star of a planetary system: the self-luminous stellar body around which that system's planets orbit."""
@@ -16,11 +16,9 @@ definition = "The current discourse addressee supplied by the explicit runtime c
 
 [na]
 definition = "Marks the following canonical Systean name payload as one proper-name-denoting entity; no source-language pronunciation is inferred."
-syntax = { kind = "name", role = "payload" }
 
 [ke]
 definition = "Marks an utterance as a truth question about its propositional content."
-syntax = { kind = "speech_act", role = "content" }
 
 [ne]
 definition = "Logical negation of a proposition."
@@ -33,19 +31,15 @@ definition = "Logical disjunction: at least one joined proposition holds."
 
 [ra]
 definition = "Universal quantification over every entity satisfying the stated restriction."
-syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "imp", restriction_role = "condition", body_role = "consequence" }
 
 [mu]
 definition = "Existential quantification: at least one entity satisfies the stated restriction and body."
-syntax = { kind = "quantifier", binder_role = "predicate", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [da]
 definition = "Marks propositional content as a command speech act."
-syntax = { kind = "speech_act", role = "content" }
 
 [me]
 definition = "Marks propositional content as a request speech act."
-syntax = { kind = "speech_act", role = "content" }
 
 [per]
 definition = "A human person; as a class predicate, the value is human."
@@ -214,15 +208,12 @@ definition = "A typed value intentionally withheld rather than merely unknown or
 
 [rov]
 definition = "Exactly the stated number of members of the explicit class satisfy the quantified body."
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [mini]
 definition = "At least the stated number of members of the explicit class satisfy the quantified body."
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [maks]
 definition = "At most the stated number of members of the explicit class satisfy the quantified body."
-syntax = { kind = "counted_quantifier", binder_role = "predicate", count_role = "count", variable_type = "Entity", restriction_operator = "va", restriction_role = "left", body_role = "right" }
 
 [set]
 definition = "An unordered collection identity constructed from two explicit entity members; larger sets are nested compositionally."

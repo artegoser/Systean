@@ -78,6 +78,14 @@ pub enum TypedDeclaration {
     },
     Dimension {
         name: String,
+        ty: Type,
+    },
+    Effect {
+        target: String,
+        directives: Vec<SourceEffectDirective>,
+    },
+    DefaultEffect {
+        target: String,
     },
     Unit {
         name: String,
@@ -102,8 +110,9 @@ impl TypedDeclaration {
             | Self::Intrinsic { name, .. }
             | Self::Data { name, .. }
             | Self::Context { name, .. }
-            | Self::Dimension { name }
+            | Self::Dimension { name, .. }
             | Self::Unit { name, .. } => name,
+            Self::Effect { target, .. } | Self::DefaultEffect { target } => target,
         }
     }
 }
@@ -113,6 +122,24 @@ impl TypedDeclaration {
 pub enum SourceSurfaceItem {
     Root,
     Argument(String),
+    Restriction,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceBinderRule {
+    pub parameter: String,
+    pub combiner: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceCaptureKind {
+    BareToken,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SourceCaptureRule {
+    pub parameter: String,
+    pub kind: SourceCaptureKind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -120,6 +147,9 @@ pub struct SourceSurfaceRule {
     pub items: Vec<SourceSurfaceItem>,
     pub precedence: Option<u16>,
     pub associative: bool,
+    pub binder: Option<SourceBinderRule>,
+    pub captures: Vec<SourceCaptureRule>,
+    pub outer_only: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,6 +233,25 @@ pub enum CompiledTerm {
 pub enum CompiledSurfaceItem {
     Root,
     Argument(u32),
+    Restriction,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledBinderRule {
+    pub parameter: u32,
+    pub variable_type: CompiledType,
+    pub combiner: SymbolId,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompiledCaptureKind {
+    BareToken,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledCaptureRule {
+    pub parameter: u32,
+    pub kind: CompiledCaptureKind,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -211,6 +260,9 @@ pub struct CompiledSurfaceRule {
     pub items: Vec<CompiledSurfaceItem>,
     pub precedence: Option<u16>,
     pub associative: bool,
+    pub binder: Option<CompiledBinderRule>,
+    pub captures: Vec<CompiledCaptureRule>,
+    pub outer_only: bool,
     pub provenance: DeclarationProvenance,
 }
 
@@ -224,6 +276,73 @@ pub enum DefaultSurfaceItem {
 pub struct DefaultSurfaceFrame {
     pub root: String,
     pub items: Vec<DefaultSurfaceItem>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceActKind {
+    Assertion,
+    Question,
+    Command,
+    Request,
+    Expressive,
+    Focus,
+    Topic,
+    Retraction,
+    Correction,
+    Clarification,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceRepairKind {
+    Retract,
+    Replace,
+    Clarify,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SourceEffectDirective {
+    Act { kind: SourceActKind, arguments: Vec<String> },
+    Commit { argument: String },
+    RequireContains { content: String, target: String },
+    Choice { operator: String },
+    Repair { kind: SourceRepairKind, target: String, value: Option<String> },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompiledActKind {
+    Assertion,
+    Question,
+    Command,
+    Request,
+    Expressive,
+    Focus,
+    Topic,
+    Retraction,
+    Correction,
+    Clarification,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CompiledRepairKind {
+    Retract,
+    Replace,
+    Clarify,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CompiledEffectInstruction {
+    Act { kind: CompiledActKind, arguments: Vec<u32> },
+    Commit { argument: u32 },
+    RequireContains { content: u32, target: u32 },
+    Choice { operator: SymbolId },
+    Repair { kind: CompiledRepairKind, target: u32, value: Option<u32> },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CompiledEffectProgram {
+    pub symbol: SymbolId,
+    pub instructions: Vec<CompiledEffectInstruction>,
+    pub provenance: DeclarationProvenance,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -30,7 +30,7 @@ use crate::spec::{
     project_typed_environment,
 };
 use crate::syntax::{
-    LexemeConfig, SurfaceAnalysis, SurfaceError, SurfaceExpr, SurfaceFormConfig, SurfaceLexicon,
+    CompiledSurfaceBinding, SurfaceAnalysis, SurfaceError, SurfaceExpr, CompiledSurfaceLexicon,
     SyntaxConfig, SyntaxConfigError, SyntaxEngine, TypedSurfaceAst, elaborate_surface,
     linearize_surface, parse_surface_with_literals,
 };
@@ -39,8 +39,6 @@ use crate::syntax::{
 pub struct DictionaryEntry {
     pub root: String,
     pub definition: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub syntax: Option<SurfaceFormConfig>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
@@ -71,7 +69,7 @@ impl Dictionary {
     pub fn surface_lexicon(
         &self,
         semantics: &TypedSemanticPackage,
-    ) -> Result<SurfaceLexicon, LanguageError> {
+    ) -> Result<CompiledSurfaceLexicon, LanguageError> {
         let dictionary_roots = self
             .entries
             .iter()
@@ -97,7 +95,11 @@ impl Dictionary {
                 compile_surface_lexeme(entry, semantics)?,
             );
         }
-        Ok(SurfaceLexicon::new(entries))
+        let semantic_names = semantics
+            .symbols()
+            .filter_map(|symbol| semantics.source_name_for_symbol(symbol.id).map(|name| (symbol.id, name.to_owned())))
+            .collect();
+        Ok(CompiledSurfaceLexicon::new(entries, semantic_names))
     }
 }
 
@@ -105,11 +107,9 @@ fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryE
     let fields = value.as_table().ok_or_else(|| {
         LanguageError::Dictionary(format!("dictionary entry `{root}` must be a TOML table"))
     })?;
-    if let Some(unknown) = fields.keys().find(|name| {
-        !matches!(name.as_str(), "definition" | "syntax")
-    }) {
+    if let Some(unknown) = fields.keys().find(|name| name.as_str() != "definition") {
         return Err(LanguageError::Dictionary(format!(
-            "dictionary entry `{root}` contains unsupported field `{unknown}`; semantic identity belongs to language/typed/*.semsys"
+            "dictionary entry `{root}` contains unsupported field `{unknown}`; syntax and semantic identity belong to language/typed/*.semsys"
         )));
     }
     let definition = fields
@@ -122,28 +122,17 @@ fn parse_dictionary_entry(root: &str, value: &toml::Value) -> Result<DictionaryE
                 "dictionary entry `{root}` must contain a non-empty `definition`"
             ))
         })?;
-    let syntax = fields
-        .get("syntax")
-        .map(|value| {
-            value.clone().try_into::<SurfaceFormConfig>().map_err(|error| {
-                LanguageError::Dictionary(format!(
-                    "dictionary entry `{root}` has invalid `syntax` realization: {error}"
-                ))
-            })
-        })
-        .transpose()?;
 
     Ok(DictionaryEntry {
         root: root.to_lowercase(),
         definition: definition.to_owned(),
-        syntax,
     })
 }
 
 fn compile_surface_lexeme(
     entry: &DictionaryEntry,
     semantics: &TypedSemanticPackage,
-) -> Result<LexemeConfig, LanguageError> {
+) -> Result<CompiledSurfaceBinding, LanguageError> {
     let symbol_id = semantics.symbol_id(&entry.root).ok_or_else(|| {
         LanguageError::Dictionary(format!(
             "dictionary root `{}` has no typed semantic word declaration",
@@ -163,7 +152,7 @@ fn compile_surface_lexeme(
     let body = strip_definition_lambdas(symbol.definition.as_ref());
     if let Some(CompiledTerm::Apply { function, arguments }) = body {
         if Some(*function) == semantics.symbol_id("meta.resolve") && arguments.is_empty() {
-            return Ok(LexemeConfig::Reference);
+            return Ok(CompiledSurfaceBinding::Reference);
         }
         if Some(*function) == semantics.symbol_id("meta.hole") && arguments.len() == 1 {
             let CompiledTerm::Constructor { constructor: mode, .. } = &arguments[0] else {
@@ -193,7 +182,7 @@ fn compile_surface_lexeme(
             } else {
                 None
             };
-            return Ok(LexemeConfig::Information {
+            return Ok(CompiledSurfaceBinding::Information {
                 mode: *mode,
                 status,
                 knower_type,
@@ -208,85 +197,11 @@ fn compile_surface_lexeme(
                 entry.root
             )))?
             .to_owned();
-        return Ok(LexemeConfig::Context {
+        return Ok(CompiledSurfaceBinding::Context {
             slot: *slot,
             key,
             ty: legacy_typed_type(semantics, &symbol.signature.returns),
         });
-    }
-
-    // Phase 19A keeps only constructions that the Phase 17 backend cannot project from a
-    // bare reversible form without changing accepted grammar. They are removed in Phase 19B.
-    if let Some(surface) = &entry.syntax {
-        return match surface {
-            SurfaceFormConfig::Quantifier {
-                binder_role,
-                variable_type,
-                restriction_operator,
-                restriction_role,
-                body_role,
-            } => Ok(LexemeConfig::Quantifier {
-                semantic: entry.root.clone(),
-                binder_role: binder_role.clone(),
-                variable_type: variable_type.clone(),
-                restriction_operator: restriction_operator.clone(),
-                restriction_role: restriction_role.clone(),
-                body_role: body_role.clone(),
-            }),
-            SurfaceFormConfig::CountedQuantifier {
-                binder_role,
-                count_role,
-                variable_type,
-                restriction_operator,
-                restriction_role,
-                body_role,
-            } => Ok(LexemeConfig::CountedQuantifier {
-                semantic: entry.root.clone(),
-                binder_role: binder_role.clone(),
-                count_role: count_role.clone(),
-                variable_type: variable_type.clone(),
-                restriction_operator: restriction_operator.clone(),
-                restriction_role: restriction_role.clone(),
-                body_role: body_role.clone(),
-            }),
-            SurfaceFormConfig::Name { role } => Ok(LexemeConfig::Name {
-                semantic: entry.root.clone(),
-                role: role.clone(),
-            }),
-            SurfaceFormConfig::SpeechAct { role } => {
-                let rule = semantics.surface_rule(symbol_id).ok_or_else(|| {
-                    LanguageError::Dictionary(format!(
-                        "typed speech-act word `{}` has no compiled surface rule",
-                        entry.root
-                    ))
-                })?;
-                if rule.items.as_slice()
-                    != [CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(0)]
-                    || symbol.signature.parameters.len() != 1
-                {
-                    return Err(LanguageError::Dictionary(format!(
-                        "speech-act compatibility category for `{}` requires typed `form _ $content`",
-                        entry.root
-                    )));
-                }
-                let debug = semantics.debug_symbol(symbol_id).expect("speech-act debug info");
-                if debug.parameter_names.first().map(String::as_str) != Some(role.as_str()) {
-                    return Err(LanguageError::Dictionary(format!(
-                        "speech-act compatibility role `{role}` for `{}` does not match typed argument label",
-                        entry.root
-                    )));
-                }
-                Ok(LexemeConfig::SpeechAct {
-                    semantic: entry.root.clone(),
-                    role: role.clone(),
-                })
-            }
-            other => Err(LanguageError::Dictionary(format!(
-                "dictionary root `{}` uses obsolete Phase 18 surface overlay `{}`; declare its `form` in typed/lexicon.semsys",
-                entry.root,
-                surface_form_kind(other),
-            ))),
-        };
     }
 
     project_typed_surface_rule(entry, semantics, symbol_id)
@@ -296,7 +211,7 @@ fn project_typed_surface_rule(
     entry: &DictionaryEntry,
     semantics: &TypedSemanticPackage,
     symbol_id: crate::semantics::SymbolId,
-) -> Result<LexemeConfig, LanguageError> {
+) -> Result<CompiledSurfaceBinding, LanguageError> {
     let symbol = semantics.symbol(symbol_id).expect("typed word symbol");
     let debug = semantics.debug_symbol(symbol_id).expect("word debug info");
     let rule = semantics.surface_rule(symbol_id).ok_or_else(|| {
@@ -305,49 +220,89 @@ fn project_typed_surface_rule(
             entry.root
         ))
     })?;
-    let semantic = entry.root.clone();
-    let role = |index: usize| {
-        debug
-            .parameter_names
-            .get(index)
-            .cloned()
-            .unwrap_or_else(|| format!("p{index}"))
-    };
+    let semantic = symbol_id;
+
+    if let Some(binder) = &rule.binder {
+        let binder_parameter = binder.parameter;
+        let combiner_semantic = binder.combiner;
+        let combiner_name = semantics.source_name_for_symbol(binder.combiner).unwrap_or("<unknown>");
+        let combiner_debug = semantics.debug_symbol(binder.combiner).ok_or_else(|| {
+            LanguageError::Dictionary(format!("binder combiner `{combiner_name}` has no debug signature"))
+        })?;
+        if combiner_debug.parameter_names.len() != 2 {
+            return Err(LanguageError::Dictionary(format!(
+                "binder combiner `{combiner_name}` must expose two compatibility parameters"
+            )));
+        }
+        let direct_parameters = rule
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                CompiledSurfaceItem::Argument(index) => Some(*index),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        return Ok(CompiledSurfaceBinding::Binder {
+            semantic,
+            binder_parameter,
+            direct_parameters,
+            variable_type: legacy_typed_type(semantics, &binder.variable_type),
+            combiner_semantic,
+            combiner_left_parameter: 0,
+            combiner_right_parameter: 1,
+        });
+    }
+
+    if !rule.captures.is_empty() {
+        if rule.captures.len() != 1
+            || rule.items.as_slice() != [CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(rule.captures[0].parameter)]
+        {
+            return Err(LanguageError::Dictionary(format!(
+                "typed captured form for `{}` is not supported by the generic bare-token capture backend",
+                entry.root
+            )));
+        }
+        return Ok(CompiledSurfaceBinding::Capture {
+            semantic,
+            parameter: rule.captures[0].parameter,
+        });
+    }
 
     match rule.items.as_slice() {
         [CompiledSurfaceItem::Root] if symbol.signature.parameters.is_empty() => {
-            Ok(LexemeConfig::Atom { semantic })
+            Ok(CompiledSurfaceBinding::Atom { semantic })
         }
         [CompiledSurfaceItem::Argument(0), CompiledSurfaceItem::Root]
             if symbol.signature.parameters.len() == 1 =>
         {
-            Ok(LexemeConfig::Class { semantic, role: role(0) })
+            Ok(CompiledSurfaceBinding::Class { semantic, parameter: 0 })
         }
         [CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(0)]
             if symbol.signature.parameters.len() == 1 =>
         {
-            Ok(LexemeConfig::Prefix { semantic, role: role(0) })
+            Ok(CompiledSurfaceBinding::Prefix { semantic, parameter: 0, outer_only: rule.outer_only })
         }
         [CompiledSurfaceItem::Argument(0), CompiledSurfaceItem::Root, CompiledSurfaceItem::Argument(1)]
             if symbol.signature.parameters.len() == 2 && rule.precedence.is_some() =>
         {
-            Ok(LexemeConfig::Infix {
+            Ok(CompiledSurfaceBinding::Infix {
                 semantic,
-                left_role: role(0),
-                right_role: role(1),
+                left_parameter: 0,
+                right_parameter: 1,
                 precedence: rule.precedence.expect("guarded precedence"),
                 associative: rule.associative,
+                outer_only: rule.outer_only,
             })
         }
         items if is_default_frame(items, symbol.signature.parameters.len()) => {
-            Ok(LexemeConfig::Predicate {
+            Ok(CompiledSurfaceBinding::Predicate {
                 semantic,
-                primary_role: debug.parameter_names.first().cloned(),
-                rest_roles: debug.parameter_names.iter().skip(1).cloned().collect(),
+                primary_parameter: (!debug.parameter_names.is_empty()).then_some(0),
+                rest_parameters: (1..debug.parameter_names.len() as u32).collect(),
             })
         }
         _ => Err(LanguageError::Dictionary(format!(
-            "typed surface rule for `{}` is valid but not projectable to the Phase 19A parser backend; Phase 19B must compile this construction directly",
+            "typed surface rule for `{}` cannot be compiled by the Phase 19 generic surface backend",
             entry.root
         ))),
     }
@@ -368,19 +323,6 @@ fn is_default_frame(items: &[CompiledSurfaceItem], arity: usize) -> bool {
         .skip(2)
         .enumerate()
         .all(|(offset, item)| item == &CompiledSurfaceItem::Argument((offset + 1) as u32))
-}
-
-fn surface_form_kind(form: &SurfaceFormConfig) -> &'static str {
-    match form {
-        SurfaceFormConfig::Class { .. } => "class",
-        SurfaceFormConfig::Predicate { .. } => "predicate",
-        SurfaceFormConfig::Prefix { .. } => "prefix",
-        SurfaceFormConfig::Infix { .. } => "infix",
-        SurfaceFormConfig::Quantifier { .. } => "quantifier",
-        SurfaceFormConfig::CountedQuantifier { .. } => "counted_quantifier",
-        SurfaceFormConfig::SpeechAct { .. } => "speech_act",
-        SurfaceFormConfig::Name { .. } => "name",
-    }
 }
 
 fn strip_definition_lambdas(mut term: Option<&CompiledTerm>) -> Option<&CompiledTerm> {
@@ -704,21 +646,7 @@ impl LanguagePackage {
         let morphology_engine = MorphologyEngine::new(
             MorphologyConfig::from_toml(morphology).map_err(LanguageError::MorphologyConfig)?,
         );
-        let mut syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
-        syntax_config.logic.precedence = typed_semantics
-            .surface_rules()
-            .filter_map(|rule| {
-                rule.precedence.map(|precedence| {
-                    (
-                        typed_semantics
-                            .source_name_for_symbol(rule.symbol)
-                            .expect("surface rule symbol must retain its source root")
-                            .to_owned(),
-                        precedence,
-                    )
-                })
-            })
-            .collect();
+        let syntax_config = SyntaxConfig::from_toml(syntax).map_err(LanguageError::SyntaxConfig)?;
         let dictionary_parsed = Dictionary::from_toml(dictionary)?;
         let roots = RootInventory::from_dictionary_toml(dictionary)
             .map_err(|error| LanguageError::Dictionary(error.to_string()))?;
@@ -728,7 +656,7 @@ impl LanguagePackage {
         let semantics = project_typed_environment(&typed_semantics).map_err(|error| {
             LanguageError::Dictionary(format!("typed semantic compatibility projection failed: {error}"))
         })?;
-        validate_pragmatics(&syntax_config.pragmatics, &semantics)
+        validate_pragmatics(&typed_semantics, &semantics)
             .map_err(LanguageError::Pragmatics)?;
         let syntax_engine = if let Some((literal_source, units_source)) = structured_sources {
             let literal_config = LiteralConfig::from_toml(literal_source)
@@ -910,7 +838,7 @@ impl LanguagePackage {
             .lexicon()
             .iter()
             .filter_map(|(surface, lexeme)| {
-                matches!(lexeme, LexemeConfig::Reference).then_some(surface.as_str())
+                matches!(lexeme, CompiledSurfaceBinding::Reference).then_some(surface.as_str())
             })
             .min()
             .unwrap_or("");
@@ -957,7 +885,7 @@ impl LanguagePackage {
         let pragmatics = interpret_pragmatics(
             &surface.resolved.term,
             &surface.resolved.inferred_type,
-            &self.syntax.config().pragmatics,
+            &self.typed_semantics,
             &self.semantics,
         )
         .map_err(LanguageError::Pragmatics)?;
@@ -1184,7 +1112,7 @@ impl LanguagePackage {
         }
     }
 
-    fn discourse_lexicon(&self, discourse: &DiscourseState) -> Result<SurfaceLexicon, LanguageError> {
+    fn discourse_lexicon(&self, discourse: &DiscourseState) -> Result<CompiledSurfaceLexicon, LanguageError> {
         self.syntax
             .lexicon()
             .with_aliases(
@@ -1198,7 +1126,7 @@ impl LanguagePackage {
 
     fn validate_surface_payloads(&self, expression: &SurfaceExpr) -> Result<(), LanguageError> {
         match expression {
-            SurfaceExpr::Name { payload, .. } => self.validate_name_payload(payload),
+            SurfaceExpr::Captured { payload, .. } => self.validate_name_payload(payload),
             SurfaceExpr::Quote(_)
             | SurfaceExpr::Literal(_)
             | SurfaceExpr::Atom(_)
@@ -1214,7 +1142,7 @@ impl LanguagePackage {
                 Ok(())
             }
             SurfaceExpr::Prefix { operand, .. } => self.validate_surface_payloads(operand),
-            SurfaceExpr::SpeechAct { content, .. } => self.validate_surface_payloads(content),
+            SurfaceExpr::Outer { content, .. } => self.validate_surface_payloads(content),
             SurfaceExpr::Infix { operands, .. } => {
                 for operand in operands {
                     self.validate_surface_payloads(operand)?;
@@ -1229,9 +1157,9 @@ impl LanguagePackage {
         argument: &crate::syntax::Argument,
     ) -> Result<(), LanguageError> {
         match argument {
-            crate::syntax::Argument::Name { payload, .. } => self.validate_name_payload(payload),
+            crate::syntax::Argument::Captured { payload, .. } => self.validate_name_payload(payload),
             crate::syntax::Argument::Information {
-                knower: Some(crate::syntax::InformationKnower::Name { payload, .. }),
+                knower: Some(crate::syntax::InformationKnower::Captured { payload, .. }),
                 ..
             } => self.validate_name_payload(payload),
             _ => Ok(()),

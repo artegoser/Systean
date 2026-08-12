@@ -5,9 +5,13 @@ word sol : Entity;
 word ref<T> : $T = meta.resolve();
 word mi : Entity = speaker;
 word tu : Entity = addressee;
-word na($payload: Text) -> Entity;
+word na($payload: Text) -> Entity {
+    form _ $payload;
+    capture $payload bare;
+}
 word ke($content: Proposition) -> Utterance {
     form _ $content;
+    outer;
 }
 word ne($value: Proposition) -> Proposition = logic.not($value) {
     form _ $value;
@@ -22,13 +26,21 @@ word zo($left: Proposition, $right: Proposition) -> Proposition = logic.or($left
     precedence 10;
     associative;
 }
-word ra($predicate: fn(value: Entity) -> Proposition) -> Proposition;
-word mu($predicate: fn(value: Entity) -> Proposition) -> Proposition;
+word ra($predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ @restriction;
+    bind $predicate using imp;
+}
+word mu($predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ @restriction;
+    bind $predicate using va;
+}
 word da($content: Proposition) -> Utterance {
     form _ $content;
+    outer;
 }
 word me($content: Proposition) -> Utterance {
     form _ $content;
+    outer;
 }
 word per($entity: Entity) -> Proposition;
 word anim($entity: Entity) -> Proposition;
@@ -103,9 +115,18 @@ word unk<T>($knower: Entity) -> $T = meta.hole(InfoMode.unknown($knower)) {
 }
 word vak<T> : $T = meta.hole(InfoMode.unspecified);
 word hid<T> : $T = meta.hole(InfoMode.withheld);
-word rov($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition;
-word mini($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition;
-word maks($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition;
+word rov($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ $count @restriction;
+    bind $predicate using va;
+}
+word mini($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ $count @restriction;
+    bind $predicate using va;
+}
+word maks($count: Number, $predicate: fn(value: Entity) -> Proposition) -> Proposition {
+    form _ $count @restriction;
+    bind $predicate using va;
+}
 word set($left: Entity, $right: Entity) -> Entity;
 word list($first: Entity, $second: Entity) -> Entity;
 word grup($left: Entity, $right: Entity) -> Entity;
@@ -130,25 +151,31 @@ word prob($claim: Proposition, $value: Number) -> Proposition;
 word frek($activity: Activity, $measure: Entity, $value: Number) -> Proposition;
 word emo($state: SubjectiveExperience) -> Utterance {
     form _ $state;
+    outer;
 }
 word fok<T>($target: $T, $content: Proposition) -> Utterance {
     form $target _ $content;
     precedence 2;
+    outer;
 }
 word top<T>($target: $T, $content: Proposition) -> Utterance {
     form $target _ $content;
     precedence 2;
+    outer;
 }
 word ret($target: Number) -> Utterance {
     form _ $target;
+    outer;
 }
 word kor($target: Number, $replacement: Proposition) -> Utterance {
     form $target _ $replacement;
     precedence 1;
+    outer;
 }
 word klar($target: Number, $content: Proposition) -> Utterance {
     form $target _ $content;
     precedence 1;
+    outer;
 }
 word felis($experiencer: Entity, $intensity: Number) -> Affect;
 word satis($experiencer: Entity, $target: Proposition, $intensity: Number) -> Affect;

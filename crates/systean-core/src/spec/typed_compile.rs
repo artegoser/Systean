@@ -7,11 +7,13 @@ use crate::semantics::{
 };
 
 use super::typed_ast::{
-    CompiledConstructor, CompiledContextSlot, CompiledScalar, CompiledSignature, CompiledSymbol,
-    CompiledSurfaceItem, CompiledSurfaceRule, CompiledSymbolKind, CompiledTerm, CompiledType,
-    CompiledUnit, DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem, IntrinsicBinding,
-    SourceExpr, SourceParameter, SourceSpan, SourceSurfaceItem, SourceSurfaceRule, SymbolDebugInfo,
-    TypedDeclaration,
+    CompiledActKind, CompiledBinderRule, CompiledCaptureKind, CompiledCaptureRule,
+    CompiledConstructor, CompiledContextSlot, CompiledEffectInstruction, CompiledEffectProgram,
+    CompiledRepairKind, CompiledScalar, CompiledSignature, CompiledSymbol, CompiledSurfaceItem,
+    CompiledSurfaceRule, CompiledSymbolKind, CompiledTerm, CompiledType, CompiledUnit,
+    DeclarationProvenance, DefaultSurfaceFrame, DefaultSurfaceItem, IntrinsicBinding, SourceActKind,
+    SourceCaptureKind, SourceEffectDirective, SourceExpr, SourceParameter, SourceRepairKind, SourceSpan,
+    SourceSurfaceItem, SourceSurfaceRule, SymbolDebugInfo, TypedDeclaration,
     TypedSpecification,
 };
 use super::typed_parser::{TypedParseError, parse_typed_specification};
@@ -50,6 +52,7 @@ pub struct TypedSemanticPackage {
     constructors: BTreeMap<ConstructorId, CompiledConstructor>,
     contexts: BTreeMap<ContextSlotId, CompiledContextSlot>,
     dimensions: BTreeSet<DimensionId>,
+    dimension_types: BTreeMap<DimensionId, CompiledType>,
     dimension_provenance: BTreeMap<DimensionId, DeclarationProvenance>,
     units: BTreeMap<UnitId, CompiledUnit>,
     intrinsics: BTreeMap<SymbolId, IntrinsicBinding>,
@@ -61,6 +64,8 @@ pub struct TypedSemanticPackage {
     unit_names: BTreeMap<String, UnitId>,
     debug_symbols: BTreeMap<SymbolId, SymbolDebugInfo>,
     surface_rules: BTreeMap<SymbolId, CompiledSurfaceRule>,
+    effect_programs: BTreeMap<SymbolId, CompiledEffectProgram>,
+    default_effect: Option<SymbolId>,
     semantic_fingerprint: String,
     surface_fingerprint: String,
 }
@@ -88,6 +93,10 @@ impl TypedSemanticPackage {
 
     pub fn dimensions(&self) -> impl Iterator<Item = DimensionId> + '_ {
         self.dimensions.iter().copied()
+    }
+
+    pub fn dimension_type(&self, id: DimensionId) -> Option<&CompiledType> {
+        self.dimension_types.get(&id)
     }
 
     pub fn source_name_for_type(&self, id: TypeId) -> Option<&str> {
@@ -186,6 +195,18 @@ impl TypedSemanticPackage {
         self.surface_rules.values()
     }
 
+    pub fn effect_program(&self, id: SymbolId) -> Option<&CompiledEffectProgram> {
+        self.effect_programs.get(&id)
+    }
+
+    pub fn effect_programs(&self) -> impl Iterator<Item = &CompiledEffectProgram> + '_ {
+        self.effect_programs.values()
+    }
+
+    pub fn default_effect(&self) -> Option<SymbolId> {
+        self.default_effect
+    }
+
     pub fn semantic_fingerprint(&self) -> &str {
         &self.semantic_fingerprint
     }
@@ -209,10 +230,11 @@ impl TypedSemanticPackage {
             .items
             .iter()
             .map(|item| match item {
-                CompiledSurfaceItem::Root => DefaultSurfaceItem::Root,
-                CompiledSurfaceItem::Argument(index) => DefaultSurfaceItem::Argument(*index),
+                CompiledSurfaceItem::Root => Some(DefaultSurfaceItem::Root),
+                CompiledSurfaceItem::Argument(index) => Some(DefaultSurfaceItem::Argument(*index)),
+                CompiledSurfaceItem::Restriction => None,
             })
-            .collect();
+            .collect::<Option<Vec<_>>>()?;
         Some(DefaultSurfaceFrame { root: debug.source_name.clone(), items })
     }
 }
@@ -244,6 +266,12 @@ pub enum TypedCompileError {
     InvalidSurfaceRootCount { word: String, count: usize },
     InvalidSurfacePrecedence { word: String },
     InvalidAssociativeSurface { word: String },
+    InvalidSurfaceBinder { word: String, message: String },
+    InvalidSurfaceCapture { word: String, message: String },
+    DuplicateEffect { target: String },
+    DuplicateDefaultEffect,
+    InvalidEffectParameter { target: String, parameter: String },
+    InvalidEffect { target: String, message: String },
 }
 
 pub fn compile_typed_sources(
@@ -295,7 +323,10 @@ pub fn compile_typed_specifications(
                     );
                     type_arities.insert(name.clone(), type_parameters.len() as u32);
                 }
-                TypedDeclaration::Subtype { .. } | TypedDeclaration::Literal { .. } => {}
+                TypedDeclaration::Subtype { .. }
+                | TypedDeclaration::Literal { .. }
+                | TypedDeclaration::Effect { .. }
+                | TypedDeclaration::DefaultEffect { .. } => {}
                 TypedDeclaration::Word { name, .. }
                 | TypedDeclaration::Primitive { name, .. }
                 | TypedDeclaration::Def { name, .. }
@@ -319,7 +350,7 @@ pub fn compile_typed_specifications(
                         &mut errors,
                     );
                 }
-                TypedDeclaration::Dimension { name } => {
+                TypedDeclaration::Dimension { name, .. } => {
                     let id = DimensionId::from_source("dimension", name);
                     insert_identity(
                         "dimension",
@@ -376,6 +407,7 @@ pub fn compile_typed_specifications(
         constructors: BTreeMap::new(),
         contexts: BTreeMap::new(),
         dimensions: dimension_names.values().copied().collect(),
+        dimension_types: BTreeMap::new(),
         dimension_provenance: BTreeMap::new(),
         units: BTreeMap::new(),
         intrinsics: BTreeMap::new(),
@@ -387,6 +419,8 @@ pub fn compile_typed_specifications(
         unit_names,
         debug_symbols: BTreeMap::new(),
         surface_rules: BTreeMap::new(),
+        effect_programs: BTreeMap::new(),
+        default_effect: None,
         semantic_fingerprint: String::new(),
         surface_fingerprint: String::new(),
     };
@@ -438,10 +472,17 @@ pub fn compile_typed_specifications(
                         Err(error) => errors.push(error),
                     }
                 }
-                TypedDeclaration::Dimension { name } => {
+                TypedDeclaration::Dimension { name, ty } => {
                     let id = package.dimension_names[name];
-                    package.dimension_provenance.insert(id, provenance);
+                    match resolve_type(ty, &package, &BTreeMap::new(), &type_arities) {
+                        Ok(ty) => {
+                            package.dimension_types.insert(id, ty);
+                            package.dimension_provenance.insert(id, provenance);
+                        }
+                        Err(error) => errors.push(error),
+                    }
                 }
+                TypedDeclaration::Effect { .. } | TypedDeclaration::DefaultEffect { .. } => {}
                 TypedDeclaration::Data { name, type_parameters, constructors } => {
                     let owner = package.type_names[name];
                     package.type_provenance.insert(owner, provenance.clone());
@@ -612,6 +653,36 @@ pub fn compile_typed_specifications(
     }
 
     if errors.is_empty() {
+        validate_surface_binders(&package, &mut errors);
+    }
+    if errors.is_empty() {
+        for source in sources {
+            for (index, declaration) in source.specification.declarations.iter().enumerate() {
+                let provenance = DeclarationProvenance {
+                    source: source.source.clone(),
+                    declaration: index + 1,
+                    span: source.declaration_spans.get(index).copied().flatten(),
+                };
+                match declaration {
+                    TypedDeclaration::Effect { target, directives } => {
+                        compile_effect_program(&mut package, target, directives, provenance, &mut errors);
+                    }
+                    TypedDeclaration::DefaultEffect { target } => {
+                        let Some(symbol) = package.symbol_names.get(target).copied() else {
+                            errors.push(TypedCompileError::UnknownSymbol(target.clone()));
+                            continue;
+                        };
+                        if package.default_effect.replace(symbol).is_some() {
+                            errors.push(TypedCompileError::DuplicateDefaultEffect);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    if errors.is_empty() {
         validate_subtypes(&package, &mut errors);
     }
     if errors.is_empty() {
@@ -722,7 +793,7 @@ fn compile_symbol(
         },
     );
     if kind == CompiledSymbolKind::Word {
-        match compile_surface_rule(id, name, parameters, &signature, surface, provenance) {
+        match compile_surface_rule(package, id, name, parameters, &signature, surface, provenance) {
             Ok(rule) => { package.surface_rules.insert(id, rule); }
             Err(error) => errors.push(error),
         }
@@ -730,6 +801,7 @@ fn compile_symbol(
 }
 
 fn compile_surface_rule(
+    package: &TypedSemanticPackage,
     symbol: SymbolId,
     word: &str,
     parameters: &[SourceParameter],
@@ -759,14 +831,74 @@ fn compile_surface_rule(
         .enumerate()
         .map(|(index, parameter)| (parameter.name.as_str(), index as u32))
         .collect::<BTreeMap<_, _>>();
+
+    let binder = source.and_then(|rule| rule.binder.as_ref()).map(|binder| {
+        let Some(parameter) = parameter_indices.get(binder.parameter.as_str()).copied() else {
+            return Err(TypedCompileError::UnknownSurfaceParameter {
+                word: word.to_owned(),
+                parameter: binder.parameter.clone(),
+            });
+        };
+        let Some(CompiledType::Function { parameters: function_parameters, returns }) = signature.parameters.get(parameter as usize) else {
+            return Err(TypedCompileError::InvalidSurfaceBinder {
+                word: word.to_owned(),
+                message: format!("binder parameter `${}` must have a function type", binder.parameter),
+            });
+        };
+        if function_parameters.len() != 1 {
+            return Err(TypedCompileError::InvalidSurfaceBinder {
+                word: word.to_owned(),
+                message: format!("binder parameter `${}` must take exactly one bound value", binder.parameter),
+            });
+        }
+        let Some(combiner) = package.symbol_names.get(&binder.combiner).copied() else {
+            return Err(TypedCompileError::UnknownSymbol(binder.combiner.clone()));
+        };
+        let _ = returns;
+        Ok(CompiledBinderRule {
+            parameter,
+            variable_type: function_parameters[0].clone(),
+            combiner,
+        })
+    }).transpose()?;
+
+    let mut captures = Vec::new();
+    let mut capture_parameters = BTreeSet::new();
+    if let Some(source) = source {
+        for capture in &source.captures {
+            let Some(parameter) = parameter_indices.get(capture.parameter.as_str()).copied() else {
+                return Err(TypedCompileError::UnknownSurfaceParameter {
+                    word: word.to_owned(),
+                    parameter: capture.parameter.clone(),
+                });
+            };
+            if !capture_parameters.insert(parameter) {
+                return Err(TypedCompileError::InvalidSurfaceCapture {
+                    word: word.to_owned(),
+                    message: format!("surface parameter `${}` is captured more than once", capture.parameter),
+                });
+            }
+            captures.push(CompiledCaptureRule {
+                parameter,
+                kind: match capture.kind { SourceCaptureKind::BareToken => CompiledCaptureKind::BareToken },
+            });
+        }
+    }
+
+    let binder_parameter = binder.as_ref().map(|binder| binder.parameter);
     let mut seen_parameters = BTreeSet::new();
     let mut root_count = 0usize;
+    let mut restriction_count = 0usize;
     let mut items = Vec::with_capacity(source_items.len());
     for item in source_items {
         match item {
             SourceSurfaceItem::Root => {
                 root_count += 1;
                 items.push(CompiledSurfaceItem::Root);
+            }
+            SourceSurfaceItem::Restriction => {
+                restriction_count += 1;
+                items.push(CompiledSurfaceItem::Restriction);
             }
             SourceSurfaceItem::Argument(parameter) => {
                 let Some(index) = parameter_indices.get(parameter.as_str()).copied() else {
@@ -775,6 +907,12 @@ fn compile_surface_rule(
                         parameter,
                     });
                 };
+                if Some(index) == binder_parameter {
+                    return Err(TypedCompileError::InvalidSurfaceBinder {
+                        word: word.to_owned(),
+                        message: format!("binder parameter `${parameter}` is realized through `@restriction`, not as a direct surface argument"),
+                    });
+                }
                 if !seen_parameters.insert(index) {
                     return Err(TypedCompileError::DuplicateSurfaceParameter {
                         word: word.to_owned(),
@@ -791,11 +929,31 @@ fn compile_surface_rule(
             count: root_count,
         });
     }
+    if binder.is_some() != (restriction_count == 1) {
+        return Err(TypedCompileError::InvalidSurfaceBinder {
+            word: word.to_owned(),
+            message: "a binder surface rule requires exactly one `@restriction`, and `@restriction` requires a binder".into(),
+        });
+    }
+    if restriction_count > 1 {
+        return Err(TypedCompileError::InvalidSurfaceBinder {
+            word: word.to_owned(),
+            message: "a surface rule may contain only one `@restriction`".into(),
+        });
+    }
     for (index, parameter) in parameters.iter().enumerate() {
-        if !seen_parameters.contains(&(index as u32)) {
+        if Some(index as u32) != binder_parameter && !seen_parameters.contains(&(index as u32)) {
             return Err(TypedCompileError::MissingSurfaceParameter {
                 word: word.to_owned(),
                 parameter: parameter.name.clone(),
+            });
+        }
+    }
+    for capture in &captures {
+        if !seen_parameters.contains(&capture.parameter) {
+            return Err(TypedCompileError::InvalidSurfaceCapture {
+                word: word.to_owned(),
+                message: "captured parameters must appear in the form".into(),
             });
         }
     }
@@ -804,7 +962,7 @@ fn compile_surface_rule(
     let associative = source.is_some_and(|rule| rule.associative);
     if precedence.is_some() {
         let root_index = items.iter().position(|item| matches!(item, CompiledSurfaceItem::Root));
-        if items.len() != 3 || root_index != Some(1) || signature.parameters.len() != 2 {
+        if items.len() != 3 || root_index != Some(1) || signature.parameters.len() != 2 || binder.is_some() {
             return Err(TypedCompileError::InvalidSurfacePrecedence { word: word.to_owned() });
         }
     }
@@ -826,8 +984,142 @@ fn compile_surface_rule(
         items,
         precedence,
         associative,
+        binder,
+        captures,
+        outer_only: source.is_some_and(|rule| rule.outer_only),
         provenance,
     })
+}
+
+fn compile_effect_program(
+    package: &mut TypedSemanticPackage,
+    target: &str,
+    directives: &[SourceEffectDirective],
+    provenance: DeclarationProvenance,
+    errors: &mut Vec<TypedCompileError>,
+) {
+    let Some(symbol) = package.symbol_names.get(target).copied() else {
+        errors.push(TypedCompileError::UnknownSymbol(target.to_owned()));
+        return;
+    };
+    if package.effect_programs.contains_key(&symbol) {
+        errors.push(TypedCompileError::DuplicateEffect { target: target.to_owned() });
+        return;
+    }
+    let Some(debug) = package.debug_symbols.get(&symbol) else {
+        errors.push(TypedCompileError::UnknownSymbol(target.to_owned()));
+        return;
+    };
+    let parameter = |name: &str| -> Result<u32, TypedCompileError> {
+        debug.parameter_names
+            .iter()
+            .position(|candidate| candidate == name)
+            .map(|index| index as u32)
+            .ok_or_else(|| TypedCompileError::InvalidEffectParameter {
+                target: target.to_owned(),
+                parameter: name.to_owned(),
+            })
+    };
+    let mut instructions = Vec::new();
+    for directive in directives {
+        let compiled = match directive {
+            SourceEffectDirective::Act { kind, arguments } => {
+                let arguments = match arguments.iter().map(|name| parameter(name)).collect::<Result<Vec<_>, _>>() {
+                    Ok(arguments) => arguments,
+                    Err(error) => { errors.push(error); return; }
+                };
+                CompiledEffectInstruction::Act {
+                    kind: match kind {
+                        SourceActKind::Assertion => CompiledActKind::Assertion,
+                        SourceActKind::Question => CompiledActKind::Question,
+                        SourceActKind::Command => CompiledActKind::Command,
+                        SourceActKind::Request => CompiledActKind::Request,
+                        SourceActKind::Expressive => CompiledActKind::Expressive,
+                        SourceActKind::Focus => CompiledActKind::Focus,
+                        SourceActKind::Topic => CompiledActKind::Topic,
+                        SourceActKind::Retraction => CompiledActKind::Retraction,
+                        SourceActKind::Correction => CompiledActKind::Correction,
+                        SourceActKind::Clarification => CompiledActKind::Clarification,
+                    },
+                    arguments,
+                }
+            }
+            SourceEffectDirective::Commit { argument } => match parameter(argument) {
+                Ok(argument) => CompiledEffectInstruction::Commit { argument },
+                Err(error) => { errors.push(error); return; }
+            },
+            SourceEffectDirective::RequireContains { content, target: required_target } => {
+                let content = match parameter(content) { Ok(value) => value, Err(error) => { errors.push(error); return; } };
+                let required_target = match parameter(required_target) { Ok(value) => value, Err(error) => { errors.push(error); return; } };
+                CompiledEffectInstruction::RequireContains { content, target: required_target }
+            }
+            SourceEffectDirective::Choice { operator } => {
+                let Some(operator) = package.symbol_names.get(operator).copied() else {
+                    errors.push(TypedCompileError::UnknownSymbol(operator.clone()));
+                    return;
+                };
+                CompiledEffectInstruction::Choice { operator }
+            }
+            SourceEffectDirective::Repair { kind, target: repair_target, value } => {
+                let repair_target = match parameter(repair_target) { Ok(value) => value, Err(error) => { errors.push(error); return; } };
+                let value = match value {
+                    Some(value) => match parameter(value) { Ok(value) => Some(value), Err(error) => { errors.push(error); return; } },
+                    None => None,
+                };
+                let kind = match kind {
+                    SourceRepairKind::Retract => CompiledRepairKind::Retract,
+                    SourceRepairKind::Replace => CompiledRepairKind::Replace,
+                    SourceRepairKind::Clarify => CompiledRepairKind::Clarify,
+                };
+                if matches!(kind, CompiledRepairKind::Retract) != value.is_none() {
+                    errors.push(TypedCompileError::InvalidEffect {
+                        target: target.to_owned(),
+                        message: "retract repair takes only a target; replace/clarify repairs require a value".into(),
+                    });
+                    return;
+                }
+                CompiledEffectInstruction::Repair { kind, target: repair_target, value }
+            }
+        };
+        instructions.push(compiled);
+    }
+    let act_count = instructions.iter().filter(|instruction| matches!(instruction, CompiledEffectInstruction::Act { .. })).count();
+    if act_count != 1 {
+        errors.push(TypedCompileError::InvalidEffect {
+            target: target.to_owned(),
+            message: format!("effect program requires exactly one `act` instruction, found {act_count}"),
+        });
+        return;
+    }
+    package.effect_programs.insert(symbol, CompiledEffectProgram { symbol, instructions, provenance });
+}
+
+fn validate_surface_binders(package: &TypedSemanticPackage, errors: &mut Vec<TypedCompileError>) {
+    for rule in package.surface_rules.values() {
+        let Some(binder) = &rule.binder else { continue; };
+        let Some(owner) = package.symbols.get(&rule.symbol) else { continue; };
+        let Some(CompiledType::Function { returns, .. }) = owner.signature.parameters.get(binder.parameter as usize) else { continue; };
+        let Some(combiner) = package.symbols.get(&binder.combiner) else {
+            let word = package.source_name_for_symbol(rule.symbol).unwrap_or("<unknown>").to_owned();
+            errors.push(TypedCompileError::InvalidSurfaceBinder {
+                word,
+                message: "binder combiner was not compiled".into(),
+            });
+            continue;
+        };
+        if combiner.signature.parameters.len() != 2
+            || combiner.signature.parameters[0] != **returns
+            || combiner.signature.parameters[1] != **returns
+            || combiner.signature.returns != **returns
+        {
+            let word = package.source_name_for_symbol(rule.symbol).unwrap_or("<unknown>").to_owned();
+            let combiner_name = package.source_name_for_symbol(binder.combiner).unwrap_or("<unknown>");
+            errors.push(TypedCompileError::InvalidSurfaceBinder {
+                word,
+                message: format!("binder combiner `{combiner_name}` must be a binary operator over the predicate result type"),
+            });
+        }
+    }
 }
 
 fn resolve_type(
@@ -1336,6 +1628,9 @@ fn semantic_fingerprint(package: &TypedSemanticPackage) -> String {
     }
     for id in &package.dimensions {
         bytes.extend_from_slice(&id.0.to_le_bytes());
+        if let Some(ty) = package.dimension_types.get(id) {
+            encode_type(ty, &mut bytes);
+        }
     }
     for (id, context) in &package.contexts {
         bytes.extend_from_slice(&id.0.to_le_bytes());
@@ -1360,6 +1655,50 @@ fn semantic_fingerprint(package: &TypedSemanticPackage) -> String {
         } else {
             bytes.push(0);
         }
+    }
+    for (id, program) in &package.effect_programs {
+        bytes.push(0x60);
+        bytes.extend_from_slice(&id.0.to_le_bytes());
+        for instruction in &program.instructions {
+            match instruction {
+                CompiledEffectInstruction::Act { kind, arguments } => {
+                    bytes.push(1);
+                    bytes.push(match kind {
+                        CompiledActKind::Assertion => 1,
+                        CompiledActKind::Question => 2,
+                        CompiledActKind::Command => 3,
+                        CompiledActKind::Request => 4,
+                        CompiledActKind::Expressive => 5,
+                        CompiledActKind::Focus => 6,
+                        CompiledActKind::Topic => 7,
+                        CompiledActKind::Retraction => 8,
+                        CompiledActKind::Correction => 9,
+                        CompiledActKind::Clarification => 10,
+                    });
+                    for argument in arguments { bytes.extend_from_slice(&argument.to_le_bytes()); }
+                    bytes.push(0xff);
+                }
+                CompiledEffectInstruction::Commit { argument } => {
+                    bytes.push(2); bytes.extend_from_slice(&argument.to_le_bytes());
+                }
+                CompiledEffectInstruction::RequireContains { content, target } => {
+                    bytes.push(3); bytes.extend_from_slice(&content.to_le_bytes()); bytes.extend_from_slice(&target.to_le_bytes());
+                }
+                CompiledEffectInstruction::Choice { operator } => {
+                    bytes.push(4); bytes.extend_from_slice(&operator.0.to_le_bytes());
+                }
+                CompiledEffectInstruction::Repair { kind, target, value } => {
+                    bytes.push(5);
+                    bytes.push(match kind { CompiledRepairKind::Retract => 1, CompiledRepairKind::Replace => 2, CompiledRepairKind::Clarify => 3 });
+                    bytes.extend_from_slice(&target.to_le_bytes());
+                    match value { Some(value) => { bytes.push(1); bytes.extend_from_slice(&value.to_le_bytes()); }, None => bytes.push(0) }
+                }
+            }
+        }
+    }
+    match package.default_effect {
+        Some(symbol) => { bytes.push(0x61); bytes.extend_from_slice(&symbol.0.to_le_bytes()); }
+        None => bytes.push(0x62),
     }
     for (id, unit) in &package.units {
         bytes.extend_from_slice(&id.0.to_le_bytes());
@@ -1391,6 +1730,7 @@ fn surface_fingerprint(package: &TypedSemanticPackage) -> String {
                     bytes.push(2);
                     bytes.extend_from_slice(&index.to_le_bytes());
                 }
+                CompiledSurfaceItem::Restriction => bytes.push(5),
             }
         }
         match rule.precedence {
@@ -1401,6 +1741,20 @@ fn surface_fingerprint(package: &TypedSemanticPackage) -> String {
             None => bytes.push(4),
         }
         bytes.push(u8::from(rule.associative));
+        bytes.push(u8::from(rule.outer_only));
+        if let Some(binder) = &rule.binder {
+            bytes.push(6);
+            bytes.extend_from_slice(&binder.parameter.to_le_bytes());
+            encode_type(&binder.variable_type, &mut bytes);
+            bytes.extend_from_slice(&binder.combiner.0.to_le_bytes());
+        } else {
+            bytes.push(7);
+        }
+        for capture in &rule.captures {
+            bytes.push(8);
+            bytes.extend_from_slice(&capture.parameter.to_le_bytes());
+            bytes.push(match capture.kind { CompiledCaptureKind::BareToken => 1 });
+        }
     }
     stable_digest(&bytes)
 }
@@ -1527,6 +1881,8 @@ fn locate_declaration_spans(
                 TypedDeclaration::Data { .. } => "data",
                 TypedDeclaration::Context { .. } => "context",
                 TypedDeclaration::Dimension { .. } => "dimension",
+                TypedDeclaration::Effect { .. } => "effect",
+                TypedDeclaration::DefaultEffect { .. } => "default",
                 TypedDeclaration::Unit { .. } => "unit",
             };
             let mut found = None;
@@ -1537,6 +1893,12 @@ fn locate_declaration_spans(
                     continue;
                 }
                 let after_keyword = after_keyword.trim_start();
+                let after_keyword = if matches!(declaration, TypedDeclaration::DefaultEffect { .. }) {
+                    let Some(rest) = after_keyword.strip_prefix("effect") else { continue; };
+                    rest.trim_start()
+                } else {
+                    after_keyword
+                };
                 let matches_name = after_keyword.strip_prefix(name).is_some_and(|rest| {
                     rest.is_empty()
                         || rest.chars().next().is_some_and(|ch| {
@@ -1621,6 +1983,15 @@ impl fmt::Display for TypedCompileError {
                 f,
                 "associative surface form `{word}` must be a precedence-bearing binary endomorphism",
             ),
+            Self::InvalidSurfaceBinder { word, message } => write!(f, "surface binder for `{word}`: {message}"),
+            Self::InvalidSurfaceCapture { word, message } => write!(f, "surface capture for `{word}`: {message}"),
+            Self::DuplicateEffect { target } => write!(f, "duplicate discourse effect declaration for `{target}`"),
+            Self::DuplicateDefaultEffect => f.write_str("more than one default discourse effect is declared"),
+            Self::InvalidEffectParameter { target, parameter } => write!(
+                f,
+                "discourse effect for `{target}` references unknown parameter `${parameter}`",
+            ),
+            Self::InvalidEffect { target, message } => write!(f, "discourse effect for `{target}`: {message}"),
         }
     }
 }

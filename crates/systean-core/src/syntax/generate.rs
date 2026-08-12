@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::{Argument, InformationKnower, LexemeConfig, SurfaceExpr, SurfaceLexicon, SyntaxConfig};
+use super::{Argument, InformationKnower, CompiledSurfaceBinding, SurfaceExpr, CompiledSurfaceLexicon, SyntaxConfig};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SurfaceGenerationError {
@@ -11,7 +11,7 @@ pub enum SurfaceGenerationError {
 pub fn linearize_surface(
     expression: &SurfaceExpr,
     config: &SyntaxConfig,
-    lexicon: &SurfaceLexicon,
+    lexicon: &CompiledSurfaceLexicon,
 ) -> Result<String, SurfaceGenerationError> {
     Ok(Generator { config, lexicon }
         .render(expression, None)?
@@ -20,7 +20,7 @@ pub fn linearize_surface(
 
 struct Generator<'a> {
     config: &'a SyntaxConfig,
-    lexicon: &'a SurfaceLexicon,
+    lexicon: &'a CompiledSurfaceLexicon,
 }
 
 impl Generator<'_> {
@@ -32,7 +32,7 @@ impl Generator<'_> {
         let own = self.precedence(expression)?;
         let mut tokens = match expression {
             SurfaceExpr::Atom(surface) | SurfaceExpr::Context(surface) | SurfaceExpr::Alias(surface) => vec![surface.clone()],
-            SurfaceExpr::Name { marker, payload } => vec![marker.clone(), payload.clone()],
+            SurfaceExpr::Captured { marker, payload } => vec![marker.clone(), payload.clone()],
             SurfaceExpr::Quote(payload) => vec![self.render_quote(payload)],
             SurfaceExpr::Literal(literal) => vec![literal.canonical_surface().to_owned()],
             SurfaceExpr::Clause(clause) => {
@@ -65,7 +65,7 @@ impl Generator<'_> {
                 tokens.extend(self.render(operand, Some(ParentContext::Prefix))?);
                 tokens
             }
-            SurfaceExpr::SpeechAct { operator, content } => {
+            SurfaceExpr::Outer { operator, content } => {
                 let mut tokens = vec![operator.clone()];
                 tokens.extend(self.render(content, Some(ParentContext::Prefix))?);
                 tokens
@@ -118,7 +118,7 @@ impl Generator<'_> {
                 match expression {
                     SurfaceExpr::Infix { operator, .. } if operator != parent_operator => Ok(true),
                     SurfaceExpr::Infix { operator, .. } => {
-                        let Some(LexemeConfig::Infix { associative, .. }) = self.lexicon.get(operator) else {
+                        let Some(CompiledSurfaceBinding::Infix { associative, .. }) = self.lexicon.get(operator) else {
                             return Err(SurfaceGenerationError::MissingLexeme(operator.clone()));
                         };
                         Ok(!*associative)
@@ -132,7 +132,7 @@ impl Generator<'_> {
     fn precedence(&self, expression: &SurfaceExpr) -> Result<u16, SurfaceGenerationError> {
         match expression {
             SurfaceExpr::Infix { operator, .. } => {
-                let Some(LexemeConfig::Infix { precedence, .. }) = self.lexicon.get(operator) else {
+                let Some(CompiledSurfaceBinding::Infix { precedence, .. }) = self.lexicon.get(operator) else {
                     return Err(SurfaceGenerationError::MissingLexeme(operator.clone()));
                 };
                 Ok(*precedence)
@@ -160,7 +160,7 @@ impl Generator<'_> {
             | Argument::Alias(surface) => {
                 vec![surface.clone()]
             }
-            Argument::Name { marker, payload } => vec![marker.clone(), payload.clone()],
+            Argument::Captured { marker, payload } => vec![marker.clone(), payload.clone()],
             Argument::Quote(payload) => vec![self.render_quote(payload)],
             Argument::Literal(literal) => vec![literal.canonical_surface().to_owned()],
             Argument::Information { marker, knower } => {
@@ -168,7 +168,7 @@ impl Generator<'_> {
                 if let Some(knower) = knower {
                     match knower {
                         InformationKnower::Context(surface) => tokens.push(surface.clone()),
-                        InformationKnower::Name { marker, payload } => {
+                        InformationKnower::Captured { marker, payload } => {
                             tokens.push(marker.clone());
                             tokens.push(payload.clone());
                         }
@@ -177,19 +177,18 @@ impl Generator<'_> {
                 tokens
             }
             Argument::Omitted => Vec::new(),
-            Argument::Quantified {
-                quantifier,
+            Argument::Scoped {
+                binder,
+                direct,
                 restriction,
-            } => vec![quantifier.clone(), restriction.clone()],
-            Argument::CountedQuantified {
-                quantifier,
-                count,
-                restriction,
-            } => vec![
-                quantifier.clone(),
-                count.canonical_surface().to_owned(),
-                restriction.clone(),
-            ],
+            } => {
+                let mut tokens = vec![binder.clone()];
+                for argument in direct {
+                    tokens.extend(self.render_argument(argument));
+                }
+                tokens.push(restriction.clone());
+                tokens
+            },
         }
     }
 }

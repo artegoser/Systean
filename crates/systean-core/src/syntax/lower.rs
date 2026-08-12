@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::semantics::{Checker, Environment, Term, Type};
 
-use super::{SurfaceElaborationError, SurfaceExpr, SurfaceLexicon, elaborate_surface};
+use super::{SurfaceElaborationError, SurfaceExpr, CompiledSurfaceLexicon, elaborate_surface};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoweredSurface {
@@ -23,7 +23,7 @@ pub enum SurfaceLowerError {
 
 pub fn lower_surface(
     expression: &SurfaceExpr,
-    lexicon: &SurfaceLexicon,
+    lexicon: &CompiledSurfaceLexicon,
     environment: &Environment,
 ) -> Result<LoweredSurface, SurfaceLowerError> {
     let typed = elaborate_surface(expression, lexicon, environment)

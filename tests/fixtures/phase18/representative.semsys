@@ -2,6 +2,7 @@ type Entity;
 type Proposition;
 type InfoValue<T>;
 type Int;
+type TimeDimension;
 
 data Date {
   date($year: Int, $month: Int, $day: Int);
@@ -18,7 +19,7 @@ def reference_date : Date = Date.date(2026, 8, 12);
 context speaker : Entity;
 context addressee : Entity;
 
-dimension Time;
+dimension Time : TimeDimension;
 unit sek : Time;
 unit milisek : Time = 1/1000 * sek;
 

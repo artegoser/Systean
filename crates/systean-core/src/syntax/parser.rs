@@ -4,8 +4,8 @@ use std::fmt;
 use crate::literals::LiteralEngine;
 
 use super::{
-    Argument, ArgumentOmission, Clause, FrameOrder, InformationKnower, LexemeConfig, SurfaceExpr,
-    SurfaceLexicon, SyntaxConfig,
+    Argument, ArgumentOmission, Clause, FrameOrder, InformationKnower, CompiledSurfaceBinding, SurfaceExpr,
+    CompiledSurfaceLexicon, SyntaxConfig,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub fn tokenize(source: &str) -> Result<Vec<String>, Vec<SurfaceParseError>> {
 pub fn parse_surface(
     source: &str,
     config: &SyntaxConfig,
-    lexicon: &SurfaceLexicon,
+    lexicon: &CompiledSurfaceLexicon,
 ) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
     parse_surface_with_literals(source, config, lexicon, None)
 }
@@ -39,7 +39,7 @@ pub fn parse_surface(
 pub fn parse_surface_with_literals(
     source: &str,
     config: &SyntaxConfig,
-    lexicon: &SurfaceLexicon,
+    lexicon: &CompiledSurfaceLexicon,
     literals: Option<&LiteralEngine>,
 ) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
     let tokenized = tokenize_with_quotes(source, &config.quotation.open, &config.quotation.close)?;
@@ -62,7 +62,44 @@ pub fn parse_surface_with_literals(
         let token = parser.display_token(parser.index);
         return Err(vec![parser.error(format!("unexpected token `{token}`"))]);
     }
+    validate_outer_placement(&expression, lexicon, true)?;
     Ok(expression)
+}
+
+fn validate_outer_placement(
+    expression: &SurfaceExpr,
+    lexicon: &CompiledSurfaceLexicon,
+    at_root: bool,
+) -> Result<(), Vec<SurfaceParseError>> {
+    let outer_operator = match expression {
+        SurfaceExpr::Outer { operator, .. } => Some(operator),
+        SurfaceExpr::Infix { operator, .. }
+            if matches!(lexicon.get(operator), Some(CompiledSurfaceBinding::Infix { outer_only: true, .. })) => Some(operator),
+        _ => None,
+    };
+    if !at_root {
+        if let Some(operator) = outer_operator {
+            return Err(vec![SurfaceParseError {
+                token: 0,
+                message: format!("outer-only construction `{operator}` may occur only at the utterance root"),
+            }]);
+        }
+    }
+    match expression {
+        SurfaceExpr::Outer { content, .. } => validate_outer_placement(content, lexicon, false),
+        SurfaceExpr::Prefix { operand, .. } => validate_outer_placement(operand, lexicon, false),
+        SurfaceExpr::Infix { operands, .. } => {
+            for operand in operands { validate_outer_placement(operand, lexicon, false)?; }
+            Ok(())
+        }
+        SurfaceExpr::Clause(_)
+        | SurfaceExpr::Atom(_)
+        | SurfaceExpr::Context(_)
+        | SurfaceExpr::Alias(_)
+        | SurfaceExpr::Captured { .. }
+        | SurfaceExpr::Quote(_)
+        | SurfaceExpr::Literal(_) => Ok(()),
+    }
 }
 
 #[derive(Default)]
@@ -164,7 +201,7 @@ struct ParserState<'a> {
     quotes: BTreeMap<String, String>,
     index: usize,
     config: &'a SyntaxConfig,
-    lexicon: &'a SurfaceLexicon,
+    lexicon: &'a CompiledSurfaceLexicon,
     literals: Option<&'a LiteralEngine>,
 }
 
@@ -235,56 +272,55 @@ impl ParserState<'_> {
         }
 
         match self.lexicon.get(&token) {
-            Some(LexemeConfig::Prefix { .. }) => {
+            Some(CompiledSurfaceBinding::Prefix { outer_only, .. }) => {
+                let outer_only = *outer_only;
                 self.index += 1;
                 let operand = self.parse_operand()?;
-                Ok(SurfaceExpr::Prefix {
-                    operator: token,
-                    operand: Box::new(operand),
-                })
+                if outer_only {
+                    Ok(SurfaceExpr::Outer {
+                        operator: token,
+                        content: Box::new(operand),
+                    })
+                } else {
+                    Ok(SurfaceExpr::Prefix {
+                        operator: token,
+                        operand: Box::new(operand),
+                    })
+                }
             }
-            Some(LexemeConfig::SpeechAct { .. }) => {
-                self.index += 1;
-                let content = self.parse_operand()?;
-                Ok(SurfaceExpr::SpeechAct {
-                    operator: token,
-                    content: Box::new(content),
-                })
-            }
-            Some(LexemeConfig::Atom { .. }) if !self.argument_starts_clause() => {
+            Some(CompiledSurfaceBinding::Atom { .. }) if !self.argument_starts_clause() => {
                 self.index += 1;
                 Ok(SurfaceExpr::Atom(token))
             }
-            Some(LexemeConfig::Context { .. }) if !self.argument_starts_clause() => {
+            Some(CompiledSurfaceBinding::Context { .. }) if !self.argument_starts_clause() => {
                 self.index += 1;
                 Ok(SurfaceExpr::Context(token))
             }
-            Some(LexemeConfig::Alias { .. }) if !self.argument_starts_clause() => {
+            Some(CompiledSurfaceBinding::Alias { .. }) if !self.argument_starts_clause() => {
                 self.index += 1;
                 Ok(SurfaceExpr::Alias(token))
             }
-            Some(LexemeConfig::Name { .. }) if !self.argument_starts_clause() => {
-                let Argument::Name { marker, payload } = self.parse_argument()? else {
-                    unreachable!("name lexeme must parse as a name argument");
+            Some(CompiledSurfaceBinding::Capture { .. }) if !self.argument_starts_clause() => {
+                let Argument::Captured { marker, payload } = self.parse_argument()? else {
+                    unreachable!("captured lexeme must parse as a captured argument");
                 };
-                Ok(SurfaceExpr::Name { marker, payload })
+                Ok(SurfaceExpr::Captured { marker, payload })
             }
-            Some(LexemeConfig::Reference) if !self.argument_starts_clause() => Err(vec![self.error(
+            Some(CompiledSurfaceBinding::Reference) if !self.argument_starts_clause() => Err(vec![self.error(
                 format!("reference `{token}` requires a typed argument slot"),
             )]),
-            Some(LexemeConfig::Information { .. }) if !self.argument_starts_clause() => Err(vec![self.error(
+            Some(CompiledSurfaceBinding::Information { .. }) if !self.argument_starts_clause() => Err(vec![self.error(
                 format!("information marker `{token}` requires a typed argument slot"),
             )]),
-            Some(LexemeConfig::Atom { .. })
-            | Some(LexemeConfig::Context { .. })
-            | Some(LexemeConfig::Alias { .. })
-            | Some(LexemeConfig::Reference)
-            | Some(LexemeConfig::Information { .. })
-            | Some(LexemeConfig::Quantifier { .. })
-            | Some(LexemeConfig::CountedQuantifier { .. })
-            | Some(LexemeConfig::Predicate { .. })
-            | Some(LexemeConfig::Class { .. })
-            | Some(LexemeConfig::Name { .. }) => self.parse_clause(),
+            Some(CompiledSurfaceBinding::Atom { .. })
+            | Some(CompiledSurfaceBinding::Context { .. })
+            | Some(CompiledSurfaceBinding::Alias { .. })
+            | Some(CompiledSurfaceBinding::Reference)
+            | Some(CompiledSurfaceBinding::Information { .. })
+            | Some(CompiledSurfaceBinding::Binder { .. })
+            | Some(CompiledSurfaceBinding::Predicate { .. })
+            | Some(CompiledSurfaceBinding::Class { .. })
+            | Some(CompiledSurfaceBinding::Capture { .. }) => self.parse_clause(),
             Some(other) => Err(vec![self.error(format!(
                 "`{token}` cannot start a standalone surface expression ({})",
                 lexeme_kind(other)
@@ -303,16 +339,16 @@ impl ParserState<'_> {
         while self
             .tokens
             .get(index)
-            .is_some_and(|token| matches!(self.lexicon.get(token), Some(LexemeConfig::Prefix { .. })))
+            .is_some_and(|token| matches!(self.lexicon.get(token), Some(CompiledSurfaceBinding::Prefix { outer_only: false, .. })))
         {
             index += 1;
         }
         matches!(
             self.tokens.get(index).and_then(|token| self.lexicon.get(token)),
-            Some(LexemeConfig::Predicate {
-                primary_role: Some(_),
+            Some(CompiledSurfaceBinding::Predicate {
+                primary_parameter: Some(_),
                 ..
-            }) | Some(LexemeConfig::Class { .. })
+            }) | Some(CompiledSurfaceBinding::Class { .. })
         )
     }
 
@@ -325,35 +361,31 @@ impl ParserState<'_> {
             return Some(start + consumed);
         }
         match self.lexicon.get(token)? {
-            LexemeConfig::Atom { .. }
-            | LexemeConfig::Context { .. }
-            | LexemeConfig::Alias { .. }
-            | LexemeConfig::Reference => Some(start + 1),
-            LexemeConfig::Information { knower_type: None, .. } => Some(start + 1),
-            LexemeConfig::Information { knower_type: Some(_), .. } => {
+            CompiledSurfaceBinding::Atom { .. }
+            | CompiledSurfaceBinding::Context { .. }
+            | CompiledSurfaceBinding::Alias { .. }
+            | CompiledSurfaceBinding::Reference => Some(start + 1),
+            CompiledSurfaceBinding::Information { knower_type: None, .. } => Some(start + 1),
+            CompiledSurfaceBinding::Information { knower_type: Some(_), .. } => {
                 let next = self.tokens.get(start + 1)?;
                 match self.lexicon.get(next)? {
-                    LexemeConfig::Context { .. } => Some(start + 2),
-                    LexemeConfig::Name { .. } => self.tokens.get(start + 2).map(|_| start + 3),
+                    CompiledSurfaceBinding::Context { .. } => Some(start + 2),
+                    CompiledSurfaceBinding::Capture { .. } => self.tokens.get(start + 2).map(|_| start + 3),
                     _ => None,
                 }
             }
-            LexemeConfig::Name { .. } => self
+            CompiledSurfaceBinding::Capture { .. } => self
                 .tokens
                 .get(start + 1)
                 .filter(|payload| self.quote_payload(payload).is_none())
                 .map(|_| start + 2),
-            LexemeConfig::Quantifier { .. } => {
-                let restriction = self.tokens.get(start + 1)?;
-                matches!(self.lexicon.get(restriction), Some(LexemeConfig::Class { .. }))
-                    .then_some(start + 2)
-            }
-            LexemeConfig::CountedQuantifier { .. } => {
-                let count_len = self.literal_len_at(start + 1)?;
-                let restriction_index = start + 1 + count_len;
-                let restriction = self.tokens.get(restriction_index)?;
-                matches!(self.lexicon.get(restriction), Some(LexemeConfig::Class { .. }))
-                    .then_some(restriction_index + 1)
+            CompiledSurfaceBinding::Binder { direct_parameters, .. } => {
+                let mut cursor = start + 1;
+                for _ in direct_parameters {
+                    cursor = self.argument_end_index(cursor)?;
+                }
+                let restriction = self.tokens.get(cursor)?;
+                self.is_unary_predicate_value(restriction).then_some(cursor + 1)
             }
             _ => None,
         }
@@ -368,7 +400,7 @@ impl ParserState<'_> {
 
     fn parse_primary_predicate_rest(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         let primary = if self.peek_is_predicate() {
-            match self.peek_predicate_primary_role() {
+            match self.peek_predicate_primary_parameter() {
                 Some(true) if self.omission_allowed() => Some(Argument::Omitted),
                 Some(true) => {
                     return Err(vec![self.error("predicate requires an explicit primary argument".into())]);
@@ -382,27 +414,27 @@ impl ParserState<'_> {
         let mut inner_prefixes = Vec::new();
         while self
             .peek()
-            .is_some_and(|token| matches!(self.lexicon.get(token), Some(LexemeConfig::Prefix { .. })))
+            .is_some_and(|token| matches!(self.lexicon.get(token), Some(CompiledSurfaceBinding::Prefix { outer_only: false, .. })))
         {
             inner_prefixes.push(self.tokens[self.index].clone());
             self.index += 1;
         }
         let predicate = self.take_predicate()?;
         let rest_count = match self.lexicon.get(&predicate) {
-            Some(LexemeConfig::Predicate {
-                primary_role,
-                rest_roles,
+            Some(CompiledSurfaceBinding::Predicate {
+                primary_parameter,
+                rest_parameters,
                 ..
             }) => {
                 let surface_has_primary_slot = primary.is_some();
-                if primary_role.is_some() != surface_has_primary_slot {
+                if primary_parameter.is_some() != surface_has_primary_slot {
                     return Err(vec![self.error(format!(
                         "predicate `{predicate}` primary participant shape does not match the surface clause"
                     ))]);
                 }
-                rest_roles.len()
+                rest_parameters.len()
             }
-            Some(LexemeConfig::Class { .. }) => {
+            Some(CompiledSurfaceBinding::Class { .. }) => {
                 if primary.is_none() {
                     return Err(vec![self.error(format!(
                         "class predicate `{predicate}` requires a primary participant"
@@ -433,12 +465,12 @@ impl ParserState<'_> {
     fn parse_predicate_arguments(&mut self) -> Result<SurfaceExpr, Vec<SurfaceParseError>> {
         let predicate = self.take_predicate()?;
         let (primary_count, rest_count) = match self.lexicon.get(&predicate) {
-            Some(LexemeConfig::Predicate {
-                primary_role,
-                rest_roles,
+            Some(CompiledSurfaceBinding::Predicate {
+                primary_parameter,
+                rest_parameters,
                 ..
-            }) => (usize::from(primary_role.is_some()), rest_roles.len()),
-            Some(LexemeConfig::Class { .. }) => (1, 0),
+            }) => (usize::from(primary_parameter.is_some()), rest_parameters.len()),
+            Some(CompiledSurfaceBinding::Class { .. }) => (1, 0),
             _ => unreachable!(),
         };
         let primary = if primary_count == 1 {
@@ -483,23 +515,23 @@ impl ParserState<'_> {
             return Ok(Argument::Literal(literal.literal));
         }
         match self.lexicon.get(&token) {
-            Some(LexemeConfig::Atom { .. }) => {
+            Some(CompiledSurfaceBinding::Atom { .. }) => {
                 self.index += 1;
                 Ok(Argument::Atom(token))
             }
-            Some(LexemeConfig::Context { .. }) => {
+            Some(CompiledSurfaceBinding::Context { .. }) => {
                 self.index += 1;
                 Ok(Argument::Context(token))
             }
-            Some(LexemeConfig::Reference) => {
+            Some(CompiledSurfaceBinding::Reference) => {
                 self.index += 1;
                 Ok(Argument::Reference(token))
             }
-            Some(LexemeConfig::Alias { .. }) => {
+            Some(CompiledSurfaceBinding::Alias { .. }) => {
                 self.index += 1;
                 Ok(Argument::Alias(token))
             }
-            Some(LexemeConfig::Name { .. }) => {
+            Some(CompiledSurfaceBinding::Capture { .. }) => {
                 self.index += 1;
                 let Some(payload) = self.peek().cloned() else {
                     return Err(vec![self.error(format!(
@@ -512,12 +544,12 @@ impl ParserState<'_> {
                     ))]);
                 }
                 self.index += 1;
-                Ok(Argument::Name {
+                Ok(Argument::Captured {
                     marker: token,
                     payload,
                 })
             }
-            Some(LexemeConfig::Information { knower_type, .. }) => {
+            Some(CompiledSurfaceBinding::Information { knower_type, .. }) => {
                 let requires_knower = knower_type.is_some();
                 self.index += 1;
                 let knower = if requires_knower {
@@ -525,17 +557,17 @@ impl ParserState<'_> {
                         return Err(vec![self.error(format!("information marker `{token}` requires an explicit knower"))]);
                     };
                     match self.lexicon.get(&knower_surface) {
-                        Some(LexemeConfig::Context { .. }) => {
+                        Some(CompiledSurfaceBinding::Context { .. }) => {
                             self.index += 1;
                             Some(InformationKnower::Context(knower_surface))
                         }
-                        Some(LexemeConfig::Name { .. }) => {
+                        Some(CompiledSurfaceBinding::Capture { .. }) => {
                             self.index += 1;
                             let Some(payload) = self.peek().cloned() else {
                                 return Err(vec![self.error(format!("proper-name knower `{knower_surface}` requires a payload"))]);
                             };
                             self.index += 1;
-                            Some(InformationKnower::Name { marker: knower_surface, payload })
+                            Some(InformationKnower::Captured { marker: knower_surface, payload })
                         }
                         _ => return Err(vec![self.error(format!(
                             "information marker `{token}` requires a context value or proper name as knower"
@@ -546,48 +578,23 @@ impl ParserState<'_> {
                 };
                 Ok(Argument::Information { marker: token, knower })
             }
-            Some(LexemeConfig::CountedQuantifier { .. }) => {
+            Some(CompiledSurfaceBinding::Binder { direct_parameters, .. }) => {
+                let direct_count = direct_parameters.len();
                 self.index += 1;
-                let Some(count) = self.literal_at(self.index)? else {
-                    return Err(vec![self.error(format!("counted quantifier `{token}` requires an explicit numeric count"))]);
-                };
-                self.index += count.consumed;
-                let Some(restriction) = self.peek().cloned() else {
-                    return Err(vec![self.error(format!("counted quantifier `{token}` requires a class restriction"))]);
-                };
-                match self.lexicon.get(&restriction) {
-                    Some(LexemeConfig::Class { .. }) => {
-                        self.index += 1;
-                        Ok(Argument::CountedQuantified {
-                            quantifier: token,
-                            count: count.literal,
-                            restriction,
-                        })
-                    }
-                    _ => Err(vec![self.error(format!(
-                        "counted quantifier `{token}` must be followed by a class expression, found `{restriction}`"
-                    ))]),
+                let mut direct = Vec::with_capacity(direct_count);
+                for _ in 0..direct_count {
+                    direct.push(self.parse_argument()?);
                 }
-            }
-            Some(LexemeConfig::Quantifier { .. }) => {
-                self.index += 1;
                 let Some(restriction) = self.peek().cloned() else {
+                    return Err(vec![self.error(format!("scoped binder `{token}` requires a restriction"))]);
+                };
+                if !self.is_unary_predicate_value(&restriction) {
                     return Err(vec![self.error(format!(
-                        "quantifier `{token}` requires a restriction"
+                        "scoped binder `{token}` requires a unary predicate restriction, found `{restriction}`"
                     ))]);
-                };
-                match self.lexicon.get(&restriction) {
-                    Some(LexemeConfig::Class { .. }) => {
-                        self.index += 1;
-                        Ok(Argument::Quantified {
-                            quantifier: token,
-                            restriction,
-                        })
-                    }
-                    _ => Err(vec![self.error(format!(
-                        "quantifier `{token}` must be followed by a class expression, found `{restriction}`"
-                    ))]),
                 }
+                self.index += 1;
+                Ok(Argument::Scoped { binder: token, direct, restriction })
             }
             Some(other) => Err(vec![self.error(format!(
                 "`{token}` is not an argument lexeme ({})",
@@ -603,15 +610,22 @@ impl ParserState<'_> {
             || self.literal_len_at(self.index).is_some()
             || matches!(
                 self.lexicon.get(token),
-                Some(LexemeConfig::Atom { .. })
-                    | Some(LexemeConfig::Context { .. })
-                    | Some(LexemeConfig::Alias { .. })
-                    | Some(LexemeConfig::Reference)
-                    | Some(LexemeConfig::Information { .. })
-                    | Some(LexemeConfig::Quantifier { .. })
-                    | Some(LexemeConfig::CountedQuantifier { .. })
-                    | Some(LexemeConfig::Name { .. })
+                Some(CompiledSurfaceBinding::Atom { .. })
+                    | Some(CompiledSurfaceBinding::Context { .. })
+                    | Some(CompiledSurfaceBinding::Alias { .. })
+                    | Some(CompiledSurfaceBinding::Reference)
+                    | Some(CompiledSurfaceBinding::Information { .. })
+                    | Some(CompiledSurfaceBinding::Binder { .. })
+                    | Some(CompiledSurfaceBinding::Capture { .. })
             )
+    }
+
+    fn is_unary_predicate_value(&self, surface: &str) -> bool {
+        match self.lexicon.get(surface) {
+            Some(CompiledSurfaceBinding::Class { .. }) => true,
+            Some(CompiledSurfaceBinding::Predicate { primary_parameter: Some(_), rest_parameters, .. }) => rest_parameters.is_empty(),
+            _ => false,
+        }
     }
 
     fn literal_at(&self, start: usize) -> Result<Option<crate::literals::LiteralMatch>, Vec<SurfaceParseError>> {
@@ -645,7 +659,7 @@ impl ParserState<'_> {
         };
         if matches!(
             self.lexicon.get(&token),
-            Some(LexemeConfig::Predicate { .. }) | Some(LexemeConfig::Class { .. })
+            Some(CompiledSurfaceBinding::Predicate { .. }) | Some(CompiledSurfaceBinding::Class { .. })
         ) {
             self.index += 1;
             Ok(token)
@@ -658,23 +672,23 @@ impl ParserState<'_> {
         self.peek().is_some_and(|token| {
             matches!(
                 self.lexicon.get(token),
-                Some(LexemeConfig::Predicate { .. }) | Some(LexemeConfig::Class { .. })
+                Some(CompiledSurfaceBinding::Predicate { .. }) | Some(CompiledSurfaceBinding::Class { .. })
             )
         })
     }
 
-    fn peek_predicate_primary_role(&self) -> Option<bool> {
+    fn peek_predicate_primary_parameter(&self) -> Option<bool> {
         let token = self.peek()?;
         match self.lexicon.get(token)? {
-            LexemeConfig::Predicate { primary_role, .. } => Some(primary_role.is_some()),
-            LexemeConfig::Class { .. } => Some(true),
+            CompiledSurfaceBinding::Predicate { primary_parameter, .. } => Some(primary_parameter.is_some()),
+            CompiledSurfaceBinding::Class { .. } => Some(true),
             _ => None,
         }
     }
 
     fn peek_infix(&self) -> Option<(String, u16)> {
         let token = self.peek()?;
-        let LexemeConfig::Infix { precedence, .. } = self.lexicon.get(token)? else {
+        let CompiledSurfaceBinding::Infix { precedence, .. } = self.lexicon.get(token)? else {
             return None;
         };
         Some((token.clone(), *precedence))
@@ -688,7 +702,7 @@ impl ParserState<'_> {
     ) -> SurfaceExpr {
         let associative = matches!(
             self.lexicon.get(&surface),
-            Some(LexemeConfig::Infix { associative: true, .. })
+            Some(CompiledSurfaceBinding::Infix { associative: true, .. })
         );
         if associative {
             let mut operands = Vec::new();
@@ -750,21 +764,19 @@ fn push_flattened(operator: &str, expression: SurfaceExpr, output: &mut Vec<Surf
     }
 }
 
-fn lexeme_kind(lexeme: &LexemeConfig) -> &'static str {
+fn lexeme_kind(lexeme: &CompiledSurfaceBinding) -> &'static str {
     match lexeme {
-        LexemeConfig::Atom { .. } => "atom",
-        LexemeConfig::Reference => "reference",
-        LexemeConfig::Information { .. } => "information",
-        LexemeConfig::Alias { .. } => "alias",
-        LexemeConfig::Context { .. } => "context",
-        LexemeConfig::Class { .. } => "class",
-        LexemeConfig::Predicate { .. } => "predicate",
-        LexemeConfig::Prefix { .. } => "prefix",
-        LexemeConfig::Infix { .. } => "infix",
-        LexemeConfig::Quantifier { .. } => "quantifier",
-        LexemeConfig::CountedQuantifier { .. } => "counted_quantifier",
-        LexemeConfig::SpeechAct { .. } => "speech_act",
-        LexemeConfig::Name { .. } => "name",
+        CompiledSurfaceBinding::Atom { .. } => "atom",
+        CompiledSurfaceBinding::Reference => "reference",
+        CompiledSurfaceBinding::Information { .. } => "information",
+        CompiledSurfaceBinding::Alias { .. } => "alias",
+        CompiledSurfaceBinding::Context { .. } => "context",
+        CompiledSurfaceBinding::Class { .. } => "class",
+        CompiledSurfaceBinding::Predicate { .. } => "predicate",
+        CompiledSurfaceBinding::Prefix { .. } => "prefix",
+        CompiledSurfaceBinding::Infix { .. } => "infix",
+        CompiledSurfaceBinding::Binder { .. } => "binder",
+        CompiledSurfaceBinding::Capture { .. } => "capture",
     }
 }
 

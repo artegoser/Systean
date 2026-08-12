@@ -7,7 +7,7 @@ use crate::semantics::{
 };
 use crate::spec::parse_type;
 
-use super::{Argument, Clause, InformationKnower, LexemeConfig, SurfaceExpr, SurfaceLexicon};
+use super::{Argument, Clause, InformationKnower, CompiledSurfaceBinding, SurfaceExpr, CompiledSurfaceLexicon};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReferenceSource {
@@ -76,14 +76,14 @@ pub enum SurfaceElaborationError {
 
 pub fn elaborate_surface(
     expression: &SurfaceExpr,
-    lexicon: &SurfaceLexicon,
+    lexicon: &CompiledSurfaceLexicon,
     environment: &Environment,
 ) -> Result<TypedSurfaceAst, SurfaceElaborationError> {
     let mut elaborator = Elaborator {
         lexicon,
         environment,
         placeholder_index: 0,
-        quantifier_index: 0,
+        binder_index: 0,
         references: Vec::new(),
         contexts: Vec::new(),
         aliases: Vec::new(),
@@ -113,20 +113,20 @@ pub fn elaborate_surface(
 }
 
 struct Elaborator<'a> {
-    lexicon: &'a SurfaceLexicon,
+    lexicon: &'a CompiledSurfaceLexicon,
     environment: &'a Environment,
     placeholder_index: usize,
-    quantifier_index: usize,
+    binder_index: usize,
     references: Vec<ReferenceSlot>,
     contexts: Vec<ContextSlot>,
     aliases: Vec<AliasSlot>,
 }
 
 #[derive(Clone)]
-struct QuantifierIntroduction {
-    quantifier_surface: String,
+struct BinderIntroduction {
+    binder_surface: String,
     restriction_surface: String,
-    count: Option<Term>,
+    direct_arguments: Vec<(u32, Term)>,
     variable: String,
     variable_type: Type,
 }
@@ -134,7 +134,7 @@ struct QuantifierIntroduction {
 #[derive(Clone)]
 enum ScopeIntroduction {
     Prefix(String),
-    Quantifier(QuantifierIntroduction),
+    Binder(BinderIntroduction),
 }
 
 impl Elaborator<'_> {
@@ -143,7 +143,7 @@ impl Elaborator<'_> {
             SurfaceExpr::Atom(surface) => self.lower_atom(surface),
             SurfaceExpr::Context(surface) => self.lower_standalone_context(surface),
             SurfaceExpr::Alias(surface) => self.lower_standalone_alias(surface),
-            SurfaceExpr::Name { marker, payload } => self.lower_name(marker, payload),
+            SurfaceExpr::Captured { marker, payload } => self.lower_capture(marker, payload),
             SurfaceExpr::Quote(payload) => Ok(self.lower_quote(payload)),
             SurfaceExpr::Literal(literal) => Ok(Term::Literal(Literal::Structured(literal.semantic.clone()))),
             SurfaceExpr::Clause(clause) => self.lower_clause(clause),
@@ -151,9 +151,9 @@ impl Elaborator<'_> {
                 let operand = self.lower_expr(operand)?;
                 self.call_prefix(operator, operand)
             }
-            SurfaceExpr::SpeechAct { operator, content } => {
+            SurfaceExpr::Outer { operator, content } => {
                 let content = self.lower_expr(content)?;
-                self.call_speech_act(operator, content)
+                self.call_prefix(operator, content)
             }
             SurfaceExpr::Infix { operator, operands } => {
                 let mut operands = operands.iter();
@@ -173,33 +173,38 @@ impl Elaborator<'_> {
     }
 
     fn lower_atom(&self, surface: &str) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Atom { semantic } = self.lexeme(surface)? else {
+        let CompiledSurfaceBinding::Atom { semantic } = self.lexeme(surface)? else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
                 surface: surface.to_owned(),
                 expected: "atom",
             });
         };
-        Ok(Term::Const(semantic.clone()))
+        Ok(Term::Const(self.semantic_name(*semantic)?.to_owned()))
     }
 
-    fn lower_name(
+    fn lower_capture(
         &self,
         marker: &str,
         payload: &str,
     ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Name { semantic, role } = self.lexeme(marker)? else {
+        let CompiledSurfaceBinding::Capture { semantic, parameter } = self.lexeme(marker)? else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
                 surface: marker.to_owned(),
                 expected: "name",
             });
         };
+        let semantic_name = self.semantic_name(*semantic)?.to_owned();
+        let signature = self.environment.operator(&semantic_name).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(semantic_name.clone())
+        })?;
+        let parameter = parameter_at(signature, &semantic_name, *parameter)?;
         let mut arguments = BTreeMap::new();
         arguments.insert(
-            role.clone(),
+            parameter.name.clone(),
             Term::Literal(Literal::String(payload.to_owned())),
         );
         Ok(Term::Call {
-            function: semantic.clone(),
+            function: semantic_name,
             arguments,
         })
     }
@@ -212,7 +217,7 @@ impl Elaborator<'_> {
         &mut self,
         surface: &str,
     ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
+        let CompiledSurfaceBinding::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
                 surface: surface.to_owned(),
                 expected: "context",
@@ -234,7 +239,7 @@ impl Elaborator<'_> {
         &mut self,
         surface: &str,
     ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Alias { name, ty } = self.lexeme(surface)?.clone() else {
+        let CompiledSurfaceBinding::Alias { name, ty } = self.lexeme(surface)?.clone() else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
                 surface: surface.to_owned(),
                 expected: "alias",
@@ -254,15 +259,11 @@ impl Elaborator<'_> {
 
     fn lower_clause(&mut self, clause: &Clause) -> Result<Term, SurfaceElaborationError> {
         let predicate = self.lexeme(&clause.predicate)?.clone();
-        let (semantic, primary_role, rest_roles) = match predicate {
-            LexemeConfig::Predicate {
-                semantic,
-                primary_role,
-                rest_roles,
-            } => (semantic, primary_role, rest_roles),
-            LexemeConfig::Class { semantic, role } => {
-                (semantic, Some(role), Vec::new())
+        let (semantic_id, primary_parameter, rest_parameters) = match predicate {
+            CompiledSurfaceBinding::Predicate { semantic, primary_parameter, rest_parameters } => {
+                (semantic, primary_parameter, rest_parameters)
             }
+            CompiledSurfaceBinding::Class { semantic, parameter } => (semantic, Some(parameter), Vec::new()),
             _ => {
                 return Err(SurfaceElaborationError::WrongLexemeKind {
                     surface: clause.predicate.clone(),
@@ -270,11 +271,10 @@ impl Elaborator<'_> {
                 });
             }
         };
-        let signature = self
-            .environment
-            .operator(&semantic)
-            .cloned()
-            .ok_or_else(|| SurfaceElaborationError::UnknownSemanticOperator(semantic.clone()))?;
+        let semantic = self.semantic_name(semantic_id)?.to_owned();
+        let signature = self.environment.operator(&semantic).cloned().ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+        })?;
 
         let reference_start = self.references.len();
         let context_start = self.contexts.len();
@@ -283,28 +283,24 @@ impl Elaborator<'_> {
         let mut arguments = BTreeMap::new();
         let mut introductions = Vec::new();
 
-        if let Some(role) = primary_role.as_ref() {
+        if let Some(index) = primary_parameter {
             let argument = clause.primary.as_ref().ok_or_else(|| {
                 SurfaceElaborationError::InvalidSemanticTerm(format!(
-                    "predicate `{}` is missing its primary argument slot",
-                    clause.predicate
+                    "predicate `{}` is missing its primary argument slot", clause.predicate
                 ))
             })?;
-            let expected = parameter_type(&signature, &semantic, role)?;
+            let parameter = parameter_at(&signature, &semantic, index)?;
             let (term, intro) = self.lower_argument(
                 argument,
-                role,
-                expected,
+                &parameter.name,
+                &parameter.ty,
                 &mut type_bindings,
             )?;
-            arguments.insert(role.clone(), term);
-            if let Some(intro) = intro {
-                introductions.push(ScopeIntroduction::Quantifier(intro));
-            }
+            arguments.insert(parameter.name.clone(), term);
+            if let Some(intro) = intro { introductions.push(ScopeIntroduction::Binder(intro)); }
         } else if clause.primary.is_some() {
             return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
-                "predicate `{}` has no primary semantic role",
-                clause.predicate
+                "predicate `{}` has no primary semantic parameter", clause.predicate
             )));
         }
 
@@ -312,43 +308,34 @@ impl Elaborator<'_> {
             introductions.push(ScopeIntroduction::Prefix(prefix.clone()));
         }
 
-        if rest_roles.len() != clause.rest.len() {
+        if rest_parameters.len() != clause.rest.len() {
             return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
                 "predicate `{}` expects {} rest argument slot(s), surface clause has {}",
-                clause.predicate,
-                rest_roles.len(),
-                clause.rest.len()
+                clause.predicate, rest_parameters.len(), clause.rest.len()
             )));
         }
 
-        for (role, argument) in rest_roles.iter().zip(&clause.rest) {
-            let expected = parameter_type(&signature, &semantic, role)?;
+        for (index, argument) in rest_parameters.iter().copied().zip(&clause.rest) {
+            let parameter = parameter_at(&signature, &semantic, index)?;
             let (term, intro) = self.lower_argument(
                 argument,
-                role,
-                expected,
+                &parameter.name,
+                &parameter.ty,
                 &mut type_bindings,
             )?;
-            arguments.insert(role.clone(), term);
-            if let Some(intro) = intro {
-                introductions.push(ScopeIntroduction::Quantifier(intro));
-            }
+            arguments.insert(parameter.name.clone(), term);
+            if let Some(intro) = intro { introductions.push(ScopeIntroduction::Binder(intro)); }
         }
 
         self.finalize_reference_types(reference_start, &type_bindings)?;
         self.finalize_context_types(context_start, &type_bindings)?;
         self.finalize_alias_types(alias_start, &type_bindings)?;
 
-        let mut term = Term::Call {
-            function: semantic,
-            arguments,
-        };
+        let mut term = Term::Call { function: semantic, arguments };
         for introduction in introductions.into_iter().rev() {
             term = match introduction {
                 ScopeIntroduction::Prefix(surface) => self.call_prefix(&surface, term)?,
-                ScopeIntroduction::Quantifier(quantifier) => {
-                    self.wrap_quantifier(quantifier, term)?
-                }
+                ScopeIntroduction::Binder(binder) => self.wrap_binder(binder, term)?,
             };
         }
         Ok(term)
@@ -360,29 +347,30 @@ impl Elaborator<'_> {
         role: &str,
         expected: &Type,
         type_bindings: &mut BTreeMap<String, Type>,
-    ) -> Result<(Term, Option<QuantifierIntroduction>), SurfaceElaborationError> {
+    ) -> Result<(Term, Option<BinderIntroduction>), SurfaceElaborationError> {
         match argument {
             Argument::Atom(surface) => {
-                let LexemeConfig::Atom { semantic } = self.lexeme(surface)? else {
+                let CompiledSurfaceBinding::Atom { semantic } = self.lexeme(surface)? else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: surface.clone(),
                         expected: "atom",
                     });
                 };
+                let semantic_name = self.semantic_name(*semantic)?.to_owned();
                 let actual = self
                     .environment
-                    .constant_type(semantic)
+                    .constant_type(&semantic_name)
                     .cloned()
                     .ok_or_else(|| {
                         SurfaceElaborationError::InvalidSemanticTerm(format!(
-                            "unknown semantic constant `{semantic}`"
+                            "unknown semantic constant `{semantic_name}`"
                         ))
                     })?;
                 self.match_expected(expected, &actual, type_bindings, role)?;
-                Ok((Term::Const(semantic.clone()), None))
+                Ok((Term::Const(semantic_name), None))
             }
             Argument::Context(surface) => {
-                let LexemeConfig::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
+                let CompiledSurfaceBinding::Context { key, ty, .. } = self.lexeme(surface)?.clone() else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: surface.clone(),
                         expected: "context",
@@ -401,7 +389,7 @@ impl Elaborator<'_> {
                 Ok((Term::Var(placeholder), None))
             }
             Argument::Alias(surface) => {
-                let LexemeConfig::Alias { name, ty } = self.lexeme(surface)?.clone() else {
+                let CompiledSurfaceBinding::Alias { name, ty } = self.lexeme(surface)?.clone() else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: surface.clone(),
                         expected: "alias",
@@ -420,8 +408,8 @@ impl Elaborator<'_> {
                 Ok((Term::Var(placeholder), None))
             }
 
-            Argument::Name { marker, payload } => {
-                let term = self.lower_name(marker, payload)?;
+            Argument::Captured { marker, payload } => {
+                let term = self.lower_capture(marker, payload)?;
                 let actual = Checker::new(self.environment)
                     .infer(&term)
                     .map_err(|error| {
@@ -449,7 +437,7 @@ impl Elaborator<'_> {
                 Ok((term, None))
             }
             Argument::Information { marker, knower } => {
-                let LexemeConfig::Information { mode, status, knower_type } = self.lexeme(marker)?.clone() else {
+                let CompiledSurfaceBinding::Information { mode, status, knower_type } = self.lexeme(marker)?.clone() else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: marker.clone(),
                         expected: "information marker",
@@ -471,7 +459,7 @@ impl Elaborator<'_> {
                 let knower = match knower {
                     None => None,
                     Some(InformationKnower::Context(surface)) => {
-                        let LexemeConfig::Context { slot, ty, .. } = self.lexeme(surface)? else {
+                        let CompiledSurfaceBinding::Context { slot, ty, .. } = self.lexeme(surface)? else {
                             return Err(SurfaceElaborationError::WrongLexemeKind {
                                 surface: surface.clone(),
                                 expected: "context knower",
@@ -489,14 +477,14 @@ impl Elaborator<'_> {
                         }
                         Some(InformationKnowerValue::Context(*slot))
                     }
-                    Some(InformationKnower::Name { marker: name_marker, payload }) => {
-                        let LexemeConfig::Name { role: name_role, .. } = self.lexeme(name_marker)? else {
+                    Some(InformationKnower::Captured { marker: name_marker, payload }) => {
+                        let CompiledSurfaceBinding::Capture { .. } = self.lexeme(name_marker)? else {
                             return Err(SurfaceElaborationError::WrongLexemeKind {
                                 surface: name_marker.clone(),
                                 expected: "proper-name knower",
                             });
                         };
-                        let name_term = self.lower_name(name_marker, payload)?;
+                        let name_term = self.lower_capture(name_marker, payload)?;
                         if let Some(expected_knower) = &declared_knower_type {
                             let actual_knower = Checker::new(self.environment)
                                 .infer(&name_term)
@@ -506,7 +494,7 @@ impl Elaborator<'_> {
                                 expected_knower,
                                 &actual_knower,
                                 &mut knower_bindings,
-                                name_role,
+                                "information knower",
                             )?;
                         }
                         Some(InformationKnowerValue::Value(Box::new(name_term)))
@@ -520,48 +508,81 @@ impl Elaborator<'_> {
                     None,
                 ))
             }
-            Argument::CountedQuantified { quantifier, count, restriction } => {
-                let quantifier_config = self.lexeme(quantifier)?.clone();
-                let LexemeConfig::CountedQuantifier { variable_type, count_role, semantic, .. } = quantifier_config else {
+            Argument::Scoped { binder, direct, restriction } => {
+                let binder_config = self.lexeme(binder)?.clone();
+                let CompiledSurfaceBinding::Binder {
+                    semantic,
+                    binder_parameter,
+                    direct_parameters,
+                    variable_type,
+                    ..
+                } = binder_config else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
-                        surface: quantifier.clone(),
-                        expected: "counted quantifier",
+                        surface: binder.clone(), expected: "scoped binder",
                     });
                 };
+                if direct_parameters.len() != direct.len() {
+                    return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                        "scoped binder `{binder}` expects {} direct argument(s), surface has {}",
+                        direct_parameters.len(), direct.len(),
+                    )));
+                }
                 let restriction_config = self.lexeme(restriction)?.clone();
-                let LexemeConfig::Class { .. } = restriction_config else {
-                    return Err(SurfaceElaborationError::WrongLexemeKind {
-                        surface: restriction.clone(),
-                        expected: "class",
-                    });
+                let is_unary_restriction = match restriction_config {
+                    CompiledSurfaceBinding::Class { .. } => true,
+                    CompiledSurfaceBinding::Predicate { primary_parameter: Some(_), ref rest_parameters, .. } => rest_parameters.is_empty(),
+                    _ => false,
                 };
-                let variable_type = self.parse_declared_type(&variable_type)?;
+                if !is_unary_restriction {
+                    return Err(SurfaceElaborationError::WrongLexemeKind {
+                        surface: restriction.clone(), expected: "unary predicate restriction",
+                    });
+                }
                 self.match_expected(expected, &variable_type, type_bindings, role)?;
-                let signature = self.environment.operator(&semantic).ok_or_else(|| {
-                    SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+                let semantic_name = self.semantic_name(semantic)?.to_owned();
+                let signature = self.environment.operator(&semantic_name).ok_or_else(|| {
+                    SurfaceElaborationError::UnknownSemanticOperator(semantic_name.clone())
                 })?;
-                let count_expected = parameter_type(signature, &semantic, &count_role)?;
-                let count_term = Term::Literal(Literal::Structured(count.semantic.clone()));
-                let count_actual = Checker::new(self.environment).infer(&count_term).map_err(|error| {
-                    SurfaceElaborationError::InvalidSemanticTerm(error.to_string())
-                })?;
-                let mut count_bindings = BTreeMap::new();
-                self.match_expected(count_expected, &count_actual, &mut count_bindings, &count_role)?;
-                let variable = format!("surface_q{}", self.quantifier_index);
-                self.quantifier_index += 1;
+                let mut direct_arguments = Vec::with_capacity(direct.len());
+                for (index, argument) in direct_parameters.iter().copied().zip(direct) {
+                    let parameter = parameter_at(signature, &semantic_name, index)?;
+                    let mut direct_bindings = BTreeMap::new();
+                    let (term, nested) = self.lower_argument(
+                        argument, &parameter.name, &parameter.ty, &mut direct_bindings,
+                    )?;
+                    if nested.is_some() {
+                        return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                            "scoped binder `{binder}` direct argument slot `{index}` cannot introduce another scope"
+                        )));
+                    }
+                    direct_arguments.push((index, term));
+                }
+                let binder_parameter_value = parameter_at(signature, &semantic_name, binder_parameter)?;
+                let Type::Function { parameters, returns } = &binder_parameter_value.ty else {
+                    return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                        "scoped binder `{binder}` binder parameter `{binder_parameter}` must be a function"
+                    )));
+                };
+                if parameters.len() != 1 || returns.as_ref() != &Type::named("Proposition") {
+                    return Err(SurfaceElaborationError::InvalidSemanticTerm(format!(
+                        "scoped binder `{binder}` binder parameter must be a unary predicate"
+                    )));
+                }
+                let variable = format!("surface_b{}", self.binder_index);
+                self.binder_index += 1;
                 Ok((
                     Term::Var(variable.clone()),
-                    Some(QuantifierIntroduction {
-                        quantifier_surface: quantifier.clone(),
+                    Some(BinderIntroduction {
+                        binder_surface: binder.clone(),
                         restriction_surface: restriction.clone(),
-                        count: Some(count_term),
+                        direct_arguments,
                         variable,
                         variable_type,
                     }),
                 ))
             }
             Argument::Reference(surface) => {
-                let LexemeConfig::Reference = self.lexeme(surface)? else {
+                let CompiledSurfaceBinding::Reference = self.lexeme(surface)? else {
                     return Err(SurfaceElaborationError::WrongLexemeKind {
                         surface: surface.clone(),
                         expected: "reference",
@@ -587,39 +608,6 @@ impl Elaborator<'_> {
                     source: ReferenceSource::Omitted,
                 });
                 Ok((Term::Var(placeholder), None))
-            }
-            Argument::Quantified {
-                quantifier,
-                restriction,
-            } => {
-                let quantifier_config = self.lexeme(quantifier)?.clone();
-                let LexemeConfig::Quantifier { variable_type, .. } = quantifier_config else {
-                    return Err(SurfaceElaborationError::WrongLexemeKind {
-                        surface: quantifier.clone(),
-                        expected: "quantifier",
-                    });
-                };
-                let restriction_config = self.lexeme(restriction)?.clone();
-                let LexemeConfig::Class { .. } = restriction_config else {
-                    return Err(SurfaceElaborationError::WrongLexemeKind {
-                        surface: restriction.clone(),
-                        expected: "class",
-                    });
-                };
-                let variable_type = self.parse_declared_type(&variable_type)?;
-                self.match_expected(expected, &variable_type, type_bindings, role)?;
-                let variable = format!("surface_q{}", self.quantifier_index);
-                self.quantifier_index += 1;
-                Ok((
-                    Term::Var(variable.clone()),
-                    Some(QuantifierIntroduction {
-                        quantifier_surface: quantifier.clone(),
-                        restriction_surface: restriction.clone(),
-                        count: None,
-                        variable,
-                        variable_type,
-                    }),
-                ))
             }
         }
     }
@@ -713,153 +701,107 @@ impl Elaborator<'_> {
         Ok(ty)
     }
 
-    fn wrap_quantifier(
+    fn wrap_binder(
         &self,
-        intro: QuantifierIntroduction,
+        intro: BinderIntroduction,
         body: Term,
     ) -> Result<Term, SurfaceElaborationError> {
-        let (semantic, binder_role, count_role, restriction_operator, restriction_role, body_role) =
-            match self.lexeme(&intro.quantifier_surface)? {
-                LexemeConfig::Quantifier {
-                    semantic,
-                    binder_role,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                    ..
-                } => (
-                    semantic.clone(), binder_role.clone(), None,
-                    restriction_operator.clone(), restriction_role.clone(), body_role.clone(),
-                ),
-                LexemeConfig::CountedQuantifier {
-                    semantic,
-                    binder_role,
-                    count_role,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                    ..
-                } => (
-                    semantic.clone(), binder_role.clone(), Some(count_role.clone()),
-                    restriction_operator.clone(), restriction_role.clone(), body_role.clone(),
-                ),
-                _ => {
-                    return Err(SurfaceElaborationError::WrongLexemeKind {
-                        surface: intro.quantifier_surface,
-                        expected: "quantifier",
-                    });
-                }
-            };
-        let LexemeConfig::Class {
-            semantic: restriction_semantic,
-            role: class_role,
-        } = self.lexeme(&intro.restriction_surface)?
-        else {
+        let CompiledSurfaceBinding::Binder {
+            semantic,
+            binder_parameter,
+            combiner_semantic,
+            combiner_left_parameter,
+            combiner_right_parameter,
+            ..
+        } = self.lexeme(&intro.binder_surface)? else {
             return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: intro.restriction_surface,
-                expected: "class",
+                surface: intro.binder_surface, expected: "scoped binder",
             });
         };
+        let semantic = self.semantic_name(*semantic)?.to_owned();
+        let combiner_semantic = self.semantic_name(*combiner_semantic)?.to_owned();
 
-        let restriction = Term::Call {
-            function: restriction_semantic.clone(),
-            arguments: BTreeMap::from([(
-                class_role.clone(),
-                Term::Var(intro.variable.clone()),
-            )]),
+        let restriction_lexeme = self.lexeme(&intro.restriction_surface)?;
+        let (restriction_id, restriction_parameter) = match restriction_lexeme {
+            CompiledSurfaceBinding::Class { semantic, parameter } => (*semantic, *parameter),
+            CompiledSurfaceBinding::Predicate { semantic, primary_parameter: Some(parameter), rest_parameters } if rest_parameters.is_empty() => {
+                (*semantic, *parameter)
+            }
+            _ => {
+                return Err(SurfaceElaborationError::WrongLexemeKind {
+                    surface: intro.restriction_surface, expected: "unary predicate restriction",
+                });
+            }
         };
+        let restriction_semantic = self.semantic_name(restriction_id)?.to_owned();
+        let restriction_signature = self.environment.operator(&restriction_semantic).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(restriction_semantic.clone())
+        })?;
+        let restriction_parameter = parameter_at(restriction_signature, &restriction_semantic, restriction_parameter)?;
+        let restriction = Term::Call {
+            function: restriction_semantic,
+            arguments: BTreeMap::from([(restriction_parameter.name.clone(), Term::Var(intro.variable.clone()))]),
+        };
+
+        let combiner_signature = self.environment.operator(&combiner_semantic).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(combiner_semantic.clone())
+        })?;
+        let left = parameter_at(combiner_signature, &combiner_semantic, *combiner_left_parameter)?;
+        let right = parameter_at(combiner_signature, &combiner_semantic, *combiner_right_parameter)?;
         let combined = Term::Call {
-            function: restriction_operator,
-            arguments: BTreeMap::from([
-                (restriction_role, restriction),
-                (body_role, body),
-            ]),
+            function: combiner_semantic,
+            arguments: BTreeMap::from([(left.name.clone(), restriction), (right.name.clone(), body)]),
         };
         let binder = Term::Bind {
-            variable: intro.variable,
-            variable_type: intro.variable_type,
-            body: Box::new(combined),
+            variable: intro.variable, variable_type: intro.variable_type, body: Box::new(combined),
         };
-        let mut arguments = BTreeMap::from([(binder_role, binder)]);
-        match (count_role, intro.count) {
-            (Some(role), Some(count)) => {
-                arguments.insert(role, count);
-            }
-            (None, None) => {}
-            _ => {
-                return Err(SurfaceElaborationError::InvalidSemanticTerm(
-                    "quantifier count shape does not match lexical declaration".into(),
-                ));
-            }
+        let signature = self.environment.operator(&semantic).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+        })?;
+        let binder_parameter_value = parameter_at(signature, &semantic, *binder_parameter)?;
+        let mut arguments = BTreeMap::from([(binder_parameter_value.name.clone(), binder)]);
+        for (index, term) in intro.direct_arguments {
+            let parameter = parameter_at(signature, &semantic, index)?;
+            arguments.insert(parameter.name.clone(), term);
         }
+        Ok(Term::Call { function: semantic, arguments })
+    }
+
+    fn call_prefix(&self, surface: &str, operand: Term) -> Result<Term, SurfaceElaborationError> {
+        let CompiledSurfaceBinding::Prefix { semantic, parameter, .. } = self.lexeme(surface)? else {
+            return Err(SurfaceElaborationError::WrongLexemeKind { surface: surface.to_owned(), expected: "prefix" });
+        };
+        let semantic = self.semantic_name(*semantic)?.to_owned();
+        let signature = self.environment.operator(&semantic).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+        })?;
+        let parameter = parameter_at(signature, &semantic, *parameter)?;
+        Ok(Term::Call { function: semantic, arguments: BTreeMap::from([(parameter.name.clone(), operand)]) })
+    }
+
+    fn call_infix(&self, surface: &str, left: Term, right: Term) -> Result<Term, SurfaceElaborationError> {
+        let CompiledSurfaceBinding::Infix { semantic, left_parameter, right_parameter, .. } = self.lexeme(surface)? else {
+            return Err(SurfaceElaborationError::WrongLexemeKind { surface: surface.to_owned(), expected: "infix" });
+        };
+        let semantic = self.semantic_name(*semantic)?.to_owned();
+        let signature = self.environment.operator(&semantic).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(semantic.clone())
+        })?;
+        let left_parameter = parameter_at(signature, &semantic, *left_parameter)?;
+        let right_parameter = parameter_at(signature, &semantic, *right_parameter)?;
         Ok(Term::Call {
             function: semantic,
-            arguments,
+            arguments: BTreeMap::from([(left_parameter.name.clone(), left), (right_parameter.name.clone(), right)]),
         })
     }
 
-    fn call_prefix(
-        &self,
-        surface: &str,
-        operand: Term,
-    ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Prefix { semantic, role } = self.lexeme(surface)? else {
-            return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: surface.to_owned(),
-                expected: "prefix",
-            });
-        };
-        Ok(Term::Call {
-            function: semantic.clone(),
-            arguments: BTreeMap::from([(role.clone(), operand)]),
+    fn semantic_name(&self, id: crate::semantics::SymbolId) -> Result<&str, SurfaceElaborationError> {
+        self.lexicon.semantic_name(id).ok_or_else(|| {
+            SurfaceElaborationError::UnknownSemanticOperator(id.to_string())
         })
     }
 
-    fn call_infix(
-        &self,
-        surface: &str,
-        left: Term,
-        right: Term,
-    ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::Infix {
-            semantic,
-            left_role,
-            right_role,
-            ..
-        } = self.lexeme(surface)?
-        else {
-            return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: surface.to_owned(),
-                expected: "infix",
-            });
-        };
-        Ok(Term::Call {
-            function: semantic.clone(),
-            arguments: BTreeMap::from([
-                (left_role.clone(), left),
-                (right_role.clone(), right),
-            ]),
-        })
-    }
-
-    fn call_speech_act(
-        &self,
-        surface: &str,
-        content: Term,
-    ) -> Result<Term, SurfaceElaborationError> {
-        let LexemeConfig::SpeechAct { semantic, role } = self.lexeme(surface)? else {
-            return Err(SurfaceElaborationError::WrongLexemeKind {
-                surface: surface.to_owned(),
-                expected: "speech_act",
-            });
-        };
-        Ok(Term::Call {
-            function: semantic.clone(),
-            arguments: BTreeMap::from([(role.clone(), content)]),
-        })
-    }
-
-    fn lexeme(&self, surface: &str) -> Result<&LexemeConfig, SurfaceElaborationError> {
+    fn lexeme(&self, surface: &str) -> Result<&CompiledSurfaceBinding, SurfaceElaborationError> {
         self.lexicon
             .get(surface)
             .ok_or_else(|| SurfaceElaborationError::MissingLexeme(surface.to_owned()))
@@ -872,20 +814,15 @@ impl Elaborator<'_> {
     }
 }
 
-fn parameter_type<'a>(
+fn parameter_at<'a>(
     signature: &'a crate::semantics::Signature,
     operator: &str,
-    role: &str,
-) -> Result<&'a Type, SurfaceElaborationError> {
-    signature
-        .parameters
-        .iter()
-        .find(|parameter| parameter.name == role)
-        .map(|parameter| &parameter.ty)
-        .ok_or_else(|| SurfaceElaborationError::MissingSemanticRole {
-            operator: operator.to_owned(),
-            role: role.to_owned(),
-        })
+    index: u32,
+) -> Result<&'a crate::semantics::Parameter, SurfaceElaborationError> {
+    signature.parameters.get(index as usize).ok_or_else(|| SurfaceElaborationError::MissingSemanticRole {
+        operator: operator.to_owned(),
+        role: format!("#{index}"),
+    })
 }
 
 fn contains_type_variable(ty: &Type) -> bool {

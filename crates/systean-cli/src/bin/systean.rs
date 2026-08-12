@@ -320,14 +320,11 @@ fn syntax(language_path: &Path, mut args: Vec<String>) -> ExitCode {
             let config = language.syntax().config();
             println!("syntax OK");
             println!("frame order: {:?}", config.order.frame);
-            println!("free word order: {}", config.order.free_order);
             println!("scope: {} ... {}", config.scope.open, config.scope.close);
-            println!("explicit scope: {:?}", config.scope.explicit);
-            println!("quantifier scope: {:?}", config.scope.quantifier_order);
-            for (operator, precedence) in &config.logic.precedence {
-                println!("precedence {operator}: {precedence}");
-            }
+            println!("argument omission: {:?}", config.arguments.omission);
             println!("lexical roots: {}", language.syntax().lexicon().len());
+            println!("surface rules: {}", language.typed_semantics().surface_rules().count());
+            println!("effect programs: {}", language.typed_semantics().effect_programs().count());
             ExitCode::SUCCESS
         }
         "analyze" => {

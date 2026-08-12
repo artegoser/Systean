@@ -7,7 +7,7 @@ pub enum SurfaceExpr {
     Atom(String),
     Context(String),
     Alias(String),
-    Name {
+    Captured {
         marker: String,
         payload: String,
     },
@@ -22,7 +22,7 @@ pub enum SurfaceExpr {
         operator: String,
         operands: Vec<SurfaceExpr>,
     },
-    SpeechAct {
+    Outer {
         operator: String,
         content: Box<SurfaceExpr>,
     },
@@ -42,7 +42,7 @@ pub enum Argument {
     Context(String),
     Reference(String),
     Alias(String),
-    Name {
+    Captured {
         marker: String,
         payload: String,
     },
@@ -53,13 +53,9 @@ pub enum Argument {
         knower: Option<InformationKnower>,
     },
     Omitted,
-    Quantified {
-        quantifier: String,
-        restriction: String,
-    },
-    CountedQuantified {
-        quantifier: String,
-        count: SurfaceLiteral,
+    Scoped {
+        binder: String,
+        direct: Vec<Argument>,
         restriction: String,
     },
 }
@@ -67,7 +63,7 @@ pub enum Argument {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InformationKnower {
     Context(String),
-    Name { marker: String, payload: String },
+    Captured { marker: String, payload: String },
 }
 
 impl fmt::Display for SurfaceExpr {
@@ -76,7 +72,7 @@ impl fmt::Display for SurfaceExpr {
             Self::Atom(surface) | Self::Context(surface) | Self::Alias(surface) => {
                 write!(f, "{surface}")
             }
-            Self::Name { marker, payload } => write!(f, "{marker}<{payload}>"),
+            Self::Captured { marker, payload } => write!(f, "{marker}<{payload}>"),
             Self::Quote(payload) => write!(f, "quote({payload:?})"),
             Self::Literal(literal) => write!(f, "literal({})", literal.semantic),
             Self::Clause(clause) => write!(f, "{clause:?}"),
@@ -91,7 +87,7 @@ impl fmt::Display for SurfaceExpr {
                 }
                 write!(f, "]")
             }
-            Self::SpeechAct { operator, content } => write!(f, "{operator}<{content}>"),
+            Self::Outer { operator, content } => write!(f, "{operator}<{content}>"),
         }
     }
 }

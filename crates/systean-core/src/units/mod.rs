@@ -7,9 +7,9 @@ use num_bigint::BigInt;
 use crate::literals::ExactNumber;
 use crate::rational::ExactRational;
 use crate::semantics::{DimensionId, Type, UnitId};
-use crate::spec::{TypedSemanticPackage, parse_type};
+use crate::spec::{TypedSemanticPackage, legacy_typed_type};
 
-pub use config::{DimensionConfig, UnitConfig, UnitsConfig, UnitsConfigError};
+pub use config::{UnitConfig, UnitsConfig, UnitsConfigError};
 
 #[derive(Clone, Debug)]
 pub struct UnitRegistry {
@@ -70,43 +70,19 @@ fn absolute_scale(
 }
 
 impl UnitRegistry {
-    /// Phase 18 production boundary: semantic unit identity, dimension and exact conversion scale
-    /// come from the typed package. TOML contributes only aliases, symbols and semantic-type
-    /// adapter metadata needed by the Phase 17 checker projection.
+    /// Phase 19 production boundary: semantic unit identity, dimension, dimension value type,
+    /// and exact conversion scale come from the typed package. TOML contributes only human/API
+    /// aliases and written/spoken surface metadata.
     pub fn new(
         config: UnitsConfig,
         typed: &TypedSemanticPackage,
     ) -> Result<Self, UnitsConfigError> {
         let mut dimension_types = BTreeMap::new();
-        let mut configured_dimensions = BTreeSet::new();
-        for dimension in &config.dimensions {
-            let id = typed.dimension_id(&dimension.id).ok_or_else(|| {
-                UnitsConfigError::Invalid(format!(
-                    "dimension metadata `{}` has no typed semantic dimension declaration",
-                    dimension.id
-                ))
+        for id in typed.dimensions() {
+            let compiled = typed.dimension_type(id).ok_or_else(|| {
+                UnitsConfigError::Invalid(format!("typed dimension `{id}` has no declared value type"))
             })?;
-            configured_dimensions.insert(id);
-            let ty = parse_type(&dimension.semantic_type).map_err(|errors| {
-                UnitsConfigError::Invalid(format!(
-                    "dimension `{}` has invalid semantic type `{}`: {}",
-                    dimension.id,
-                    dimension.semantic_type,
-                    errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
-                ))
-            })?;
-            if dimension_types.insert(id, ty).is_some() {
-                return Err(UnitsConfigError::Invalid(format!(
-                    "dimension `{}` collides after typed ID resolution",
-                    dimension.id
-                )));
-            }
-        }
-        let typed_dimensions = typed.dimensions().collect::<BTreeSet<_>>();
-        if configured_dimensions != typed_dimensions {
-            return Err(UnitsConfigError::Invalid(
-                "units.toml dimension metadata must cover exactly the typed dimensions".into(),
-            ));
+            dimension_types.insert(id, legacy_typed_type(typed, compiled));
         }
 
         let mut units = BTreeMap::new();

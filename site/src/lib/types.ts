@@ -23,7 +23,6 @@ export type {
 	SemanticNodeView,
 	SourceProvenance,
 	SurfaceAnalysis,
-	SurfaceFormConfig,
 	SurfaceWorkbenchAnalysis,
 	SyntaxPolicy,
 	SyllableAnalysis,

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use num_traits::ToPrimitive;
@@ -5,7 +6,10 @@ use num_traits::ToPrimitive;
 use crate::semantics::{
     Checker, Environment, InformationStatus, Literal, StructuredValue, Term, Type, canonicalize,
 };
-use crate::syntax::PragmaticsConfig;
+use crate::spec::{
+    CompiledActKind, CompiledEffectInstruction, CompiledRepairKind, SymbolDebugInfo,
+    TypedSemanticPackage,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequestedValue {
@@ -51,22 +55,20 @@ impl CommunicativeAct {
             Self::Clarification { .. } => "clarification",
         }
     }
+}
 
-    pub fn committed_content(&self) -> Option<&Term> {
-        match self {
-            Self::Assertion { content }
-            | Self::Focus { content, .. }
-            | Self::Topic { content, .. } => Some(content),
-            Self::Correction { replacement, .. } => Some(replacement),
-            Self::Clarification { content, .. } => Some(content),
-            _ => None,
-        }
-    }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DiscourseEffect {
+    Commit { content: Term },
+    Retract { target: u64 },
+    Replace { target: u64, replacement: Term },
+    Clarify { target: u64, content: Term },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PragmaticAnalysis {
     pub act: CommunicativeAct,
+    pub effects: Vec<DiscourseEffect>,
     pub utterance: Term,
     pub inferred_type: Type,
 }
@@ -75,7 +77,9 @@ pub struct PragmaticAnalysis {
 pub enum PragmaticError {
     MissingOperator { operator: String },
     MissingRole { operator: String, role: String },
-    InvalidConfiguredRole { operator: String, role: String },
+    MissingDefaultEffect,
+    MissingEffect { operator: String },
+    InvalidEffect { operator: String, message: String },
     NotCommunicative { ty: Type },
     UnknownUtteranceOperator { operator: String },
     MixedQuestionStructure,
@@ -85,76 +89,25 @@ pub enum PragmaticError {
 }
 
 pub fn validate_pragmatics(
-    config: &PragmaticsConfig,
+    package: &TypedSemanticPackage,
     environment: &Environment,
 ) -> Result<(), PragmaticError> {
-    for (operator, roles) in [
-        (
-            config.default_assertion_operator.as_str(),
-            vec![config.default_assertion_role.as_str()],
-        ),
-        (
-            config.question_operator.as_str(),
-            vec![config.question_content_role.as_str()],
-        ),
-        (
-            config.command_operator.as_str(),
-            vec![config.command_content_role.as_str()],
-        ),
-        (
-            config.request_operator.as_str(),
-            vec![config.request_content_role.as_str()],
-        ),
-        (
-            config.expressive_operator.as_str(),
-            vec![config.expressive_state_role.as_str()],
-        ),
-        (
-            config.focus_operator.as_str(),
-            vec![config.focus_target_role.as_str(), config.focus_content_role.as_str()],
-        ),
-        (
-            config.topic_operator.as_str(),
-            vec![config.topic_target_role.as_str(), config.topic_content_role.as_str()],
-        ),
-        (
-            config.retract_operator.as_str(),
-            vec![config.repair_target_role.as_str()],
-        ),
-        (
-            config.correction_operator.as_str(),
-            vec![
-                config.repair_target_role.as_str(),
-                config.correction_replacement_role.as_str(),
-            ],
-        ),
-        (
-            config.clarification_operator.as_str(),
-            vec![
-                config.repair_target_role.as_str(),
-                config.clarification_content_role.as_str(),
-            ],
-        ),
-        (
-            config.disjunction_operator.as_str(),
-            vec![
-                config.disjunction_left_role.as_str(),
-                config.disjunction_right_role.as_str(),
-            ],
-        ),
-    ] {
-        let signature = environment
-            .operator(operator)
-            .ok_or_else(|| PragmaticError::MissingOperator {
-                operator: operator.to_owned(),
+    let default = package.default_effect().ok_or(PragmaticError::MissingDefaultEffect)?;
+    if package.effect_program(default).is_none() {
+        return Err(PragmaticError::InvalidEffect {
+            operator: package.source_name_for_symbol(default).unwrap_or("<unknown>").to_owned(),
+            message: "default effect target has no effect program".into(),
+        });
+    }
+    for program in package.effect_programs() {
+        let name = package
+            .source_name_for_symbol(program.symbol)
+            .ok_or_else(|| PragmaticError::InvalidEffect {
+                operator: "<unknown>".into(),
+                message: "effect target has no retained source symbol".into(),
             })?;
-        for role in roles {
-            if !signature.parameters.iter().any(|parameter| parameter.name == role) {
-                return Err(PragmaticError::InvalidConfiguredRole {
-                    operator: operator.to_owned(),
-                    role: role.to_owned(),
-                });
-            }
+        if environment.operator(name).is_none() {
+            return Err(PragmaticError::MissingOperator { operator: name.to_owned() });
         }
     }
     Ok(())
@@ -163,37 +116,35 @@ pub fn validate_pragmatics(
 pub fn interpret_pragmatics(
     term: &Term,
     inferred_type: &Type,
-    config: &PragmaticsConfig,
+    package: &TypedSemanticPackage,
     environment: &Environment,
 ) -> Result<PragmaticAnalysis, PragmaticError> {
-    validate_pragmatics(config, environment)?;
+    validate_pragmatics(package, environment)?;
 
     let proposition = Type::named("Proposition");
     let utterance = Type::named("Utterance");
     if environment.is_assignable(inferred_type, &proposition) {
+        let symbol = package.default_effect().ok_or(PragmaticError::MissingDefaultEffect)?;
+        let debug = effect_debug(package, symbol)?;
+        if debug.parameter_names.len() != 1 {
+            return Err(PragmaticError::InvalidEffect {
+                operator: debug.source_name.clone(),
+                message: "default assertion effect must accept exactly one proposition argument".into(),
+            });
+        }
+        let arguments = vec![term.clone()];
         let wrapped = Term::Call {
-            function: config.default_assertion_operator.clone(),
-            arguments: std::collections::BTreeMap::from([(
-                config.default_assertion_role.clone(),
-                term.clone(),
-            )]),
+            function: debug.source_name.clone(),
+            arguments: BTreeMap::from([(debug.parameter_names[0].clone(), term.clone())]),
         };
         let ty = Checker::new(environment)
             .infer(&wrapped)
             .map_err(|error| PragmaticError::InvalidSemanticTerm(error.to_string()))?;
-        return Ok(PragmaticAnalysis {
-            act: CommunicativeAct::Assertion {
-                content: term.clone(),
-            },
-            utterance: wrapped,
-            inferred_type: ty,
-        });
+        return execute_effect_program(symbol, &arguments, wrapped, ty, package);
     }
 
     if !environment.is_assignable(inferred_type, &utterance) {
-        return Err(PragmaticError::NotCommunicative {
-            ty: inferred_type.clone(),
-        });
+        return Err(PragmaticError::NotCommunicative { ty: inferred_type.clone() });
     }
 
     let Term::Call { function, arguments } = term else {
@@ -201,99 +152,152 @@ pub fn interpret_pragmatics(
             "an Utterance value must be an explicit semantic call".into(),
         ));
     };
+    let symbol = package.symbol_id(function).ok_or_else(|| PragmaticError::UnknownUtteranceOperator {
+        operator: function.clone(),
+    })?;
+    if package.effect_program(symbol).is_none() {
+        return Err(PragmaticError::MissingEffect { operator: function.clone() });
+    }
+    let debug = effect_debug(package, symbol)?;
+    let ordered = debug
+        .parameter_names
+        .iter()
+        .map(|role| {
+            arguments.get(role).cloned().ok_or_else(|| PragmaticError::MissingRole {
+                operator: function.clone(),
+                role: role.clone(),
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    execute_effect_program(symbol, &ordered, term.clone(), inferred_type.clone(), package)
+}
 
-    let act = if function == &config.question_operator {
-        let content = role(arguments, function, &config.question_content_role)?.clone();
-        let requested = requested_values(&content);
-        let choice = is_call(&content, &config.disjunction_operator);
-        if !requested.is_empty() && choice {
-            return Err(PragmaticError::MixedQuestionStructure);
-        }
-        let kind = if !requested.is_empty() {
-            QuestionKind::Value { requested }
-        } else if choice {
-            QuestionKind::Choice {
-                alternatives: collect_disjunction_alternatives(&content, config)?,
-            }
-        } else {
-            QuestionKind::Truth
-        };
-        CommunicativeAct::Question { kind, content }
-    } else if function == &config.command_operator {
-        CommunicativeAct::Command {
-            content: role(arguments, function, &config.command_content_role)?.clone(),
-        }
-    } else if function == &config.request_operator {
-        CommunicativeAct::Request {
-            content: role(arguments, function, &config.request_content_role)?.clone(),
-        }
-    } else if function == &config.expressive_operator {
-        CommunicativeAct::Expressive {
-            state: role(arguments, function, &config.expressive_state_role)?.clone(),
-        }
-    } else if function == &config.focus_operator {
-        let target = role(arguments, function, &config.focus_target_role)?.clone();
-        let content = role(arguments, function, &config.focus_content_role)?.clone();
-        if !contains_subterm(&content, &target) {
-            return Err(PragmaticError::FocusTargetAbsent {
-                operator: function.clone(),
-            });
-        }
-        CommunicativeAct::Focus { target, content }
-    } else if function == &config.topic_operator {
-        let target = role(arguments, function, &config.topic_target_role)?.clone();
-        let content = role(arguments, function, &config.topic_content_role)?.clone();
-        if !contains_subterm(&content, &target) {
-            return Err(PragmaticError::FocusTargetAbsent {
-                operator: function.clone(),
-            });
-        }
-        CommunicativeAct::Topic { target, content }
-    } else if function == &config.retract_operator {
-        let target_term = role(arguments, function, &config.repair_target_role)?.clone();
-        CommunicativeAct::Retraction {
-            target: repair_target_id(function, &target_term)?,
-        }
-    } else if function == &config.correction_operator {
-        let target_term = role(arguments, function, &config.repair_target_role)?.clone();
-        CommunicativeAct::Correction {
-            target: repair_target_id(function, &target_term)?,
-            replacement: role(arguments, function, &config.correction_replacement_role)?.clone(),
-        }
-    } else if function == &config.clarification_operator {
-        let target_term = role(arguments, function, &config.repair_target_role)?.clone();
-        CommunicativeAct::Clarification {
-            target: repair_target_id(function, &target_term)?,
-            content: role(arguments, function, &config.clarification_content_role)?.clone(),
-        }
-    } else {
-        return Err(PragmaticError::UnknownUtteranceOperator {
-            operator: function.clone(),
-        });
+fn execute_effect_program(
+    symbol: crate::semantics::SymbolId,
+    arguments: &[Term],
+    utterance: Term,
+    inferred_type: Type,
+    package: &TypedSemanticPackage,
+) -> Result<PragmaticAnalysis, PragmaticError> {
+    let program = package.effect_program(symbol).ok_or_else(|| PragmaticError::MissingEffect {
+        operator: package.source_name_for_symbol(symbol).unwrap_or("<unknown>").to_owned(),
+    })?;
+    let operator = package.source_name_for_symbol(symbol).unwrap_or("<unknown>");
+    let arg = |index: u32| -> Result<&Term, PragmaticError> {
+        arguments.get(index as usize).ok_or_else(|| PragmaticError::InvalidEffect {
+            operator: operator.to_owned(),
+            message: format!("effect references absent argument slot {index}"),
+        })
     };
 
-    Ok(PragmaticAnalysis {
-        act,
-        utterance: term.clone(),
-        inferred_type: inferred_type.clone(),
+    let mut act = None;
+    let mut effects = Vec::new();
+    let mut choice_operator = None;
+    for instruction in &program.instructions {
+        match instruction {
+            CompiledEffectInstruction::Choice { operator } => choice_operator = Some(*operator),
+            CompiledEffectInstruction::RequireContains { content, target } => {
+                let content = arg(*content)?;
+                let target = arg(*target)?;
+                if !contains_subterm(content, target) {
+                    return Err(PragmaticError::FocusTargetAbsent { operator: operator.to_owned() });
+                }
+            }
+            CompiledEffectInstruction::Commit { argument } => {
+                effects.push(DiscourseEffect::Commit { content: arg(*argument)?.clone() });
+            }
+            CompiledEffectInstruction::Repair { kind, target, value } => {
+                let target_term = arg(*target)?;
+                let target = repair_target_id(operator, target_term)?;
+                effects.push(match kind {
+                    CompiledRepairKind::Retract => DiscourseEffect::Retract { target },
+                    CompiledRepairKind::Replace => DiscourseEffect::Replace {
+                        target,
+                        replacement: arg(value.expect("replace effect has a value"))?.clone(),
+                    },
+                    CompiledRepairKind::Clarify => DiscourseEffect::Clarify {
+                        target,
+                        content: arg(value.expect("clarify effect has a value"))?.clone(),
+                    },
+                });
+            }
+            CompiledEffectInstruction::Act { .. } => {}
+        }
+    }
+
+    for instruction in &program.instructions {
+        let CompiledEffectInstruction::Act { kind, arguments: act_arguments } = instruction else { continue; };
+        if act.is_some() {
+            return Err(PragmaticError::InvalidEffect {
+                operator: operator.to_owned(),
+                message: "effect program contains more than one act instruction".into(),
+            });
+        }
+        let values = act_arguments.iter().map(|index| arg(*index)).collect::<Result<Vec<_>, _>>()?;
+        act = Some(match kind {
+            CompiledActKind::Assertion => CommunicativeAct::Assertion { content: one(operator, &values)?.clone() },
+            CompiledActKind::Question => {
+                let content = one(operator, &values)?.clone();
+                let requested = requested_values(&content);
+                let choice = choice_operator.is_some_and(|candidate| is_symbol_call(&content, candidate, package));
+                if !requested.is_empty() && choice { return Err(PragmaticError::MixedQuestionStructure); }
+                let kind = if !requested.is_empty() {
+                    QuestionKind::Value { requested }
+                } else if let Some(choice_operator) = choice_operator.filter(|_| choice) {
+                    QuestionKind::Choice { alternatives: collect_binary_alternatives(&content, choice_operator, package)? }
+                } else {
+                    QuestionKind::Truth
+                };
+                CommunicativeAct::Question { kind, content }
+            }
+            CompiledActKind::Command => CommunicativeAct::Command { content: one(operator, &values)?.clone() },
+            CompiledActKind::Request => CommunicativeAct::Request { content: one(operator, &values)?.clone() },
+            CompiledActKind::Expressive => CommunicativeAct::Expressive { state: one(operator, &values)?.clone() },
+            CompiledActKind::Focus => {
+                let [target, content] = two(operator, &values)?;
+                CommunicativeAct::Focus { target: (*target).clone(), content: (*content).clone() }
+            }
+            CompiledActKind::Topic => {
+                let [target, content] = two(operator, &values)?;
+                CommunicativeAct::Topic { target: (*target).clone(), content: (*content).clone() }
+            }
+            CompiledActKind::Retraction => CommunicativeAct::Retraction { target: repair_target_id(operator, one(operator, &values)?)? },
+            CompiledActKind::Correction => {
+                let [target, replacement] = two(operator, &values)?;
+                CommunicativeAct::Correction { target: repair_target_id(operator, target)?, replacement: (*replacement).clone() }
+            }
+            CompiledActKind::Clarification => {
+                let [target, content] = two(operator, &values)?;
+                CommunicativeAct::Clarification { target: repair_target_id(operator, target)?, content: (*content).clone() }
+            }
+        });
+    }
+
+    let act = act.ok_or_else(|| PragmaticError::InvalidEffect {
+        operator: operator.to_owned(),
+        message: "effect program has no act instruction".into(),
+    })?;
+    Ok(PragmaticAnalysis { act, effects, utterance, inferred_type })
+}
+
+fn effect_debug(package: &TypedSemanticPackage, symbol: crate::semantics::SymbolId) -> Result<&SymbolDebugInfo, PragmaticError> {
+    package.debug_symbol(symbol).ok_or_else(|| PragmaticError::InvalidEffect {
+        operator: package.source_name_for_symbol(symbol).unwrap_or("<unknown>").to_owned(),
+        message: "effect target has no debug parameter table".into(),
     })
 }
 
-fn role<'a>(
-    arguments: &'a std::collections::BTreeMap<String, Term>,
-    operator: &str,
-    role: &str,
-) -> Result<&'a Term, PragmaticError> {
-    arguments
-        .get(role)
-        .ok_or_else(|| PragmaticError::MissingRole {
-            operator: operator.to_owned(),
-            role: role.to_owned(),
-        })
+fn one<'a>(operator: &str, values: &[&'a Term]) -> Result<&'a Term, PragmaticError> {
+    if let [value] = values { Ok(*value) } else { Err(PragmaticError::InvalidEffect { operator: operator.into(), message: format!("act requires one argument, got {}", values.len()) }) }
 }
 
-fn is_call(term: &Term, operator: &str) -> bool {
-    matches!(term, Term::Call { function, .. } if function == operator)
+fn two<'a>(operator: &str, values: &[&'a Term]) -> Result<[&'a Term; 2], PragmaticError> {
+    if let [left, right] = values { Ok([*left, *right]) } else { Err(PragmaticError::InvalidEffect { operator: operator.into(), message: format!("act requires two arguments, got {}", values.len()) }) }
+}
+
+fn is_symbol_call(term: &Term, operator: crate::semantics::SymbolId, package: &TypedSemanticPackage) -> bool {
+    let Some(name) = package.source_name_for_symbol(operator) else { return false; };
+    matches!(term, Term::Call { function, .. } if function == name)
 }
 
 fn requested_values(term: &Term) -> Vec<RequestedValue> {
@@ -306,16 +310,11 @@ fn collect_requested_values(term: &Term, output: &mut Vec<RequestedValue>) {
     match term {
         Term::Literal(Literal::Structured(value)) => {
             if let StructuredValue::Information { status: InformationStatus::Unknown, .. } = &value.value {
-                output.push(RequestedValue {
-                    ty: value.ty.clone(),
-                    status: InformationStatus::Unknown,
-                });
+                output.push(RequestedValue { ty: value.ty.clone(), status: InformationStatus::Unknown });
             }
         }
         Term::Call { arguments, .. } | Term::Record(arguments) => {
-            for value in arguments.values() {
-                collect_requested_values(value, output);
-            }
+            for value in arguments.values() { collect_requested_values(value, output); }
         }
         Term::Bind { body, .. } => collect_requested_values(body, output),
         Term::Field { record, .. } => collect_requested_values(record, output),
@@ -323,26 +322,33 @@ fn collect_requested_values(term: &Term, output: &mut Vec<RequestedValue>) {
     }
 }
 
-fn collect_disjunction_alternatives(
+fn collect_binary_alternatives(
     term: &Term,
-    config: &PragmaticsConfig,
+    operator: crate::semantics::SymbolId,
+    package: &TypedSemanticPackage,
 ) -> Result<Vec<Term>, PragmaticError> {
+    let debug = effect_debug(package, operator)?;
+    if debug.parameter_names.len() != 2 {
+        return Err(PragmaticError::InvalidEffect { operator: debug.source_name.clone(), message: "choice operator must be binary".into() });
+    }
     let mut output = Vec::new();
-    collect_disjunction(term, config, &mut output)?;
+    collect_binary(term, operator, package, debug, &mut output)?;
     Ok(output)
 }
 
-fn collect_disjunction(
+fn collect_binary(
     term: &Term,
-    config: &PragmaticsConfig,
+    operator: crate::semantics::SymbolId,
+    package: &TypedSemanticPackage,
+    debug: &SymbolDebugInfo,
     output: &mut Vec<Term>,
 ) -> Result<(), PragmaticError> {
     if let Term::Call { function, arguments } = term {
-        if function == &config.disjunction_operator {
-            let left = role(arguments, function, &config.disjunction_left_role)?;
-            let right = role(arguments, function, &config.disjunction_right_role)?;
-            collect_disjunction(left, config, output)?;
-            collect_disjunction(right, config, output)?;
+        if package.source_name_for_symbol(operator).is_some_and(|name| name == function) {
+            let left = arguments.get(&debug.parameter_names[0]).ok_or_else(|| PragmaticError::MissingRole { operator: function.clone(), role: debug.parameter_names[0].clone() })?;
+            let right = arguments.get(&debug.parameter_names[1]).ok_or_else(|| PragmaticError::MissingRole { operator: function.clone(), role: debug.parameter_names[1].clone() })?;
+            collect_binary(left, operator, package, debug, output)?;
+            collect_binary(right, operator, package, debug, output)?;
             return Ok(());
         }
     }
@@ -356,13 +362,9 @@ fn contains_subterm(content: &Term, target: &Term) -> bool {
 }
 
 fn contains_canonical(content: &Term, target: &Term) -> bool {
-    if canonicalize(content) == *target {
-        return true;
-    }
+    if canonicalize(content) == *target { return true; }
     match content {
-        Term::Call { arguments, .. } | Term::Record(arguments) => {
-            arguments.values().any(|value| contains_canonical(value, target))
-        }
+        Term::Call { arguments, .. } | Term::Record(arguments) => arguments.values().any(|value| contains_canonical(value, target)),
         Term::Bind { body, .. } => contains_canonical(body, target),
         Term::Field { record, .. } => contains_canonical(record, target),
         Term::Const(_) | Term::Var(_) | Term::Literal(_) => false,
@@ -372,49 +374,28 @@ fn contains_canonical(content: &Term, target: &Term) -> bool {
 fn repair_target_id(operator: &str, term: &Term) -> Result<u64, PragmaticError> {
     let value = match term {
         Term::Literal(Literal::Integer(value)) if *value > 0 => u64::try_from(*value).ok(),
-        Term::Literal(Literal::Structured(value)) if value.ty == Type::named("Number") => {
-            match &value.value {
-                StructuredValue::Number(number) if number.denom() == &num_bigint::BigInt::from(1u8) => {
-                    number.numer().to_u64().filter(|value| *value > 0)
-                }
-                _ => None,
-            }
-        }
+        Term::Literal(Literal::Structured(value)) if value.ty == Type::named("Number") => match &value.value {
+            StructuredValue::Number(number) if number.denom() == &num_bigint::BigInt::from(1u8) => number.numer().to_u64().filter(|value| *value > 0),
+            _ => None,
+        },
         _ => None,
     };
-    value.ok_or_else(|| PragmaticError::InvalidRepairTarget {
-        operator: operator.to_owned(),
-        value: term.clone(),
-    })
+    value.ok_or_else(|| PragmaticError::InvalidRepairTarget { operator: operator.to_owned(), value: term.clone() })
 }
 
 impl fmt::Display for PragmaticError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::MissingOperator { operator } => {
-                write!(f, "pragmatics references unknown semantic operator `{operator}`")
-            }
-            Self::MissingRole { operator, role } => {
-                write!(f, "pragmatic operator `{operator}` has no role `{role}`")
-            }
-            Self::InvalidConfiguredRole { operator, role } => {
-                write!(f, "pragmatics config maps undeclared role `{role}` on `{operator}`")
-            }
-            Self::NotCommunicative { ty } => {
-                write!(f, "top-level semantic value of type `{ty}` is neither a proposition nor an utterance")
-            }
-            Self::UnknownUtteranceOperator { operator } => {
-                write!(f, "Utterance operator `{operator}` is not declared by the pragmatics protocol")
-            }
-            Self::MixedQuestionStructure => {
-                f.write_str("question cannot simultaneously request an unknown value and declare a top-level choice")
-            }
-            Self::FocusTargetAbsent { operator } => {
-                write!(f, "`{operator}` target is not structurally present in its declared content")
-            }
-            Self::InvalidRepairTarget { operator, value } => {
-                write!(f, "`{operator}` repair target `{value}` must be a positive whole utterance number")
-            }
+            Self::MissingOperator { operator } => write!(f, "pragmatics references unknown semantic operator `{operator}`"),
+            Self::MissingRole { operator, role } => write!(f, "pragmatic operator `{operator}` has no role `{role}`"),
+            Self::MissingDefaultEffect => f.write_str("typed semantic package declares no default discourse effect"),
+            Self::MissingEffect { operator } => write!(f, "Utterance operator `{operator}` has no package-declared discourse effect"),
+            Self::InvalidEffect { operator, message } => write!(f, "invalid discourse effect for `{operator}`: {message}"),
+            Self::NotCommunicative { ty } => write!(f, "top-level semantic value of type `{ty}` is neither a proposition nor an utterance"),
+            Self::UnknownUtteranceOperator { operator } => write!(f, "Utterance operator `{operator}` is not a typed semantic symbol"),
+            Self::MixedQuestionStructure => f.write_str("question cannot simultaneously request an unknown value and declare a top-level choice"),
+            Self::FocusTargetAbsent { operator } => write!(f, "`{operator}` target is not structurally present in its declared content"),
+            Self::InvalidRepairTarget { operator, value } => write!(f, "`{operator}` repair target `{value}` must be a positive whole utterance number"),
             Self::InvalidSemanticTerm(message) => f.write_str(message),
         }
     }

@@ -1,4 +1,3 @@
-use std::collections::BTreeSet;
 use std::fmt;
 
 use crate::literals::LiteralEngine;
@@ -6,15 +5,15 @@ use crate::semantics::{Environment, LiteralKind, canonicalize};
 use crate::spec::parse_type;
 
 use super::{
-    LexemeConfig, LoweredSurface, SurfaceElaborationError, SurfaceExpr, SurfaceGenerationError,
-    SurfaceLexicon, SurfaceLowerError, SurfaceParseError, SyntaxConfig, TypedSurfaceAst,
+    CompiledSurfaceBinding, LoweredSurface, SurfaceElaborationError, SurfaceExpr, SurfaceGenerationError,
+    CompiledSurfaceLexicon, SurfaceLowerError, SurfaceParseError, SyntaxConfig, TypedSurfaceAst,
     elaborate_surface, linearize_surface, lower_surface, parse_surface_with_literals,
 };
 
 #[derive(Clone, Debug)]
 pub struct SyntaxEngine {
     config: SyntaxConfig,
-    lexicon: SurfaceLexicon,
+    lexicon: CompiledSurfaceLexicon,
     literals: Option<LiteralEngine>,
 }
 
@@ -36,11 +35,11 @@ pub enum SurfaceError {
 }
 
 impl SyntaxEngine {
-    pub fn new(config: SyntaxConfig, lexicon: SurfaceLexicon) -> Self {
+    pub fn new(config: SyntaxConfig, lexicon: CompiledSurfaceLexicon) -> Self {
         Self { config, lexicon, literals: None }
     }
 
-    pub fn new_with_literals(config: SyntaxConfig, lexicon: SurfaceLexicon, literals: LiteralEngine) -> Self {
+    pub fn new_with_literals(config: SyntaxConfig, lexicon: CompiledSurfaceLexicon, literals: LiteralEngine) -> Self {
         Self { config, lexicon, literals: Some(literals) }
     }
 
@@ -52,22 +51,26 @@ impl SyntaxEngine {
         &self.config
     }
 
-    pub fn lexicon(&self) -> &SurfaceLexicon {
+    pub fn lexicon(&self) -> &CompiledSurfaceLexicon {
         &self.lexicon
     }
 
     pub fn validate_environment(&self, environment: &Environment) -> Result<(), SurfaceError> {
+        let semantic_name = |id| self.lexicon.semantic_name(id).ok_or_else(|| {
+            SurfaceError::InvalidBinding(format!("compiled surface symbol `{id}` has no semantic debug name"))
+        });
         for (surface, lexeme) in self.lexicon.iter() {
             match lexeme {
-                LexemeConfig::Atom { semantic } => {
-                    if environment.constant_type(semantic).is_none() {
+                CompiledSurfaceBinding::Atom { semantic } => {
+                    let semantic_name = semantic_name(*semantic)?;
+                    if environment.constant_type(semantic_name).is_none() {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "lexical root `{surface}` references unknown semantic constant `{semantic}`"
+                            "lexical root `{surface}` references unknown semantic constant `{semantic_name}`"
                         )));
                     }
                 }
-                LexemeConfig::Reference => {}
-                LexemeConfig::Information { knower_type, .. } => {
+                CompiledSurfaceBinding::Reference => {}
+                CompiledSurfaceBinding::Information { knower_type, .. } => {
                     if let Some(ty) = knower_type {
                         if !environment.is_well_formed_type(ty) {
                             return Err(SurfaceError::InvalidBinding(format!(
@@ -76,7 +79,7 @@ impl SyntaxEngine {
                         }
                     }
                 }
-                LexemeConfig::Alias { ty, .. } => {
+                CompiledSurfaceBinding::Alias { ty, .. } => {
                     let ty = parse_type(ty).map_err(|errors| {
                         SurfaceError::InvalidBinding(format!(
                             "discourse alias `{surface}` has invalid type: {}",
@@ -93,130 +96,88 @@ impl SyntaxEngine {
                         )));
                     }
                 }
-                LexemeConfig::Context { ty, .. } => {
+                CompiledSurfaceBinding::Context { ty, .. } => {
                     if !environment.is_well_formed_type(ty) {
                         return Err(SurfaceError::InvalidBinding(format!(
                             "context lexical root `{surface}` uses unknown type `{ty}`"
                         )));
                     }
                 }
-                LexemeConfig::Class { semantic, role } => {
-                    validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
+                CompiledSurfaceBinding::Class { semantic, parameter } => {
+                    validate_operator_parameters(environment, surface, semantic_name(*semantic)?, [*parameter])?;
                 }
-                LexemeConfig::Predicate {
+                CompiledSurfaceBinding::Predicate {
                     semantic,
-                    primary_role,
-                    rest_roles,
+                    primary_parameter,
+                    rest_parameters,
                 } => {
-                    let roles = primary_role
+                    let parameters = primary_parameter
                         .iter()
-                        .map(String::as_str)
-                        .chain(rest_roles.iter().map(String::as_str))
+                        .copied()
+                        .chain(rest_parameters.iter().copied())
                         .collect::<Vec<_>>();
-                    validate_operator_roles(environment, surface, semantic, roles)?;
+                    validate_operator_parameters(environment, surface, semantic_name(*semantic)?, parameters)?;
                 }
-                LexemeConfig::Prefix { semantic, role } => {
-                    validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
+                CompiledSurfaceBinding::Prefix { semantic, parameter, .. } => {
+                    validate_operator_parameters(environment, surface, semantic_name(*semantic)?, [*parameter])?;
                 }
-                LexemeConfig::Infix {
+                CompiledSurfaceBinding::Infix {
                     semantic,
-                    left_role,
-                    right_role,
+                    left_parameter,
+                    right_parameter,
                     ..
                 } => {
-                    validate_operator_roles(
+                    validate_operator_parameters(
                         environment,
                         surface,
-                        semantic,
-                        [left_role.as_str(), right_role.as_str()],
+                        semantic_name(*semantic)?,
+                        [*left_parameter, *right_parameter],
                     )?;
                 }
-                LexemeConfig::Quantifier {
+                CompiledSurfaceBinding::Binder {
                     semantic,
-                    binder_role,
+                    binder_parameter,
+                    direct_parameters,
                     variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
+                    combiner_semantic,
+                    combiner_left_parameter,
+                    combiner_right_parameter,
                 } => {
-                    validate_operator_roles(environment, surface, semantic, [binder_role.as_str()])?;
-                    validate_operator_roles(
+                    let parameters = std::iter::once(*binder_parameter)
+                        .chain(direct_parameters.iter().copied())
+                        .collect::<Vec<_>>();
+                    validate_operator_parameters(environment, surface, semantic_name(*semantic)?, parameters)?;
+                    validate_operator_parameters(
                         environment,
                         surface,
-                        restriction_operator,
-                        [restriction_role.as_str(), body_role.as_str()],
+                        semantic_name(*combiner_semantic)?,
+                        [*combiner_left_parameter, *combiner_right_parameter],
                     )?;
-                    let ty = parse_type(variable_type).map_err(|errors| {
-                        SurfaceError::InvalidBinding(format!(
-                            "quantifier lexical root `{surface}` has invalid binder type `{variable_type}`: {}",
-                            errors
-                                .into_iter()
-                                .map(|error| error.to_string())
-                                .collect::<Vec<_>>()
-                                .join("; ")
-                        ))
-                    })?;
-                    if !environment.is_well_formed_type(&ty) {
+                    if !environment.is_well_formed_type(variable_type) {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "quantifier lexical root `{surface}` uses unknown binder type `{variable_type}`"
+                            "binder lexical root `{surface}` uses unknown binder type `{variable_type}`"
                         )));
                     }
                 }
-                LexemeConfig::CountedQuantifier {
-                    semantic,
-                    binder_role,
-                    count_role,
-                    variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                } => {
-                    validate_operator_roles(
-                        environment,
-                        surface,
-                        semantic,
-                        [binder_role.as_str(), count_role.as_str()],
-                    )?;
-                    validate_operator_roles(
-                        environment,
-                        surface,
-                        restriction_operator,
-                        [restriction_role.as_str(), body_role.as_str()],
-                    )?;
-                    let ty = parse_type(variable_type).map_err(|errors| {
-                        SurfaceError::InvalidBinding(format!(
-                            "counted quantifier lexical root `{surface}` has invalid binder type `{variable_type}`: {}",
-                            errors.into_iter().map(|error| error.to_string()).collect::<Vec<_>>().join("; ")
-                        ))
-                    })?;
-                    if !environment.is_well_formed_type(&ty) {
-                        return Err(SurfaceError::InvalidBinding(format!(
-                            "counted quantifier lexical root `{surface}` uses unknown binder type `{variable_type}`"
-                        )));
-                    }
-                }
-                LexemeConfig::SpeechAct { semantic, role } => {
-                    validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
-                }
-                LexemeConfig::Name { semantic, role } => {
-                    validate_operator_roles(environment, surface, semantic, [role.as_str()])?;
+                CompiledSurfaceBinding::Capture { semantic, parameter } => {
+                    let semantic_name = semantic_name(*semantic)?;
+                    validate_operator_parameters(environment, surface, semantic_name, [*parameter])?;
                     let signature = environment
-                        .operator(semantic)
+                        .operator(semantic_name)
                         .expect("operator existence validated above");
-                    let parameter = signature
+                    let declared_parameter = signature
                         .parameters
-                        .iter()
-                        .find(|parameter| parameter.name == *role)
-                        .expect("name role existence validated above");
+                        .get(*parameter as usize)
+                        .expect("capture parameter existence validated above");
                     let text = environment.literal_type(LiteralKind::String).ok_or_else(|| {
                         SurfaceError::InvalidBinding(format!(
-                            "name lexical root `{surface}` requires a declared string literal type"
+                            "capture lexical root `{surface}` requires a declared string literal type"
                         ))
                     })?;
-                    if !environment.is_assignable(text, &parameter.ty) {
+                    if !environment.is_assignable(text, &declared_parameter.ty) {
                         return Err(SurfaceError::InvalidBinding(format!(
-                            "name lexical root `{surface}` role `{role}` must accept the string literal type `{text}`, but `{semantic}` requires `{}`",
-                            parameter.ty
+                            "capture lexical root `{surface}` parameter `{parameter}` must accept the string literal type `{text}`, but `{semantic_name}` requires `{}`",
+                            declared_parameter.ty
                         )));
                     }
                 }
@@ -289,26 +250,24 @@ impl fmt::Display for SurfaceError {
 
 impl std::error::Error for SurfaceError {}
 
-fn validate_operator_roles<'a>(
+fn validate_operator_parameters(
     environment: &Environment,
     surface: &str,
     semantic: &str,
-    roles: impl IntoIterator<Item = &'a str>,
+    parameters: impl IntoIterator<Item = u32>,
 ) -> Result<(), SurfaceError> {
     let signature = environment.operator(semantic).ok_or_else(|| {
         SurfaceError::InvalidBinding(format!(
             "lexical root `{surface}` references unknown semantic operator `{semantic}`"
         ))
     })?;
-    let configured = roles.into_iter().collect::<BTreeSet<_>>();
-    let declared = signature
-        .parameters
-        .iter()
-        .map(|parameter| parameter.name.as_str())
-        .collect::<BTreeSet<_>>();
+    let mut configured = parameters.into_iter().collect::<Vec<_>>();
+    configured.sort_unstable();
+    configured.dedup();
+    let declared = (0..signature.parameters.len() as u32).collect::<Vec<_>>();
     if configured != declared {
         return Err(SurfaceError::InvalidBinding(format!(
-            "lexical root `{surface}` maps `{semantic}` roles {:?}, but semantic signature requires {:?}",
+            "lexical root `{surface}` maps `{semantic}` parameter slots {:?}, but semantic signature requires {:?}",
             configured, declared
         )));
     }

@@ -17,6 +17,7 @@ const COMPATIBILITY_CORPUS: &str = include_str!("../../../language/corpus/compat
 const ADVERSARIAL_CORPUS: &str = include_str!("../../../language/corpus/adversarial.tsv");
 const TYPED_CORE: &str = include_str!("../../../language/typed/core.semsys");
 const TYPED_LEXICON: &str = include_str!("../../../language/typed/lexicon.semsys");
+const TYPED_EFFECTS: &str = include_str!("../../../language/typed/effects.semsys");
 const TYPED_UNITS: &str = include_str!("../../../language/typed/units.semsys");
 
 static LANGUAGE: OnceLock<Result<LanguagePackage, String>> = OnceLock::new();
@@ -35,6 +36,7 @@ fn language() -> Result<&'static LanguagePackage, JsValue> {
             &[
                 ("typed/core.semsys", TYPED_CORE),
                 ("typed/lexicon.semsys", TYPED_LEXICON),
+                ("typed/effects.semsys", TYPED_EFFECTS),
                 ("typed/units.semsys", TYPED_UNITS),
             ],
             COMPATIBILITY_CORPUS,
@@ -161,15 +163,12 @@ pub fn syntax_policy_json() -> Result<String, JsValue> {
     let config = language.syntax().config();
     json_string(json!({
         "frameOrder": format!("{:?}", config.order.frame),
-        "freeOrder": config.order.free_order,
         "scopeOpen": &config.scope.open,
         "scopeClose": &config.scope.close,
         "quoteOpen": &config.quotation.open,
         "quoteClose": &config.quotation.close,
-        "explicitScope": format!("{:?}", config.scope.explicit),
-        "quantifierScope": format!("{:?}", config.scope.quantifier_order),
-        "precedence": &config.logic.precedence,
-        "flattenSameOperator": config.logic.flatten_same_operator,
+        "surfaceRuleCount": language.typed_semantics().surface_rules().count(),
+        "effectProgramCount": language.typed_semantics().effect_programs().count(),
         "lexicalRoots": language.syntax().lexicon().len(),
     }))
 }

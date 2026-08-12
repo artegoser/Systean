@@ -13,7 +13,7 @@
 		entries.filter((entry) => {
 			const needle = query.trim().toLowerCase();
 			if (!needle) return true;
-			return `${entry.root} ${entry.definition} ${JSON.stringify(entry.syntax ?? {})}`
+			return `${entry.root} ${entry.definition}`
 				.toLowerCase()
 				.includes(needle);
 		})
@@ -45,7 +45,7 @@
 	{:else if error}
 		<div class="text-red-400 text-center font-bold">{error}</div>
 	{:else}
-		<input class="input m-0 w-full" bind:value={query} placeholder="Search roots, definitions or frame roles" />
+		<input class="input m-0 w-full" bind:value={query} placeholder="Search roots or definitions" />
 		<div class="small-text">{filtered.length} / {entries.length} entries</div>
 		<div class="flex flex-col gap-3 w-full">
 			{#each filtered as entry}
@@ -55,10 +55,6 @@
 						<div class="font-mono text-sm">typed semantic word</div>
 					</div>
 					<div class="mt-3 text-stone-200/80 whitespace-pre-line">{entry.definition}</div>
-					<div class="mt-3 rounded-lg bg-black/10 p-3">
-						<div class="font-black text-sm">Canonical surface frame</div>
-						<div class="font-mono text-sm mt-1 break-all">{entry.syntax ? JSON.stringify(entry.syntax) : 'bare atom'}</div>
-					</div>
 				</article>
 			{/each}
 		</div>

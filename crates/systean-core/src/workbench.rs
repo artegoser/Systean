@@ -9,13 +9,13 @@ use crate::discourse::{
 };
 use crate::language::{DictionaryEntry, LanguageError, LanguagePackage};
 use crate::literals::{LiteralRealization, SurfaceLiteral};
-use crate::pragmatics::PragmaticAnalysis;
+use crate::pragmatics::{DiscourseEffect, PragmaticAnalysis};
 use crate::semantics::{
     Checker, Explanation, InformationKnowerValue, InformationStatus, Literal, Origin,
     StructuredValue, Term, canonicalize,
 };
-use crate::spec::{lower_term, parse_term, parse_type};
-use crate::syntax::{Argument, Clause, InformationKnower, LexemeConfig, SurfaceExpr, TypedSurfaceAst};
+use crate::spec::{lower_term, parse_term};
+use crate::syntax::{Argument, Clause, InformationKnower, CompiledSurfaceBinding, SurfaceExpr, TypedSurfaceAst};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -197,6 +197,7 @@ pub struct SurfaceWorkbenchAnalysis {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct PragmaticWorkbenchView {
     pub act: String,
+    pub effects: Vec<String>,
     pub utterance: String,
     pub inferred_type: String,
 }
@@ -772,6 +773,12 @@ fn explanation_view(explanation: &Explanation) -> SemanticNodeView {
 fn pragmatic_view(analysis: &PragmaticAnalysis) -> PragmaticWorkbenchView {
     PragmaticWorkbenchView {
         act: analysis.act.label().into(),
+        effects: analysis.effects.iter().map(|effect| match effect {
+            DiscourseEffect::Commit { content } => format!("commit {}", canonicalize(content)),
+            DiscourseEffect::Retract { target } => format!("retract u{target}"),
+            DiscourseEffect::Replace { target, replacement } => format!("replace u{target} {}", canonicalize(replacement)),
+            DiscourseEffect::Clarify { target, content } => format!("clarify u{target} {}", canonicalize(content)),
+        }).collect(),
         utterance: analysis.utterance.to_string(),
         inferred_type: analysis.inferred_type.to_string(),
     }
@@ -845,7 +852,7 @@ fn surface_node(expression: &SurfaceExpr) -> AstNodeView {
         SurfaceExpr::Atom(surface) => leaf("atom", surface),
         SurfaceExpr::Context(surface) => leaf("context", surface),
         SurfaceExpr::Alias(surface) => leaf("alias", surface),
-        SurfaceExpr::Name { marker, payload } => leaf("name", &format!("{marker} {payload}")),
+        SurfaceExpr::Captured { marker, payload } => leaf("name", &format!("{marker} {payload}")),
         SurfaceExpr::Quote(payload) => leaf("quote", payload),
         SurfaceExpr::Literal(literal) => leaf("literal", literal.canonical_surface()),
         SurfaceExpr::Clause(clause) => {
@@ -882,8 +889,8 @@ fn surface_node(expression: &SurfaceExpr) -> AstNodeView {
             label: operator.clone(),
             children: operands.iter().map(surface_node).collect(),
         },
-        SurfaceExpr::SpeechAct { operator, content } => AstNodeView {
-            kind: "speech_act".into(),
+        SurfaceExpr::Outer { operator, content } => AstNodeView {
+            kind: "outer".into(),
             label: operator.clone(),
             children: vec![surface_node(content)],
         },
@@ -896,7 +903,7 @@ fn argument_node(role: &str, argument: &Argument) -> AstNodeView {
         Argument::Context(surface) => ("context", surface.clone(), Vec::new()),
         Argument::Reference(surface) => ("reference", surface.clone(), Vec::new()),
         Argument::Alias(surface) => ("alias", surface.clone(), Vec::new()),
-        Argument::Name { marker, payload } => ("name", format!("{marker} {payload}"), Vec::new()),
+        Argument::Captured { marker, payload } => ("name", format!("{marker} {payload}"), Vec::new()),
         Argument::Quote(payload) => ("quote", payload.clone(), Vec::new()),
         Argument::Literal(literal) => ("literal", literal.canonical_surface().into(), Vec::new()),
         Argument::Information { marker, knower } => (
@@ -906,32 +913,22 @@ fn argument_node(role: &str, argument: &Argument) -> AstNodeView {
                 .iter()
                 .map(|knower| match knower {
                     InformationKnower::Context(surface) => leaf("knower_context", surface),
-                    InformationKnower::Name { marker, payload } => {
+                    InformationKnower::Captured { marker, payload } => {
                         leaf("knower_name", &format!("{marker} {payload}"))
                     }
                 })
                 .collect(),
         ),
         Argument::Omitted => ("omitted", "∅".into(), Vec::new()),
-        Argument::Quantified {
-            quantifier,
-            restriction,
-        } => (
-            "quantified",
-            quantifier.clone(),
-            vec![leaf("restriction", restriction)],
-        ),
-        Argument::CountedQuantified {
-            quantifier,
-            count,
-            restriction,
-        } => (
-            "counted_quantified",
-            quantifier.clone(),
-            vec![
-                leaf("count", count.canonical_surface()),
-                leaf("restriction", restriction),
-            ],
+        Argument::Scoped { binder, direct, restriction } => (
+            "scoped",
+            binder.clone(),
+            direct
+                .iter()
+                .enumerate()
+                .map(|(index, argument)| argument_node(&format!("direct[{index}]"), argument))
+                .chain(std::iter::once(leaf("restriction", restriction)))
+                .collect(),
         ),
     };
     AstNodeView {
@@ -975,10 +972,10 @@ fn collect_scopes(expression: &SurfaceExpr, path: &str, output: &mut Vec<ScopeVi
                 collect_scopes(operand, &format!("{path}.operand[{index}]"), output);
             }
         }
-        SurfaceExpr::SpeechAct { operator, content } => {
+        SurfaceExpr::Outer { operator, content } => {
             output.push(ScopeView {
                 path: path.into(),
-                kind: "speech_act".into(),
+                kind: "outer".into(),
                 operator: operator.clone(),
             });
             collect_scopes(content, &format!("{path}.content"), output);
@@ -998,11 +995,10 @@ fn collect_scopes(expression: &SurfaceExpr, path: &str, output: &mut Vec<ScopeVi
                 .enumerate()
             {
                 match argument {
-                    Argument::Quantified { quantifier, .. }
-                    | Argument::CountedQuantified { quantifier, .. } => output.push(ScopeView {
+                    Argument::Scoped { binder, .. } => output.push(ScopeView {
                         path: format!("{path}.argument[{index}]"),
-                        kind: "quantifier".into(),
-                        operator: quantifier.clone(),
+                        kind: "binder".into(),
+                        operator: binder.clone(),
                     }),
                     _ => {}
                 }
@@ -1011,7 +1007,7 @@ fn collect_scopes(expression: &SurfaceExpr, path: &str, output: &mut Vec<ScopeVi
         SurfaceExpr::Atom(_)
         | SurfaceExpr::Context(_)
         | SurfaceExpr::Alias(_)
-        | SurfaceExpr::Name { .. }
+        | SurfaceExpr::Captured { .. }
         | SurfaceExpr::Quote(_)
         | SurfaceExpr::Literal(_) => {}
     }
@@ -1047,31 +1043,38 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             return self.plan_expr(body, &next);
         }
         match term {
-            Term::Const(name) => self
-                .find_lexeme(|lexeme| matches!(lexeme, LexemeConfig::Atom { semantic } if semantic == name))
-                .map(SurfaceExpr::Atom)
-                .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
-                    "semantic constant `{name}` has no canonical surface atom"
-                ))),
+            Term::Const(name) => {
+                let symbol = self.symbol_id(name)?;
+                self.find_lexeme(|lexeme| matches!(lexeme, CompiledSurfaceBinding::Atom { semantic } if *semantic == symbol))
+                    .map(SurfaceExpr::Atom)
+                    .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
+                        "semantic constant `{name}` has no canonical surface atom"
+                    )))
+            },
             Term::Literal(literal) => self.literal_expr(literal),
             Term::Call {
                 function,
                 arguments,
             } => {
-                let pragmatics = &self.language.syntax().config().pragmatics;
-                if function == &pragmatics.default_assertion_operator {
-                    let content = arguments
-                        .get(&pragmatics.default_assertion_role)
-                        .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
-                            "default assertion `{function}` is missing role `{}`",
-                            pragmatics.default_assertion_role
-                        )))?;
-                    return self.plan_expr(content, overrides);
+                if let Some(default) = self.language.typed_semantics().default_effect() {
+                    if self.language.typed_semantics().source_name_for_symbol(default).is_some_and(|name| name == function) {
+                        let debug = self.language.typed_semantics().debug_symbol(default).ok_or_else(|| {
+                            WorkbenchDiagnostic::generation("default discourse effect has no debug parameter table")
+                        })?;
+                        let role = debug.parameter_names.first().ok_or_else(|| {
+                            WorkbenchDiagnostic::generation("default discourse effect has no proposition argument")
+                        })?;
+                        let content = arguments.get(role).ok_or_else(|| {
+                            WorkbenchDiagnostic::generation(format!("default assertion `{function}` is missing role `{role}`"))
+                        })?;
+                        return self.plan_expr(content, overrides);
+                    }
                 }
+                let function_id = self.symbol_id(function)?;
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Name { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Capture { semantic, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::Name { role, .. } = self
+                    let CompiledSurfaceBinding::Capture { parameter, .. } = self
                         .language
                         .syntax()
                         .lexicon()
@@ -1080,20 +1083,21 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let Some(Term::Literal(Literal::String(payload))) = arguments.get(role) else {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    let Some(Term::Literal(Literal::String(payload))) = arguments.get(&parameter_name) else {
                         return Err(WorkbenchDiagnostic::generation(format!(
-                            "name operator `{function}` requires one string payload"
+                            "capture operator `{function}` requires one string payload"
                         )));
                     };
-                    return Ok(SurfaceExpr::Name {
+                    return Ok(SurfaceExpr::Captured {
                         marker: surface,
                         payload: payload.clone(),
                     });
                 }
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Prefix { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Prefix { semantic, outer_only: false, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::Prefix { role, .. } = self
+                    let CompiledSurfaceBinding::Prefix { parameter, .. } = self
                         .language
                         .syntax()
                         .lexicon()
@@ -1102,9 +1106,10 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let operand = arguments.get(role).ok_or_else(|| {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    let operand = arguments.get(&parameter_name).ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "prefix operator `{function}` is missing role `{role}`"
+                            "prefix operator `{function}` is missing parameter {parameter}"
                         ))
                     })?;
                     return Ok(SurfaceExpr::Prefix {
@@ -1113,9 +1118,9 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     });
                 }
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::SpeechAct { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Prefix { semantic, outer_only: true, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::SpeechAct { role, .. } = self
+                    let CompiledSurfaceBinding::Prefix { parameter, outer_only: true, .. } = self
                         .language
                         .syntax()
                         .lexicon()
@@ -1124,25 +1129,26 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let content = arguments.get(role).ok_or_else(|| {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    let content = arguments.get(&parameter_name).ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "speech-act operator `{function}` is missing role `{role}`"
+                            "outer operator `{function}` is missing parameter {parameter}"
                         ))
                     })?;
-                    return Ok(SurfaceExpr::SpeechAct {
+                    return Ok(SurfaceExpr::Outer {
                         operator: surface,
                         content: Box::new(self.plan_expr(content, overrides)?),
                     });
                 }
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Infix { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Infix { semantic, .. } if *semantic == function_id)
                 }) {
                     return self.plan_infix(function, &surface, arguments, overrides);
                 }
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Class { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Class { semantic, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::Class { role, .. } = self
+                    let CompiledSurfaceBinding::Class { parameter, .. } = self
                         .language
                         .syntax()
                         .lexicon()
@@ -1151,9 +1157,10 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let value = arguments.get(role).ok_or_else(|| {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    let value = arguments.get(&parameter_name).ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "class operator `{function}` is missing role `{role}`"
+                            "class operator `{function}` is missing parameter {parameter}"
                         ))
                     })?;
                     return Ok(SurfaceExpr::Clause(Clause {
@@ -1164,11 +1171,11 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     }));
                 }
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Predicate { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Predicate { semantic, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::Predicate {
-                        primary_role,
-                        rest_roles,
+                    let CompiledSurfaceBinding::Predicate {
+                        primary_parameter,
+                        rest_parameters,
                         ..
                     } = self
                         .language
@@ -1179,24 +1186,26 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let primary = primary_role
+                    let primary = primary_parameter
                         .as_ref()
-                        .map(|role| {
+                        .map(|parameter| {
+                            let parameter_name = self.parameter_name(function, *parameter)?;
                             arguments
-                                .get(role)
+                                .get(&parameter_name)
                                 .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
-                                    "predicate `{function}` is missing primary role `{role}`"
+                                    "predicate `{function}` is missing parameter {parameter}"
                                 )))
                                 .and_then(|term| self.plan_argument(term, overrides))
                         })
                         .transpose()?;
-                    let rest = rest_roles
+                    let rest = rest_parameters
                         .iter()
-                        .map(|role| {
+                        .map(|parameter| {
+                            let parameter_name = self.parameter_name(function, *parameter)?;
                             arguments
-                                .get(role)
+                                .get(&parameter_name)
                                 .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
-                                    "predicate `{function}` is missing role `{role}`"
+                                    "predicate `{function}` is missing parameter {parameter}"
                                 )))
                                 .and_then(|term| self.plan_argument(term, overrides))
                         })
@@ -1231,9 +1240,9 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         arguments: &BTreeMap<String, Term>,
         overrides: &[VariableOverride],
     ) -> Result<SurfaceExpr, WorkbenchDiagnostic> {
-        let LexemeConfig::Infix {
-            left_role,
-            right_role,
+        let CompiledSurfaceBinding::Infix {
+            left_parameter,
+            right_parameter,
             associative,
             ..
         } = self
@@ -1245,20 +1254,22 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         else {
             unreachable!();
         };
-        let left = arguments.get(left_role).ok_or_else(|| {
+        let left_name = self.parameter_name(function, *left_parameter)?;
+        let right_name = self.parameter_name(function, *right_parameter)?;
+        let left = arguments.get(&left_name).ok_or_else(|| {
             WorkbenchDiagnostic::generation(format!(
-                "infix operator `{function}` is missing role `{left_role}`"
+                "infix operator `{function}` is missing parameter {left_parameter}"
             ))
         })?;
-        let right = arguments.get(right_role).ok_or_else(|| {
+        let right = arguments.get(&right_name).ok_or_else(|| {
             WorkbenchDiagnostic::generation(format!(
-                "infix operator `{function}` is missing role `{right_role}`"
+                "infix operator `{function}` is missing parameter {right_parameter}"
             ))
         })?;
         let mut terms = Vec::new();
         if *associative {
-            self.collect_same_infix(function, left_role, right_role, left, &mut terms);
-            self.collect_same_infix(function, left_role, right_role, right, &mut terms);
+            self.collect_same_infix(function, &left_name, &right_name, left, &mut terms);
+            self.collect_same_infix(function, &left_name, &right_name, right, &mut terms);
         } else {
             terms.push(left);
             terms.push(right);
@@ -1275,8 +1286,8 @@ impl<'a> SemanticSurfaceGenerator<'a> {
     fn collect_same_infix<'b>(
         &self,
         function: &str,
-        left_role: &str,
-        right_role: &str,
+        left_name: &str,
+        right_name: &str,
         term: &'b Term,
         output: &mut Vec<&'b Term>,
     ) {
@@ -1287,10 +1298,10 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         {
             if nested == function {
                 if let (Some(left), Some(right)) =
-                    (arguments.get(left_role), arguments.get(right_role))
+                    (arguments.get(left_name), arguments.get(right_name))
                 {
-                    self.collect_same_infix(function, left_role, right_role, left, output);
-                    self.collect_same_infix(function, left_role, right_role, right, output);
+                    self.collect_same_infix(function, left_name, right_name, left, output);
+                    self.collect_same_infix(function, left_name, right_name, right, output);
                     return;
                 }
             }
@@ -1312,12 +1323,14 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             )));
         }
         match term {
-            Term::Const(name) => self
-                .find_lexeme(|lexeme| matches!(lexeme, LexemeConfig::Atom { semantic } if semantic == name))
-                .map(Argument::Atom)
-                .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
-                    "semantic constant `{name}` has no argument surface atom"
-                ))),
+            Term::Const(name) => {
+                let symbol = self.symbol_id(name)?;
+                self.find_lexeme(|lexeme| matches!(lexeme, CompiledSurfaceBinding::Atom { semantic } if *semantic == symbol))
+                    .map(Argument::Atom)
+                    .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
+                        "semantic constant `{name}` has no argument surface atom"
+                    )))
+            },
             Term::Literal(Literal::String(payload)) => Ok(Argument::Quote(payload.clone())),
             Term::Literal(Literal::Structured(value)) if matches!(&value.value, StructuredValue::Information { .. }) => {
                 self.information_argument(&value.value)
@@ -1327,10 +1340,11 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                 function,
                 arguments,
             } => {
+                let function_id = self.symbol_id(function)?;
                 if let Some(surface) = self.find_lexeme(|lexeme| {
-                    matches!(lexeme, LexemeConfig::Name { semantic, .. } if semantic == function)
+                    matches!(lexeme, CompiledSurfaceBinding::Capture { semantic, .. } if *semantic == function_id)
                 }) {
-                    let LexemeConfig::Name { role, .. } = self
+                    let CompiledSurfaceBinding::Capture { parameter, .. } = self
                         .language
                         .syntax()
                         .lexicon()
@@ -1339,12 +1353,13 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                     else {
                         unreachable!();
                     };
-                    let Some(Term::Literal(Literal::String(payload))) = arguments.get(role) else {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    let Some(Term::Literal(Literal::String(payload))) = arguments.get(&parameter_name) else {
                         return Err(WorkbenchDiagnostic::generation(format!(
-                            "name operator `{function}` requires a string payload"
+                            "capture operator `{function}` requires a string payload"
                         )));
                     };
-                    Ok(Argument::Name {
+                    Ok(Argument::Captured {
                         marker: surface,
                         payload: payload.clone(),
                     })
@@ -1377,14 +1392,14 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         };
         let marker = self
             .find_lexeme(|lexeme| {
-                matches!(lexeme, LexemeConfig::Information { status: candidate, .. } if candidate == status)
+                matches!(lexeme, CompiledSurfaceBinding::Information { status: candidate, .. } if candidate == status)
             })
             .ok_or_else(|| {
                 WorkbenchDiagnostic::generation(format!(
                     "information status `{status_name}` has no canonical surface marker"
                 ))
             })?;
-        let LexemeConfig::Information { knower_type, .. } = self
+        let CompiledSurfaceBinding::Information { knower_type, .. } = self
             .language
             .syntax()
             .lexicon()
@@ -1398,7 +1413,7 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             (Some(_), Some(InformationKnowerValue::Context(slot))) => {
                 let surface = self
                     .find_lexeme(|lexeme| {
-                        matches!(lexeme, LexemeConfig::Context { slot: candidate, .. } if candidate == slot)
+                        matches!(lexeme, CompiledSurfaceBinding::Context { slot: candidate, .. } if candidate == slot)
                     })
                     .ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
@@ -1410,19 +1425,20 @@ impl<'a> SemanticSurfaceGenerator<'a> {
             (Some(_), Some(InformationKnowerValue::Value(value))) => {
                 let Term::Call { function, arguments } = value.as_ref() else {
                     return Err(WorkbenchDiagnostic::generation(
-                        "typed information knower value has no canonical proper-name realization"
+                        "typed information knower value has no canonical captured-value realization"
                     ));
                 };
+                let function_id = self.symbol_id(function)?;
                 let surface = self
                     .find_lexeme(|lexeme| {
-                        matches!(lexeme, LexemeConfig::Name { semantic: candidate, .. } if candidate == function)
+                        matches!(lexeme, CompiledSurfaceBinding::Capture { semantic: candidate, .. } if *candidate == function_id)
                     })
                     .ok_or_else(|| {
                         WorkbenchDiagnostic::generation(format!(
-                            "information knower operator `{function}` has no canonical name marker"
+                            "information knower operator `{function}` has no canonical capture marker"
                         ))
                     })?;
-                let LexemeConfig::Name { role, .. } = self
+                let CompiledSurfaceBinding::Capture { parameter, .. } = self
                     .language
                     .syntax()
                     .lexicon()
@@ -1431,12 +1447,13 @@ impl<'a> SemanticSurfaceGenerator<'a> {
                 else {
                     unreachable!();
                 };
-                let Some(Term::Literal(Literal::String(payload))) = arguments.get(role) else {
+                let parameter_name = self.parameter_name(function, *parameter)?;
+                let Some(Term::Literal(Literal::String(payload))) = arguments.get(&parameter_name) else {
                     return Err(WorkbenchDiagnostic::generation(
-                        "information knower proper name lacks its text payload"
+                        "information knower captured value lacks its text payload"
                     ));
                 };
-                Some(InformationKnower::Name { marker: surface, payload: payload.clone() })
+                Some(InformationKnower::Captured { marker: surface, payload: payload.clone() })
             }
             _ => {
                 return Err(WorkbenchDiagnostic::generation(format!(
@@ -1451,6 +1468,52 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         &self,
         term: &'b Term,
     ) -> Result<Option<(&'b Term, VariableOverride)>, WorkbenchDiagnostic> {
+        let Term::Call { function, arguments } = term else { return Ok(None); };
+        let function_id = self.symbol_id(function)?;
+        for (surface, lexeme) in self.language.syntax().lexicon().iter() {
+            let CompiledSurfaceBinding::Binder {
+                semantic,
+                binder_parameter,
+                direct_parameters,
+                variable_type,
+                combiner_semantic,
+                combiner_left_parameter,
+                combiner_right_parameter,
+            } = lexeme else { continue; };
+            if *semantic != function_id { continue; }
+            let binder_name = self.parameter_name(function, *binder_parameter)?;
+            let Some(Term::Bind { variable, variable_type: actual_variable_type, body: combined }) = arguments.get(&binder_name) else { continue; };
+            if variable_type != actual_variable_type { continue; }
+            let Term::Call { function: combined_function, arguments: combined_arguments } = combined.as_ref() else { continue; };
+            let combiner_name = self.language.syntax().lexicon().semantic_name(*combiner_semantic).ok_or_else(|| {
+                WorkbenchDiagnostic::generation(format!("unknown binder combiner `{combiner_semantic}`"))
+            })?;
+            if combined_function != combiner_name { continue; }
+            let left_name = self.parameter_name(combiner_name, *combiner_left_parameter)?;
+            let right_name = self.parameter_name(combiner_name, *combiner_right_parameter)?;
+            let Some(restriction) = combined_arguments.get(&left_name) else { continue; };
+            let Some(body) = combined_arguments.get(&right_name) else { continue; };
+            let Some(restriction_surface) = self.restriction_surface(restriction, variable)? else { continue; };
+            let direct = direct_parameters
+                .iter()
+                .map(|parameter| {
+                    let parameter_name = self.parameter_name(function, *parameter)?;
+                    arguments.get(&parameter_name).ok_or_else(|| WorkbenchDiagnostic::generation(format!(
+                        "scoped binder `{function}` is missing direct parameter {parameter}"
+                    ))).and_then(|term| self.plan_argument(term, &[]))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let argument = Argument::Scoped {
+                binder: surface.clone(),
+                direct,
+                restriction: restriction_surface,
+            };
+            return Ok(Some((body, VariableOverride { variable: variable.clone(), argument })));
+        }
+        Ok(None)
+    }
+
+    fn restriction_surface(&self, term: &Term, variable: &str) -> Result<Option<String>, WorkbenchDiagnostic> {
         let Term::Call {
             function,
             arguments,
@@ -1458,134 +1521,21 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         else {
             return Ok(None);
         };
+        let function_id = self.symbol_id(function)?;
         for (surface, lexeme) in self.language.syntax().lexicon().iter() {
-            let (
-                semantic,
-                binder_role,
-                count_role,
-                variable_type,
-                restriction_operator,
-                restriction_role,
-                body_role,
-            ) = match lexeme {
-                LexemeConfig::Quantifier {
-                    semantic,
-                    binder_role,
-                    variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                } => (
-                    semantic,
-                    binder_role,
-                    None,
-                    variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                ),
-                LexemeConfig::CountedQuantifier {
-                    semantic,
-                    binder_role,
-                    count_role,
-                    variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                } => (
-                    semantic,
-                    binder_role,
-                    Some(count_role),
-                    variable_type,
-                    restriction_operator,
-                    restriction_role,
-                    body_role,
-                ),
-                _ => continue,
+            let parameter = match lexeme {
+                CompiledSurfaceBinding::Class { semantic, parameter } if *semantic == function_id => Some(*parameter),
+                CompiledSurfaceBinding::Predicate { semantic, primary_parameter: Some(parameter), rest_parameters }
+                    if *semantic == function_id && rest_parameters.is_empty() => Some(*parameter),
+                _ => None,
             };
-            if semantic != function {
-                continue;
+            let Some(parameter) = parameter else { continue; };
+            let parameter_name = self.parameter_name(function, parameter)?;
+            if matches!(arguments.get(&parameter_name), Some(Term::Var(value)) if value == variable) {
+                return Ok(Some(surface.clone()));
             }
-            let Some(Term::Bind {
-                variable,
-                variable_type: actual_variable_type,
-                body: combined,
-            }) = arguments.get(binder_role)
-            else {
-                continue;
-            };
-            let configured_type = parse_type(variable_type).ok();
-            if configured_type.as_ref().is_some_and(|ty| ty != actual_variable_type) {
-                continue;
-            }
-            let Term::Call {
-                function: combined_function,
-                arguments: combined_arguments,
-            } = combined.as_ref()
-            else {
-                continue;
-            };
-            if combined_function != restriction_operator {
-                continue;
-            }
-            let Some(restriction) = combined_arguments.get(restriction_role) else {
-                continue;
-            };
-            let Some(body) = combined_arguments.get(body_role) else {
-                continue;
-            };
-            let Some(restriction_surface) = self.restriction_surface(restriction, variable) else {
-                continue;
-            };
-            let argument = if let Some(count_role) = count_role {
-                let count = arguments.get(count_role).ok_or_else(|| {
-                    WorkbenchDiagnostic::generation(format!(
-                        "counted quantifier `{function}` is missing role `{count_role}`"
-                    ))
-                })?;
-                Argument::CountedQuantified {
-                    quantifier: surface.clone(),
-                    count: self.literal_surface(match count {
-                        Term::Literal(literal) => literal,
-                        _ => {
-                            return Err(WorkbenchDiagnostic::generation(format!(
-                                "counted quantifier `{function}` count is not a literal"
-                            )))
-                        }
-                    })?,
-                    restriction: restriction_surface,
-                }
-            } else {
-                Argument::Quantified {
-                    quantifier: surface.clone(),
-                    restriction: restriction_surface,
-                }
-            };
-            return Ok(Some((
-                body,
-                VariableOverride {
-                    variable: variable.clone(),
-                    argument,
-                },
-            )));
         }
         Ok(None)
-    }
-
-    fn restriction_surface(&self, term: &Term, variable: &str) -> Option<String> {
-        let Term::Call {
-            function,
-            arguments,
-        } = term
-        else {
-            return None;
-        };
-        self.find_lexeme(|lexeme| match lexeme {
-            LexemeConfig::Class { semantic, role } if semantic == function => {
-                matches!(arguments.get(role), Some(Term::Var(value)) if value == variable)
-            }
-            _ => false,
-        })
     }
 
     fn literal_expr(&self, literal: &Literal) -> Result<SurfaceExpr, WorkbenchDiagnostic> {
@@ -1620,9 +1570,28 @@ impl<'a> SemanticSurfaceGenerator<'a> {
         }
     }
 
+    fn symbol_id(&self, function: &str) -> Result<crate::semantics::SymbolId, WorkbenchDiagnostic> {
+        self.language.typed_semantics().symbol_id(function).ok_or_else(|| {
+            WorkbenchDiagnostic::generation(format!("unknown semantic symbol `{function}`"))
+        })
+    }
+
+    fn parameter_name(&self, function: &str, parameter: u32) -> Result<String, WorkbenchDiagnostic> {
+        let signature = self.language.semantics().operator(function).ok_or_else(|| {
+            WorkbenchDiagnostic::generation(format!("unknown semantic operator `{function}`"))
+        })?;
+        signature
+            .parameters
+            .get(parameter as usize)
+            .map(|parameter| parameter.name.clone())
+            .ok_or_else(|| WorkbenchDiagnostic::generation(format!(
+                "semantic operator `{function}` has no parameter {parameter}"
+            )))
+    }
+
     fn find_lexeme(
         &self,
-        predicate: impl Fn(&LexemeConfig) -> bool,
+        predicate: impl Fn(&CompiledSurfaceBinding) -> bool,
     ) -> Option<String> {
         self.language
             .syntax()

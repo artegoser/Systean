@@ -1,13 +1,13 @@
 // Phase 18 normative unit/dimension semantic ownership.
 // Runtime identity follows typed IDs derived from Systean unit roots; units.toml names are surface/API aliases only.
 
-dimension length;
-dimension time;
-dimension mass;
-dimension temperature;
-dimension current;
-dimension amount;
-dimension luminous_intensity;
+dimension length : LengthDimension;
+dimension time : TimeDimension;
+dimension mass : MassDimension;
+dimension temperature : TemperatureDimension;
+dimension current : CurrentDimension;
+dimension amount : AmountDimension;
+dimension luminous_intensity : LuminousIntensityDimension;
 
 unit metr : length;
 unit kilometr : length = 1000/1 * metr;

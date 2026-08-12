@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use crate::pragmatics::{CommunicativeAct, PragmaticAnalysis};
+use crate::pragmatics::{DiscourseEffect, PragmaticAnalysis};
 use crate::semantics::Term;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -122,29 +122,26 @@ impl ConversationState {
         let source = source.into();
         let canonical_surface = canonical_surface.into();
 
-        match &analysis.act {
-            CommunicativeAct::Retraction { target }
-            | CommunicativeAct::Correction { target, .. }
-            | CommunicativeAct::Clarification { target, .. } => {
-                let target = UtteranceId::from_raw(*target);
-                if !self.history.contains_key(&target) {
-                    return Err(ConversationError::MissingRepairTarget(target));
+        let mut resolved_repairs = Vec::with_capacity(analysis.effects.len());
+        for effect in &analysis.effects {
+            let resolved = match effect {
+                DiscourseEffect::Retract { target } | DiscourseEffect::Replace { target, .. } => {
+                    Some(self.current_commitment_for(UtteranceId::from_raw(*target))?.entry)
                 }
-            }
-            _ => {}
+                DiscourseEffect::Clarify { target, .. } => {
+                    let target = UtteranceId::from_raw(*target);
+                    if !self.history.contains_key(&target) {
+                        return Err(ConversationError::MissingRepairTarget(target));
+                    }
+                    None
+                }
+                DiscourseEffect::Commit { .. } => None,
+            };
+            resolved_repairs.push(resolved);
         }
-
-        let repair_current = match &analysis.act {
-            CommunicativeAct::Retraction { target }
-            | CommunicativeAct::Correction { target, .. } => {
-                Some(self.current_commitment_for(UtteranceId::from_raw(*target))?.entry)
-            }
-            _ => None,
-        };
 
         let id = UtteranceId(self.next_utterance_id);
         self.next_utterance_id += 1;
-
         self.history.insert(
             id,
             HistoryEntry {
@@ -155,38 +152,24 @@ impl ConversationState {
             },
         );
 
-        match &analysis.act {
-            CommunicativeAct::Assertion { content }
-            | CommunicativeAct::Focus { content, .. }
-            | CommunicativeAct::Topic { content, .. } => {
-                self.insert_commitment(id, content.clone());
+        for (effect, resolved) in analysis.effects.iter().zip(resolved_repairs) {
+            match effect {
+                DiscourseEffect::Commit { content } => self.insert_commitment(id, content.clone()),
+                DiscourseEffect::Replace { replacement, .. } => {
+                    let current_id = resolved.expect("replacement target resolved before insert");
+                    let current = self.commitments.get_mut(&current_id).expect("resolved commitment exists");
+                    current.active = false;
+                    current.superseded_by = Some(id);
+                    self.insert_commitment(id, replacement.clone());
+                }
+                DiscourseEffect::Retract { .. } => {
+                    let current_id = resolved.expect("retraction target resolved before insert");
+                    let current = self.commitments.get_mut(&current_id).expect("resolved commitment exists");
+                    current.active = false;
+                    current.retracted_by = Some(id);
+                }
+                DiscourseEffect::Clarify { content, .. } => self.insert_commitment(id, content.clone()),
             }
-            CommunicativeAct::Correction { replacement, .. } => {
-                let current_id = repair_current.expect("correction target resolved before insert");
-                let current = self
-                    .commitments
-                    .get_mut(&current_id)
-                    .expect("resolved commitment exists");
-                current.active = false;
-                current.superseded_by = Some(id);
-                self.insert_commitment(id, replacement.clone());
-            }
-            CommunicativeAct::Retraction { .. } => {
-                let current_id = repair_current.expect("retraction target resolved before insert");
-                let current = self
-                    .commitments
-                    .get_mut(&current_id)
-                    .expect("resolved commitment exists");
-                current.active = false;
-                current.retracted_by = Some(id);
-            }
-            CommunicativeAct::Clarification { content, .. } => {
-                self.insert_commitment(id, content.clone());
-            }
-            CommunicativeAct::Question { .. }
-            | CommunicativeAct::Command { .. }
-            | CommunicativeAct::Request { .. }
-            | CommunicativeAct::Expressive { .. } => {}
         }
 
         Ok(id)
