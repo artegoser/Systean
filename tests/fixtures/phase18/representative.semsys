@@ -1,0 +1,45 @@
+type Entity;
+type Proposition;
+type InfoValue<T>;
+type Int;
+
+data Date {
+  date($year: Int, $month: Int, $day: Int);
+}
+
+data InfoMode {
+    unknown($knower: Entity);
+    unspecified;
+    withheld;
+}
+
+def reference_date : Date = Date.date(2026, 8, 12);
+
+context speaker : Entity;
+context addressee : Entity;
+
+dimension Time;
+unit sek : Time;
+unit milisek : Time = 1/1000 * sek;
+
+intrinsic hole<T>($mode: InfoMode) -> $T;
+
+word mi : Entity = speaker;
+word tu : Entity = addressee;
+word per($entity: Entity) -> Proposition;
+word viv($entity: Entity) -> Proposition;
+word vid($observer: Entity, $observed: Entity) -> Proposition;
+
+word unk<T>($knower: Entity) -> $T = hole(InfoMode.unknown($knower));
+word vak<T> : $T = hole(InfoMode.unspecified);
+word hid<T> : $T = hole(InfoMode.withheld);
+
+def keep<T>($value: $T) -> $T = $value;
+def constant_predicate($content: Proposition) -> fn(value: Entity) -> Proposition =
+    fn ($entity: Entity) => $content;
+def apply_predicate(
+    $predicate: fn(value: Entity) -> Proposition,
+    $value: Entity
+) -> Proposition = $predicate($value);
+
+primitive opaque_relation($left: Entity, $right: Entity) -> Proposition;
